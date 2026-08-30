@@ -1,4 +1,6 @@
 <script setup lang="ts">
+  import StateMessage from "@/components/ui/StateMessage.vue";
+  import { formatDateTime } from "@/utils/datetime";
   import { computed, nextTick, onMounted, ref, watch } from "vue";
   import { useAuthStore } from "@/stores/authStore";
   import { useMessages } from "@/composables/useMessages";
@@ -190,13 +192,13 @@
           <InputText v-model="conversationQuery" placeholder="Buscar mensajes" aria-label="Buscar conversaciones" />
         </div>
         <div class="conversation-list">
-          <div v-if="loading" class="state-message state-message--compact">Cargando…</div>
-          <div v-else-if="!conversations.length" class="state-message state-message--compact">
+          <StateMessage v-if="loading" variant="loading" dense :rows="3" loading-label="Cargando conversaciones" />
+          <p v-else-if="!conversations.length" class="state-message state-message--compact">
             Aún no tenés conversaciones.
-          </div>
-          <div v-else-if="!filteredConversations.length" class="state-message state-message--compact">
-            No hay coincidencias.
-          </div>
+          </p>
+          <p v-else-if="!filteredConversations.length" class="state-message state-message--compact">
+            No hay coincidencias para “{{ conversationQuery }}”.
+          </p>
         <button
           v-for="conv in filteredConversations"
           :key="conv.id"
@@ -243,7 +245,7 @@
               :class="{ 'message-item--mine': msg.sender_id === authStore.profile?.id }"
             >
               <p class="message-body">{{ msg.body }}</p>
-              <span class="message-time">{{ new Date(msg.sent_at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) }}</span>
+              <span class="message-time">{{ formatDateTime(msg.sent_at) }}</span>
             </li>
             <li ref="threadEnd"></li>
           </ul>

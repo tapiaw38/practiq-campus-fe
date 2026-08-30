@@ -1,4 +1,5 @@
 <script setup lang="ts">
+  import { formatDateTime } from "@/utils/datetime";
   import { computed, ref } from "vue";
   import { useForum } from "@/composables/useForum";
   import type { ForumPost } from "@/types";
@@ -44,7 +45,7 @@
       <div class="reply-meta">
         <span class="reply-avatar">{{ (post.author_name || post.author_id).slice(0, 1).toUpperCase() }}</span>
         <span>{{ post.author_name || post.author_id }}</span>
-        <time>{{ new Date(post.created_at).toLocaleString() }}</time>
+        <time :datetime="post.created_at">{{ formatDateTime(post.created_at) }}</time>
       </div>
       <p>{{ post.body }}</p>
       <button v-if="replyingTo !== post.id" class="reply-link" type="button" @click="replyingTo = post.id">Responder</button>

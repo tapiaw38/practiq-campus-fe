@@ -2,6 +2,9 @@
   import { onMounted, ref } from "vue";
   import { useRoute, useRouter } from "vue-router";
   import StudentLayout from "@/layouts/StudentLayout.vue";
+  import StateMessage from "@/components/ui/StateMessage.vue";
+  import SubmissionBody from "@/components/ui/SubmissionBody.vue";
+  import { formatDateTime } from "@/utils/datetime";
   import { useCourses } from "@/composables/useCourses";
   import { useCourseSections } from "@/composables/useCourseSections";
   import { useAssignments } from "@/composables/useAssignments";
@@ -85,6 +88,12 @@
     const input = event.target as HTMLInputElement;
     submissionFiles.value[assignmentId] = input.files?.[0] ?? null;
   }
+  // The badge printed the raw API value ("published"), and in English, on a
+  // screen a student reads. Same student-facing wording as the dashboard: the
+  // draft/published split is authoring state they have no use for.
+  function studentCourseStatus(status: string) {
+    return status === "archived" ? "Finalizado" : "Activo";
+  }
 </script>
 
 <template>
@@ -94,11 +103,11 @@
         <i class="pi pi-arrow-left"></i> Volver a mis cursos
       </button>
 
-      <div v-if="loading || !currentCourse" class="state-message">Cargando…</div>
+      <StateMessage v-if="loading || !currentCourse" variant="loading" :rows="4" loading-label="Cargando curso" />
       <template v-else>
         <header class="course-head">
           <h1>{{ currentCourse.title }}</h1>
-          <span class="course-status">{{ currentCourse.status }}</span>
+          <span class="course-status">{{ studentCourseStatus(currentCourse.status) }}</span>
         </header>
         <p v-if="currentCourse.description" class="course-description">
           {{ currentCourse.description }}
@@ -111,18 +120,22 @@
         </div>
 
         <nav class="course-nav" aria-label="Contenido del curso">
-          <button type="button" :class="{ active: activeCourseTab === 'materials' }" @click="activeCourseTab = 'materials'"><i class="pi pi-folder-open" /> Materiales</button>
-          <button type="button" :class="{ active: activeCourseTab === 'assignments' }" @click="activeCourseTab = 'assignments'"><i class="pi pi-check-square" /> Tareas <span>{{ assignments.length }}</span></button>
-          <button type="button" :class="{ active: activeCourseTab === 'forum' }" @click="activeCourseTab = 'forum'"><i class="pi pi-comments" /> Foro</button>
+          <button type="button" :class="{ active: activeCourseTab === 'materials' }" :aria-pressed="activeCourseTab === 'materials'" @click="activeCourseTab = 'materials'"><i class="pi pi-folder-open" aria-hidden="true" /> Materiales</button>
+          <button type="button" :class="{ active: activeCourseTab === 'assignments' }" :aria-pressed="activeCourseTab === 'assignments'" @click="activeCourseTab = 'assignments'"><i class="pi pi-check-square" aria-hidden="true" /> Tareas <span v-if="assignments.length">{{ assignments.length }}</span></button>
+          <button type="button" :class="{ active: activeCourseTab === 'forum' }" :aria-pressed="activeCourseTab === 'forum'" @click="activeCourseTab = 'forum'"><i class="pi pi-comments" aria-hidden="true" /> Foro</button>
         </nav>
 
         <CourseMaterials v-if="activeCourseTab === 'materials'" :course-id="courseId" :sections="sections" />
 
         <section v-if="activeCourseTab === 'assignments'" class="assignments-section">
           <h2>Tareas</h2>
-          <div v-if="!assignments.length" class="state-message">
-            Todavía no hay tareas.
-          </div>
+          <StateMessage
+            v-if="!assignments.length"
+            dense
+            icon="pi-file-edit"
+            title="Todavía no hay tareas"
+            description="Cuando tu docente publique una actividad, la vas a ver acá."
+          />
           <ul v-else class="assignment-list">
             <li v-for="assignment in assignments" :key="assignment.id" class="assignment-item">
               <div class="assignment-title">{{ assignment.title }}</div>
@@ -131,7 +144,7 @@
                   {{ sectionTitle(assignment.section_id) }} ·
                 </span>
                 <span v-if="assignment.due_at">
-                  vence {{ new Date(assignment.due_at).toLocaleString() }} ·
+                  vence {{ formatDateTime(assignment.due_at) }} ·
                 </span>
                 <span>máx. {{ assignment.max_score }}</span>
               </div>
@@ -142,7 +155,11 @@
               <CourseMaterials :course-id="courseId" :assignment-id="assignment.id" />
 
               <div v-if="mySubmissions[assignment.id] && !resubmitting[assignment.id]" class="my-submission">
-                <p class="submission-content">{{ mySubmissions[assignment.id]?.content }}</p>
+                <SubmissionBody
+                  class="submission-content"
+                  :content="mySubmissions[assignment.id]?.content || ''"
+                  :attachments="mySubmissions[assignment.id]?.attachments"
+                />
                 <span
                   class="submission-status"
                   :class="`submission-status--${mySubmissions[assignment.id]?.status}`"
@@ -210,13 +227,6 @@
     margin-bottom: var(--space-4);
   }
 
-  .state-message {
-    padding: var(--space-6);
-    border-radius: var(--radius-lg);
-    background: var(--surface-card);
-    color: var(--text-secondary);
-    font-size: var(--text-sm);
-  }
 
   .course-head {
     display: flex;
@@ -253,7 +263,7 @@
 
   .course-labels{display:flex;gap:var(--space-1);flex-wrap:wrap;margin-top:var(--space-3)}.course-labels span{padding:2px 6px;border-radius:999px;background:var(--fill-primary-soft);color:var(--practiq-violet-dark);font-size:10px;font-weight:800}
 
-  .course-nav{display:flex;gap:var(--space-2);overflow-x:auto;padding:var(--space-3);margin-top:var(--space-5);border:1px solid var(--surface-border);border-radius:var(--radius-md);background:var(--surface-card);box-shadow:var(--shadow-card)}.course-nav button{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:0 var(--space-3);border:0;border-radius:var(--radius-sm);background:transparent;color:var(--text-secondary);font-size:var(--text-xs);font-weight:700;white-space:nowrap;cursor:pointer}.course-nav button:hover,.course-nav button.active{background:var(--surface-hover);color:var(--practiq-violet-dark)}.course-nav span{display:grid;min-width:20px;height:20px;place-items:center;border-radius:var(--radius-pill);background:var(--surface-hover);color:var(--text-muted);font-size:var(--text-xs)}
+  .course-nav{display:flex;gap:var(--space-2);overflow-x:auto;padding:var(--space-3);margin-top:var(--space-5);border:1px solid var(--surface-border);border-radius:var(--radius-md);background:var(--surface-card);box-shadow:var(--shadow-card)}.course-nav button{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:0 var(--space-3);border:0;border-radius:var(--radius-sm);background:transparent;color:var(--text-secondary);font-size:var(--text-xs);font-weight:700;white-space:nowrap;cursor:pointer}.course-nav button:hover{background:var(--surface-hover);color:var(--text-primary)}.course-nav button.active{background:var(--fill-primary-soft);color:var(--practiq-violet-dark)}.course-nav button.active span{background:var(--surface-card);color:var(--practiq-violet-dark)}.course-nav span{display:grid;min-width:20px;height:20px;padding:0 5px;place-items:center;border-radius:var(--radius-pill);background:var(--surface-hover);color:var(--text-secondary);font-size:var(--text-xs);font-weight:700}
 
   .assignments-section {
     margin-top: var(--space-6);
@@ -306,10 +316,7 @@
   }
 
   .submission-content {
-    font-size: var(--text-sm);
-    color: var(--text-secondary);
-    white-space: pre-wrap;
-    margin-bottom: var(--space-2);
+    margin-bottom: var(--space-3);
   }
 
   .submission-status {

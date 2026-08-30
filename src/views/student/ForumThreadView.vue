@@ -1,4 +1,6 @@
 <script setup lang="ts">
+  import StateMessage from "@/components/ui/StateMessage.vue";
+  import { formatDateTime } from "@/utils/datetime";
   import { computed, onMounted, ref } from "vue";
   import { useRoute, useRouter } from "vue-router";
   import StudentLayout from "@/layouts/StudentLayout.vue";
@@ -84,7 +86,7 @@
       <button class="back-btn" type="button" @click="router.push(isTeacher ? `/teacher/courses/${courseId}?tab=foro` : `/student/courses/${courseId}?tab=forum`)">
         <i class="pi pi-arrow-left"></i> Volver al foro
       </button>
-      <div v-if="!thread" class="state-message">Cargando tema…</div>
+      <StateMessage v-if="!thread" variant="loading" :rows="3" loading-label="Cargando tema del foro" />
       <template v-else>
         <header class="thread-header">
           <span class="eyebrow">Tema del foro</span>
@@ -100,7 +102,7 @@
             <p v-if="thread.description" class="thread-description">{{ thread.description }}</p>
             <p v-else-if="isTeacher" class="thread-description thread-description--empty">Sin descripción. Agregá contexto para orientar el debate.</p>
           </template>
-          <span class="thread-date">{{ new Date(thread.created_at).toLocaleString() }}</span>
+          <span class="thread-date">{{ formatDateTime(thread.created_at) }}</span>
         </header>
         <section class="replies" aria-label="Respuestas del tema">
           <div class="replies-heading"><h2>Mensajes</h2><span>{{ rootPosts.length }}</span></div>

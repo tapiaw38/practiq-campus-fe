@@ -1,12 +1,12 @@
 <script setup lang="ts">
-  import { computed, onMounted, ref, watch } from "vue";
-  import { RouterLink, useRoute, useRouter } from "vue-router";
+  import { computed, onMounted, ref } from "vue";
+  import { RouterLink, useRouter } from "vue-router";
   import { useAuthStore } from "@/stores/authStore";
   import { useAuth } from "@/composables/useAuth";
+  import { useNavDrawer } from "@/composables/useNavDrawer";
   import { useMessageNotifications } from "@/composables/useMessageNotifications";
   import { useCalendarNotifications } from "@/composables/useCalendarNotifications";
 
-  const route = useRoute();
   const router = useRouter();
   const authStore = useAuthStore();
   const { logout } = useAuth();
@@ -18,18 +18,24 @@
     startCalendarNotifications();
   });
 
-  const navOpen = ref(false);
+  const navToggle = ref<HTMLElement | null>(null);
+  const navPanel = ref<HTMLElement | null>(null);
+  const { open: navOpen, close: closeNav } = useNavDrawer({
+    toggle: navToggle,
+    panel: navPanel,
+  });
 
   const profile = computed(() => authStore.profile);
   const userInitial = computed(
     () => profile.value?.full_name?.[0]?.toUpperCase() || "D",
   );
 
-  watch(
-    () => route.fullPath,
-    () => {
-      navOpen.value = false;
-    },
+  // A bare number in the sidebar reads as "3" to a screen reader with no hint
+  // of what three of anything means.
+  const unreadLabel = computed(() =>
+    unreadCount.value === 1
+      ? "1 mensaje sin leer"
+      : `${unreadCount.value} mensajes sin leer`,
   );
 
   function handleLogout() {
@@ -40,37 +46,60 @@
 
 <template>
   <div class="app-shell teacher-shell">
+    <a class="skip-link" href="#main-content">Ir al contenido principal</a>
+
     <header class="mobile-topbar">
       <button
+        ref="navToggle"
         class="topbar-btn"
         type="button"
         aria-label="Abrir menú de navegación"
+        aria-controls="campus-nav"
+        :aria-expanded="navOpen"
         @click="navOpen = true"
       >
-        <i class="pi pi-bars"></i>
+        <i class="pi pi-bars" aria-hidden="true"></i>
       </button>
       <div class="topbar-brand">Practiq Campus</div>
-      <div class="topbar-avatar">{{ userInitial }}</div>
+      <div class="topbar-avatar" aria-hidden="true">{{ userInitial }}</div>
     </header>
 
-    <div v-if="navOpen" class="drawer-backdrop" @click="navOpen = false"></div>
+    <button
+      v-if="navOpen"
+      class="drawer-backdrop"
+      type="button"
+      tabindex="-1"
+      aria-label="Cerrar menú de navegación"
+      @click="closeNav()"
+    ></button>
 
-    <aside class="sidebar" :class="{ 'sidebar--open': navOpen }">
+    <aside
+      id="campus-nav"
+      ref="navPanel"
+      class="sidebar"
+      :class="{ 'sidebar--open': navOpen }"
+      tabindex="-1"
+    >
       <div class="sidebar-brand">
         <span class="brand-text">Practiq Campus</span>
-        <button class="close-btn" type="button" @click="navOpen = false">
-          <i class="pi pi-times"></i>
+        <button
+          class="close-btn"
+          type="button"
+          aria-label="Cerrar menú de navegación"
+          @click="closeNav()"
+        >
+          <i class="pi pi-times" aria-hidden="true"></i>
         </button>
       </div>
 
-      <nav class="sidebar-nav">
+      <nav class="sidebar-nav" aria-label="Navegación principal">
         <div class="nav-section-label">Docente</div>
         <RouterLink
           to="/teacher/dashboard"
           class="nav-item"
           active-class="nav-item-active"
         >
-          <span class="nav-icon"><i class="pi pi-home"></i></span>
+          <span class="nav-icon"><i class="pi pi-home" aria-hidden="true"></i></span>
           <span>Mis cursos</span>
         </RouterLink>
         <RouterLink
@@ -78,7 +107,7 @@
           class="nav-item"
           active-class="nav-item-active"
         >
-          <span class="nav-icon"><i class="pi pi-calendar"></i></span>
+          <span class="nav-icon"><i class="pi pi-calendar" aria-hidden="true"></i></span>
           <span>Calendario</span>
         </RouterLink>
         <RouterLink
@@ -86,19 +115,20 @@
           class="nav-item"
           active-class="nav-item-active"
         >
-          <span class="nav-icon"><i class="pi pi-envelope"></i></span>
+          <span class="nav-icon"><i class="pi pi-envelope" aria-hidden="true"></i></span>
           <span>Mensajes</span>
-          <span v-if="unreadCount" class="nav-badge">{{ unreadCount }}</span>
+          <span v-if="unreadCount" class="nav-badge" aria-hidden="true">{{ unreadCount }}</span>
+          <span v-if="unreadCount" class="sr-only">{{ unreadLabel }}</span>
         </RouterLink>
         <RouterLink to="/teacher/notifications" class="nav-item" active-class="nav-item-active">
-          <span class="nav-icon"><i class="pi pi-bell"></i></span>
+          <span class="nav-icon"><i class="pi pi-bell" aria-hidden="true"></i></span>
           <span>Notificaciones</span>
         </RouterLink>
         <RouterLink to="/teacher/grades" class="nav-item" active-class="nav-item-active">
-          <span class="nav-icon"><i class="pi pi-chart-bar"></i></span>
+          <span class="nav-icon"><i class="pi pi-chart-bar" aria-hidden="true"></i></span>
           <span>Calificaciones</span>
         </RouterLink>
-        <RouterLink to="/teacher/activity" class="nav-item" active-class="nav-item-active"><span class="nav-icon"><i class="pi pi-bolt"></i></span><span>Actividad</span></RouterLink>
+        <RouterLink to="/teacher/activity" class="nav-item" active-class="nav-item-active"><span class="nav-icon"><i class="pi pi-bolt" aria-hidden="true"></i></span><span>Actividad</span></RouterLink>
         <template v-if="authStore.isSuperAdmin">
           <div class="nav-section-label">Administración</div>
           <RouterLink
@@ -106,7 +136,7 @@
             class="nav-item"
             active-class="nav-item-active"
           >
-            <span class="nav-icon"><i class="pi pi-users"></i></span>
+            <span class="nav-icon"><i class="pi pi-users" aria-hidden="true"></i></span>
             <span>Usuarios</span>
           </RouterLink>
         </template>
@@ -127,12 +157,12 @@
           aria-label="Cerrar sesión"
           @click="handleLogout"
         >
-          <i class="pi pi-sign-out"></i>
+          <i class="pi pi-sign-out" aria-hidden="true"></i>
         </button>
       </div>
     </aside>
 
-    <main class="main-content">
+    <main id="main-content" class="main-content" tabindex="-1">
       <slot />
     </main>
   </div>
@@ -217,7 +247,7 @@
     padding: 0 5px;
     border-radius: var(--radius-pill);
     background: var(--color-error);
-    color: white;
+    color: var(--color-on-primary);
     font-size: 10px;
     font-weight: 700;
     display: grid;
@@ -328,14 +358,23 @@
       border-bottom: 1px solid var(--surface-border);
       position: sticky;
       top: 0;
-      z-index: 20;
+      z-index: var(--z-topbar);
     }
 
     .topbar-btn {
+      display: grid;
+      /* 44px is the smallest target a thumb hits reliably; the icon alone was
+         about 18. */
+      width: 44px;
+      height: 44px;
+      margin-left: calc(var(--space-3) * -1);
       border: none;
+      border-radius: var(--radius-md);
       background: transparent;
-      font-size: 18px;
       color: var(--text-primary);
+      cursor: pointer;
+      font-size: 18px;
+      place-items: center;
     }
 
     .topbar-brand {
@@ -359,8 +398,11 @@
       display: block;
       position: fixed;
       inset: 0;
+      padding: 0;
+      border: none;
       background: var(--surface-scrim);
-      z-index: 29;
+      z-index: var(--z-drawer-backdrop);
+      cursor: pointer;
     }
 
     .sidebar {
@@ -368,24 +410,43 @@
       top: 0;
       left: 0;
       bottom: 0;
-      z-index: 30;
+      z-index: var(--z-drawer);
       transform: translateX(-100%);
-      transition: transform 0.2s ease;
+      /* Hidden, not just slid away: a translated drawer still holds every one
+         of its links in the tab order behind the backdrop. Visibility flips
+         instantly on open (so the panel can take focus right away) and only
+         waits for the slide-out on close. */
+      visibility: hidden;
+      transition: transform 0.2s ease, visibility 0s linear 0.2s;
       width: min(280px, calc(100vw - 40px));
+      overflow-y: auto;
     }
 
     .sidebar--open {
       transform: translateX(0);
+      visibility: visible;
+      transition: transform 0.2s ease, visibility 0s;
+    }
+
+    .sidebar:focus {
+      outline: none;
     }
 
     .close-btn {
       display: grid;
       place-items: center;
-      width: 28px;
-      height: 28px;
+      width: 40px;
+      height: 40px;
+      margin-right: calc(var(--space-2) * -1);
       border: none;
+      border-radius: var(--radius-md);
       background: transparent;
       color: var(--text-secondary);
+      cursor: pointer;
+    }
+
+    .nav-item {
+      min-height: 44px;
     }
 
     .main-content {

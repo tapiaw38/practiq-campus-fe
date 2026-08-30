@@ -2,6 +2,7 @@
   import { ref } from "vue";
   import { useRouter } from "vue-router";
   import { useAuth } from "@/composables/useAuth";
+  import PasswordField from "@/components/ui/PasswordField.vue";
 
   const router = useRouter();
   const { register } = useAuth();
@@ -44,28 +45,27 @@
 
       <form class="auth-form" @submit.prevent="handleSubmit">
         <div class="field-row">
-          <label class="field">
-            <span class="field-label">Nombre</span>
-            <InputText v-model="firstName" required />
-          </label>
-          <label class="field">
-            <span class="field-label">Apellido</span>
-            <InputText v-model="lastName" required />
-          </label>
+          <div class="field">
+            <label class="field-label" for="register-first-name">Nombre</label>
+            <InputText id="register-first-name" v-model="firstName" required autocomplete="given-name" autofocus />
+          </div>
+          <div class="field">
+            <label class="field-label" for="register-last-name">Apellido</label>
+            <InputText id="register-last-name" v-model="lastName" required autocomplete="family-name" />
+          </div>
         </div>
-        <label class="field">
-          <span class="field-label">Email</span>
-          <InputText v-model="email" type="email" required autocomplete="email" />
-        </label>
-        <label class="field">
-          <span class="field-label">Contraseña</span>
-          <InputText
-            v-model="password"
-            type="password"
-            required
-            autocomplete="new-password"
-          />
-        </label>
+        <div class="field">
+          <label class="field-label" for="register-email">Email</label>
+          <InputText id="register-email" v-model="email" type="email" required autocomplete="email" />
+        </div>
+        <PasswordField
+          v-model="password"
+          input-id="register-password"
+          label="Contraseña"
+          autocomplete="new-password"
+          :minlength="8"
+          hint="Al menos 8 caracteres."
+        />
         <Button
           type="submit"
           label="Crear cuenta"

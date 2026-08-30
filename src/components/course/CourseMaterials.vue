@@ -1,4 +1,6 @@
 <script setup lang="ts">
+  import StateMessage from "@/components/ui/StateMessage.vue";
+  import { formatDate } from "@/utils/datetime";
   import { computed, onMounted, ref } from "vue";
   import { useCourseMaterials } from "@/composables/useCourseMaterials";
   import type { CourseSection, MaterialKind } from "@/types";
@@ -62,12 +64,12 @@
       </form>
     </details>
 
-    <div v-if="loading" class="materials-state">Cargando materiales…</div>
+    <StateMessage v-if="loading" variant="loading" dense :rows="2" loading-label="Cargando materiales" />
     <div v-else-if="!visibleMaterials.length" class="materials-state">{{ canManage ? "Todavía no adjuntaste materiales." : "Tu docente todavía no adjuntó materiales." }}</div>
     <ul v-else class="materials-list">
       <li v-for="material in visibleMaterials" :key="material.id" class="material-item">
         <span class="material-icon"><i :class="material.kind === 'link' ? 'pi pi-link' : 'pi pi-file'" /></span>
-        <div class="material-content"><a :href="material.view_url || material.url" target="_blank" rel="noopener noreferrer">{{ material.title }} <i class="pi pi-external-link" /></a><p v-if="material.description">{{ material.description }}</p><small><span v-if="sectionName(material.section_id)">{{ sectionName(material.section_id) }} · </span>{{ material.kind === 'link' ? 'Enlace' : 'Archivo' }} · {{ new Date(material.created_at).toLocaleDateString() }}</small></div>
+        <div class="material-content"><a :href="material.view_url || material.url" target="_blank" rel="noopener noreferrer">{{ material.title }} <i class="pi pi-external-link" /></a><p v-if="material.description">{{ material.description }}</p><small><span v-if="sectionName(material.section_id)">{{ sectionName(material.section_id) }} · </span>{{ material.kind === 'link' ? 'Enlace' : 'Archivo' }} · {{ formatDate(material.created_at) }}</small></div>
         <button v-if="canManage" type="button" class="delete-material" title="Eliminar material" @click="materialToDelete = material"><i class="pi pi-trash" /></button>
       </li>
     </ul>
