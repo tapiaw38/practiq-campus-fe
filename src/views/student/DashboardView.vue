@@ -353,13 +353,18 @@
 
   .course-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    /* 240px only ever fit three columns on a desktop width, leaving the row
+       half empty while each card grew to hold it. */
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
     gap: var(--space-3);
   }
 
   .course-card {
-    display: block;
-    padding: var(--space-4);
+    /* A column, so the "Abrir curso" line sits at the bottom of every card
+       and a row of cards ends level regardless of description length. */
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-3);
     border:1px solid var(--surface-border);
     border-radius: var(--radius-md);
     background: var(--surface-card);
@@ -368,16 +373,16 @@
     transition: var(--transition-fast);
   }
 
-  .course-list{grid-template-columns:1fr}.course-list .course-card{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:var(--space-3)}.course-list .course-card-top{margin:0}.course-list .course-main{min-width:0}.course-list .course-description{margin:3px 0 0}.course-list .course-labels{margin-top:var(--space-2)}.course-list .course-open{margin:0;white-space:nowrap}
+  .course-list{grid-template-columns:1fr}.course-list .course-card{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:var(--space-3)}.course-list .course-card-top{margin:0}.course-list .course-main{min-width:0}.course-list .course-description{display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin:3px 0 0}.course-list .course-labels{margin-top:var(--space-2)}.course-list .course-open{margin:0;white-space:nowrap}
 
   .course-card-top {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: var(--space-2);
-    margin-bottom: var(--space-4);
+    margin-bottom: var(--space-2);
   }
-  .course-icon{display:grid;place-items:center;width:36px;height:36px;border-radius:var(--radius-md);background:var(--fill-primary-subtle);color:var(--practiq-violet-dark)}
+  .course-icon{display:grid;place-items:center;width:26px;height:26px;flex:0 0 26px;border-radius:var(--radius-sm);background:var(--fill-primary-subtle);color:var(--practiq-violet-dark);font-size:var(--text-xs)}
 
   .course-status {
     flex-shrink: 0;
@@ -538,7 +543,7 @@
     color: var(--text-secondary);
   }
   .course-labels{display:flex;gap:var(--space-1);flex-wrap:wrap;margin-top:var(--space-3)}.course-labels span{padding:2px 6px;border-radius:999px;background:var(--fill-primary-soft);color:var(--practiq-violet-dark);font-size:10px;font-weight:800}
-  .course-open{display:inline-flex;align-items:center;gap:var(--space-1);margin-top:var(--space-4);color:var(--practiq-violet-dark);font-size:var(--text-xs);font-weight:800}
+  .course-main{flex:1;min-width:0}.course-open{display:inline-flex;align-items:center;gap:var(--space-1);margin-top:auto;padding-top:var(--space-3);color:var(--practiq-violet-dark);font-size:var(--text-xs);font-weight:800}
 
   @media (max-width: 700px) {
     .dashboard-sections { grid-template-columns: 1fr; }

@@ -240,7 +240,9 @@
 
   .course-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    /* 240px only ever fit three columns on a desktop width, leaving the row
+       half empty while each card grew to hold it. */
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
     gap: var(--space-3);
   }
   .course-group + .course-group { margin-top: var(--space-6); }
@@ -254,7 +256,7 @@
        different heights. */
     display: flex;
     flex-direction: column;
-    padding: var(--space-4);border:1px solid var(--surface-border);
+    padding: var(--space-3);border:1px solid var(--surface-border);
     border-radius: var(--radius-md);
     background: var(--surface-card);
     box-shadow: var(--shadow-card);
@@ -268,16 +270,16 @@
   }
   .course-list { grid-template-columns: 1fr; }
   .course-list .course-card { display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;column-gap:var(--space-4);padding:var(--space-3) var(--space-4); }
-  .course-list .course-card-top { margin:0; }.course-list .course-main{min-width:0}.course-list .course-description{margin:3px 0 0}.course-list .course-labels{margin-top:var(--space-2)}.course-list .course-actions{margin:0;gap:var(--space-4)}.course-list .course-open{margin:0;white-space:nowrap}.course-list .delete-course{margin:0;white-space:nowrap}
+  .course-list .course-card-top { margin:0; }.course-list .course-main{min-width:0}.course-list .course-description{display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin:3px 0 0}.course-list .course-labels{margin-top:var(--space-2)}.course-list .course-actions{margin:0;gap:var(--space-4)}.course-list .course-open{margin:0;white-space:nowrap}.course-list .delete-course{margin:0;white-space:nowrap}
 
   .course-card-top {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: var(--space-2);
-    margin-bottom: var(--space-4);
+    margin-bottom: var(--space-2);
   }
-  .course-icon{display:grid;place-items:center;width:36px;height:36px;border-radius:var(--radius-md);background:var(--fill-primary-subtle);color:var(--practiq-violet-dark)}
+  .course-icon{display:grid;place-items:center;width:26px;height:26px;flex:0 0 26px;border-radius:var(--radius-sm);background:var(--fill-primary-subtle);color:var(--practiq-violet-dark);font-size:var(--text-xs)}
 
   .course-title {
     font-weight: 700;
@@ -313,6 +315,6 @@
     font-size: var(--text-sm);
     color: var(--text-secondary);
   }
-  .course-labels{display:flex;gap:var(--space-1);flex-wrap:wrap;margin-top:var(--space-3)}.course-labels span{padding:2px 6px;border-radius:999px;background:var(--fill-primary-soft);color:var(--practiq-violet-dark);font-size:10px;font-weight:800}.course-actions{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);margin-top:auto;padding-top:var(--space-4)}.course-open{display:inline-flex;align-items:center;gap:var(--space-1);color:var(--practiq-violet-dark);font-size:var(--text-xs);font-weight:800}.delete-course{display:inline-flex;align-items:center;gap:var(--space-1);padding:0;border:0;background:transparent;color:var(--text-muted);font-size:var(--text-xs);cursor:pointer}.delete-course:hover{color:var(--color-error-dark);text-decoration:underline}.empty-action{display:inline-flex;align-items:center;gap:var(--space-1);min-height:40px;padding:var(--space-2) var(--space-4);border:0;border-radius:var(--radius-md);background:var(--gradient-brand);color:var(--color-on-primary);font-size:var(--text-sm);font-weight:800;box-shadow:var(--shadow-violet);cursor:pointer}.delete-dialog{display:grid;grid-template-columns:auto 1fr;gap:var(--space-3);align-items:start}.delete-dialog p{margin:0;color:var(--text-primary)}.delete-dialog small{grid-column:2;color:var(--text-secondary);line-height:1.45}.delete-dialog-icon{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:var(--fill-warning-subtle);color:var(--color-warning-dark)}.dialog-actions{display:flex;justify-content:flex-end;gap:var(--space-2);margin-top:var(--space-5)}
+  .course-labels{display:flex;gap:var(--space-1);flex-wrap:wrap;margin-top:var(--space-3)}.course-labels span{padding:2px 6px;border-radius:999px;background:var(--fill-primary-soft);color:var(--practiq-violet-dark);font-size:10px;font-weight:800}.course-actions{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);margin-top:auto;padding-top:var(--space-3)}.course-open{display:inline-flex;align-items:center;gap:var(--space-1);color:var(--practiq-violet-dark);font-size:var(--text-xs);font-weight:800}.delete-course{display:inline-flex;align-items:center;gap:var(--space-1);padding:0;border:0;background:transparent;color:var(--text-muted);font-size:var(--text-xs);cursor:pointer}.delete-course:hover{color:var(--color-error-dark);text-decoration:underline}.empty-action{display:inline-flex;align-items:center;gap:var(--space-1);min-height:40px;padding:var(--space-2) var(--space-4);border:0;border-radius:var(--radius-md);background:var(--gradient-brand);color:var(--color-on-primary);font-size:var(--text-sm);font-weight:800;box-shadow:var(--shadow-violet);cursor:pointer}.delete-dialog{display:grid;grid-template-columns:auto 1fr;gap:var(--space-3);align-items:start}.delete-dialog p{margin:0;color:var(--text-primary)}.delete-dialog small{grid-column:2;color:var(--text-secondary);line-height:1.45}.delete-dialog-icon{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:var(--fill-warning-subtle);color:var(--color-warning-dark)}.dialog-actions{display:flex;justify-content:flex-end;gap:var(--space-2);margin-top:var(--space-5)}
   @media(max-width:700px){.dashboard-head{align-items:stretch;flex-direction:column;padding:var(--space-5)}.new-course-btn{justify-content:center}.summary-grid{grid-template-columns:1fr}.courses-heading{align-items:flex-start;flex-direction:column}.courses-tools{width:100%;justify-content:space-between}.course-list .course-card{grid-template-columns:auto minmax(0,1fr);row-gap:var(--space-2)}.course-list .course-main{grid-column:1/-1;grid-row:2}.course-list .course-open{grid-column:1;grid-row:3}.course-list .delete-course{grid-column:2;grid-row:3;justify-self:end}}
 </style>

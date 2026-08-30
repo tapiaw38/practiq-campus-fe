@@ -10,13 +10,11 @@
   import { useCourseSections } from "@/composables/useCourseSections";
   import { useAssignments } from "@/composables/useAssignments";
   import { useCourseMaterials } from "@/composables/useCourseMaterials";
-  import { useSubmissions } from "@/composables/useSubmissions";
   import { useRubric } from "@/composables/useRubric";
-  import type { RubricCriterion } from "@/services/rubrics/rubricService";
   import { useMessages } from "@/composables/useMessages";
   import ForumSection from "@/components/forum/ForumSection.vue";
   import CourseMaterials from "@/components/course/CourseMaterials.vue";
-  import type { CourseStatus, Submission } from "@/types";
+  import type { CourseStatus } from "@/types";
 
   const route = useRoute();
   const router = useRouter();
@@ -41,12 +39,6 @@
   const { sections, loadSections, createSection, updateSection, deleteSection } = useCourseSections();
   const { assignments, loadAssignments, createAssignment, updateAssignment, deleteAssignment } = useAssignments();
   const { createMaterial, uploadMaterial } = useCourseMaterials();
-  const {
-    submissionsByAssignment,
-    loading: submissionsLoading,
-    loadByAssignment,
-    grade,
-  } = useSubmissions();
   const { broadcast } = useMessages();
 
   const broadcastBody = ref("");
@@ -97,9 +89,6 @@
   const rubricDrafts = ref<Record<string, { title: string; description: string; max_score: number }[]>>({});
   const rubricOpen = ref<string | null>(null);
 
-  const expandedAssignmentId = ref<string | null>(null);
-  const gradingCriteria = ref<Record<string, RubricCriterion[]>>({});
-  const gradeDrafts = ref<Record<string, { score: string; feedback: string; rubric_scores: Record<string, { score: string; feedback: string }> }>>({});
 
   function beginEditSection(section: { id: string; title: string }) { editingSectionId.value = section.id; editingSectionTitle.value = section.title; }
   async function saveSection() { if (!editingSectionId.value || !editingSectionTitle.value.trim()) return; await updateSection(courseId, editingSectionId.value, editingSectionTitle.value.trim()); editingSectionId.value = null; }
@@ -192,45 +181,6 @@
     const input = event.target as HTMLInputElement;
     newAttachmentFile.value = input.files?.[0] ?? null;
     if (!newAttachment.value.title && newAttachmentFile.value) newAttachment.value.title = newAttachmentFile.value.name.replace(/\.[^.]+$/, "");
-  }
-
-  async function toggleSubmissions(assignmentId: string) {
-    if (expandedAssignmentId.value === assignmentId) {
-      expandedAssignmentId.value = null;
-      return;
-    }
-    expandedAssignmentId.value = assignmentId;
-    await Promise.all([
-      loadByAssignment(assignmentId),
-      rubric.load(assignmentId).then(() => { gradingCriteria.value[assignmentId] = [...rubric.criteria.value]; }),
-    ]);
-  }
-
-  function draftFor(submission: Submission, assignmentId: string) {
-    if (!gradeDrafts.value[submission.id]) {
-      const saved = new Map(submission.rubric_scores.map((score) => [score.criterion_id, score]));
-      const rubricScores = Object.fromEntries((gradingCriteria.value[assignmentId] || []).map((criterion) => {
-        const previous = saved.get(criterion.id || "");
-        return [criterion.id || "", { score: previous ? String(previous.score) : "", feedback: previous?.feedback || "" }];
-      }));
-      gradeDrafts.value[submission.id] = { score: submission.score == null ? "" : String(submission.score), feedback: submission.feedback || "", rubric_scores: rubricScores };
-    }
-    return gradeDrafts.value[submission.id];
-  }
-
-  async function handleGrade(assignmentId: string, submissionId: string) {
-    const submission = (submissionsByAssignment.value[assignmentId] || []).find((item) => item.id === submissionId);
-    if (!submission) return;
-    const draft = draftFor(submission, assignmentId);
-    const criteria = gradingCriteria.value[assignmentId] || [];
-    if (criteria.length) {
-      const rubricScores = criteria.map((criterion) => ({ criterion_id: criterion.id || "", score: Number(draft.rubric_scores[criterion.id || ""]?.score), feedback: draft.rubric_scores[criterion.id || ""]?.feedback || "" }));
-      if (rubricScores.some((item) => !Number.isInteger(item.score))) return;
-      await grade(assignmentId, submissionId, 0, draft.feedback, rubricScores);
-      return;
-    }
-    const score = Number(draft.score);
-    if (!Number.isNaN(score)) await grade(assignmentId, submissionId, score, draft.feedback);
   }
 
   async function handleEnroll() {
@@ -528,55 +478,6 @@
 
               <CourseMaterials :course-id="courseId" :assignment-id="assignment.id" :can-manage="true" />
 
-              <div v-if="false" class="submissions-panel">
-                <StateMessage v-if="submissionsLoading" variant="loading" dense :rows="2" loading-label="Cargando entregas" />
-                <StateMessage
-                  v-else-if="!(submissionsByAssignment[assignment.id] || []).length"
-                  dense
-                  icon="pi-inbox"
-                  title="Nadie entregó todavía"
-                />
-                <ul v-else class="submission-list">
-                  <li
-                    v-for="submission in submissionsByAssignment[assignment.id]"
-                    :key="submission.id"
-                    class="submission-item"
-                  >
-                    <div class="submission-head">
-                      <span class="submission-user">{{ submission.user_name || submission.user_id }}</span>
-                      <span
-                        class="submission-status"
-                        :class="`submission-status--${submission.status}`"
-                      >
-                        {{ submission.status === "graded" ? `Nota: ${submission.score}` : "Entregado" }}
-                      </span>
-                    </div>
-                    <p class="submission-content">{{ submission.content }}</p>
-                    <div class="grade-form">
-                      <template v-if="(gradingCriteria[assignment.id] || []).length">
-                        <div v-for="criterion in gradingCriteria[assignment.id]" :key="criterion.id" class="rubric-grade-row">
-                          <strong>{{ criterion.title }} <small>/ {{ criterion.max_score }}</small></strong>
-                          <InputText v-model="draftFor(submission, assignment.id).rubric_scores[criterion.id!].score" type="number" min="0" :max="criterion.max_score" placeholder="Puntos" class="grade-score" />
-                          <InputText v-model="draftFor(submission, assignment.id).rubric_scores[criterion.id!].feedback" placeholder="Comentario por criterio" class="grade-feedback" />
-                        </div>
-                        <span class="rubric-total">Total automático: {{ (gradingCriteria[assignment.id] || []).reduce((total, criterion) => total + (Number(draftFor(submission, assignment.id).rubric_scores[criterion.id!]?.score) || 0), 0) }} / {{ assignment.max_score }}</span>
-                      </template>
-                      <InputText v-else v-model="draftFor(submission, assignment.id).score" type="number" placeholder="Nota" class="grade-score" />
-                      <InputText
-                        v-model="draftFor(submission, assignment.id).feedback"
-                        placeholder="Comentario (opcional)"
-                        class="grade-feedback"
-                      />
-                      <Button
-                        type="button"
-                        label="Calificar"
-                        size="small"
-                        @click="handleGrade(assignment.id, submission.id)"
-                      />
-                    </div>
-                  </li>
-                </ul>
-              </div>
             </li>
           </ul>
         </section>
@@ -880,74 +781,6 @@
     padding: var(--space-3);
   }
 
-  .submission-list {
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-  }
-
-  .submission-item {
-    padding: var(--space-3);
-    border-radius: var(--radius-md);
-    background: var(--surface-hover);
-  }
-
-  .submission-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: var(--space-1);
-  }
-
-  .submission-user {
-    font-size: var(--text-sm);
-    font-weight: 600;
-    color: var(--text-primary);
-  }
-
-  .submission-status {
-    font-size: var(--text-xs);
-    font-weight: 700;
-    color: var(--text-muted);
-  }
-
-  .submission-status--graded {
-    color: var(--color-success-dark);
-  }
-
-  .submission-content {
-    font-size: var(--text-sm);
-    color: var(--text-secondary);
-    margin-bottom: var(--space-2);
-    white-space: pre-wrap;
-  }
-
-  .grade-form {
-    display: flex;
-    gap: var(--space-2);
-  }
-
-  .rubric-grade-row {
-    display: grid;
-    grid-template-columns: minmax(120px, 1fr) 88px minmax(160px, 2fr);
-    align-items: center;
-    gap: var(--space-2);
-    width: 100%;
-  }
-
-  .rubric-grade-row strong { font-size: var(--text-xs); color: var(--text-secondary); }
-  .rubric-grade-row small, .rubric-total { color: var(--text-muted); font-size: var(--text-xs); }
-  .rubric-total { width: 100%; font-weight: 700; }
-
-  .grade-score {
-    width: 80px;
-  }
-
-  .grade-feedback {
-    flex: 1;
-  }
-
   .forum-section-wrap { margin-top: var(--space-6); }
 
   @media (max-width: 640px) {
@@ -956,8 +789,8 @@
     .course-head :deep(.p-select) { width: 100%; }
     .workspace-section { padding: var(--space-4); }
     .course-nav { margin-inline: calc(var(--space-1) * -1); border-inline: 0; border-radius: 0; }
-    .enroll-form, .grade-form, .field-row { grid-template-columns: 1fr; flex-direction: column; }
-    .enroll-form :deep(.p-button), .grade-form :deep(.p-button), .inline-form :deep(.p-button) { width: 100%; }
+    .enroll-form, .field-row { grid-template-columns: 1fr; flex-direction: column; }
+    .enroll-form :deep(.p-button), .inline-form :deep(.p-button) { width: 100%; }
     .inline-form { flex-direction: column; }
     .course-label-form { width: 100%; }
     .course-label-form :deep(.p-inputtext) { flex: 1; width: auto; }
