@@ -12,14 +12,19 @@
   import { useCourseMaterials } from "@/composables/useCourseMaterials";
   import { useRubric } from "@/composables/useRubric";
   import { useMessages } from "@/composables/useMessages";
+  import { useQuizzes } from "@/composables/useQuizzes";
+  import { useQuizAttempts } from "@/composables/useQuizAttempts";
+  import { useCourseGroups } from "@/composables/useCourseGroups";
   import ForumSection from "@/components/forum/ForumSection.vue";
   import CourseMaterials from "@/components/course/CourseMaterials.vue";
   import type { CourseStatus } from "@/types";
+  import type { Quiz, QuizQuestionType } from "@/types/quiz";
+  import type { QuestionParams } from "@/services/quizzes/quizService";
 
   const route = useRoute();
   const router = useRouter();
   const courseId = route.params.id as string;
-  const courseTabs = ["alumnos", "contenido", "materiales", "tareas", "foro"] as const;
+  const courseTabs = ["alumnos", "contenido", "materiales", "tareas", "evaluaciones", "foro"] as const;
   type CourseTab = (typeof courseTabs)[number];
   const requestedTab = route.query.tab as CourseTab;
   const activeCourseTab = ref<CourseTab>(courseTabs.includes(requestedTab) ? requestedTab : "alumnos");
@@ -35,6 +40,43 @@
   } = useEnrollments();
 
   const { practiqStudents, loadPractiqStudents } = usePractiqStudents();
+  const courseGroups = useCourseGroups();
+  const groupFilter = ref("all");
+  const newGroupName = ref("");
+  const creatingGroup = ref(false);
+  const addMemberDrafts = ref<Record<string, string>>({});
+  const filteredEnrollments = computed(() => {
+    if (groupFilter.value === "all") return courseEnrollments.value;
+    const group = courseGroups.groups.value.find((g) => g.id === groupFilter.value);
+    if (!group) return courseEnrollments.value;
+    return courseEnrollments.value.filter((e) => group.member_ids.includes(e.user_id));
+  });
+  function enrollmentName(userId: string) {
+    return courseEnrollments.value.find((e) => e.user_id === userId)?.user_name || userId;
+  }
+  function unassignedEnrollments(groupId: string) {
+    const group = courseGroups.groups.value.find((g) => g.id === groupId);
+    if (!group) return [];
+    return courseEnrollments.value.filter((e) => !group.member_ids.includes(e.user_id));
+  }
+  async function handleCreateGroup() {
+    if (!newGroupName.value.trim() || creatingGroup.value) return;
+    creatingGroup.value = true;
+    try {
+      await courseGroups.createGroup(courseId, newGroupName.value.trim());
+      newGroupName.value = "";
+    } catch {
+      // useCourseGroups already surfaced the error via toast
+    } finally {
+      creatingGroup.value = false;
+    }
+  }
+  async function handleAddMember(groupId: string) {
+    const userId = addMemberDrafts.value[groupId];
+    if (!userId) return;
+    await courseGroups.addMember(groupId, userId);
+    addMemberDrafts.value[groupId] = "";
+  }
 
   const { sections, loadSections, createSection, updateSection, deleteSection } = useCourseSections();
   const { assignments, loadAssignments, createAssignment, updateAssignment, deleteAssignment } = useAssignments();
@@ -89,6 +131,98 @@
   const rubricDrafts = ref<Record<string, { title: string; description: string; max_score: number }[]>>({});
   const rubricOpen = ref<string | null>(null);
 
+  const quizzes = useQuizzes();
+  const quizAttempts = useQuizAttempts();
+  const QUESTION_TYPES: { label: string; value: QuizQuestionType }[] = [
+    { label: "Opción múltiple", value: "multiple_choice" },
+    { label: "Verdadero/Falso", value: "true_false" },
+    { label: "Completar espacios", value: "fill_blanks" },
+  ];
+  const newQuiz = ref({ title: "", description: "", maxAttempts: "1", timeLimitMin: "" });
+  const creatingQuiz = ref(false);
+  const editingQuizId = ref<string | null>(null);
+  const editingQuiz = ref({ title: "", description: "", maxAttempts: "1", timeLimitMin: "" });
+  const quizToDelete = ref<Quiz | null>(null);
+  const questionsOpen = ref<string | null>(null);
+  const questionDrafts = ref<Record<string, QuestionParams[]>>({});
+  const attemptsOpen = ref<string | null>(null);
+
+  async function handleCreateQuiz() {
+    if (!newQuiz.value.title.trim() || creatingQuiz.value) return;
+    creatingQuiz.value = true;
+    try {
+      await quizzes.createQuiz(courseId, {
+        title: newQuiz.value.title.trim(),
+        description: newQuiz.value.description,
+        max_attempts: Number(newQuiz.value.maxAttempts) || 1,
+        time_limit_secs: newQuiz.value.timeLimitMin ? Number(newQuiz.value.timeLimitMin) * 60 : null,
+      });
+      newQuiz.value = { title: "", description: "", maxAttempts: "1", timeLimitMin: "" };
+    } catch {
+      // useQuizzes already surfaced the error via toast
+    } finally {
+      creatingQuiz.value = false;
+    }
+  }
+
+  function beginEditQuiz(quiz: Quiz) {
+    editingQuizId.value = quiz.id;
+    editingQuiz.value = { title: quiz.title, description: quiz.description, maxAttempts: String(quiz.max_attempts), timeLimitMin: quiz.time_limit_secs ? String(Math.round(quiz.time_limit_secs / 60)) : "" };
+  }
+  async function saveQuiz() {
+    if (!editingQuizId.value || !editingQuiz.value.title.trim()) return;
+    await quizzes.updateQuiz(editingQuizId.value, {
+      title: editingQuiz.value.title.trim(),
+      description: editingQuiz.value.description,
+      max_attempts: Number(editingQuiz.value.maxAttempts) || 1,
+      time_limit_secs: editingQuiz.value.timeLimitMin ? Number(editingQuiz.value.timeLimitMin) * 60 : null,
+    });
+    editingQuizId.value = null;
+  }
+  async function confirmDeleteQuiz() {
+    if (!quizToDelete.value) return;
+    await quizzes.deleteQuiz(quizToDelete.value.id);
+    quizToDelete.value = null;
+  }
+
+  function blankIds(statement: string): string[] {
+    return [...statement.matchAll(/\{\{\s*(\d+)\s*\}\}/g)].map((m) => m[1]);
+  }
+  async function openQuestions(quiz: Quiz) {
+    const list = await quizzes.loadQuestions(quiz.id);
+    questionDrafts.value[quiz.id] = list.length
+      ? list.map((q) => ({ type: q.type, statement: q.statement, options: q.options, correct_answer: q.correct_answer, points: q.points }))
+      : [];
+    questionsOpen.value = quiz.id;
+  }
+  function addQuestion(quizId: string) {
+    (questionDrafts.value[quizId] ||= []).push({ type: "multiple_choice", statement: "", options: ["", ""], correct_answer: "", points: 1 });
+  }
+  function removeQuestion(quizId: string, index: number) {
+    questionDrafts.value[quizId]?.splice(index, 1);
+  }
+  function setBlankAnswer(question: QuestionParams, id: string, value: string) {
+    const answers = JSON.parse(question.correct_answer || "{}");
+    answers[id] = value;
+    question.correct_answer = JSON.stringify(answers);
+  }
+  function blankAnswer(question: QuestionParams, id: string): string {
+    try { return JSON.parse(question.correct_answer || "{}")[id] || ""; } catch { return ""; }
+  }
+  async function saveQuestionsFor(quizId: string) {
+    try {
+      await quizzes.saveQuestions(quizId, questionDrafts.value[quizId] || []);
+      questionsOpen.value = null;
+    } catch {
+      // useQuizzes already surfaced the error via toast
+    }
+  }
+
+  async function openAttempts(quiz: Quiz) {
+    await quizAttempts.loadAttemptsByQuiz(quiz.id);
+    attemptsOpen.value = quiz.id;
+  }
+
 
   function beginEditSection(section: { id: string; title: string }) { editingSectionId.value = section.id; editingSectionTitle.value = section.title; }
   async function saveSection() { if (!editingSectionId.value || !editingSectionTitle.value.trim()) return; await updateSection(courseId, editingSectionId.value, editingSectionTitle.value.trim()); editingSectionId.value = null; }
@@ -115,9 +249,11 @@
     loadCourse(courseId);
     loadCourses();
     loadByCourse(courseId);
+    courseGroups.load(courseId);
     loadPractiqStudents();
     loadSections(courseId);
     loadAssignments(courseId);
+    quizzes.loadQuizzes(courseId);
   });
 
   function pickPractiqStudent(email: string) {
@@ -285,6 +421,7 @@
           <button type="button" :class="{ active: activeCourseTab === 'contenido' }" :aria-pressed="activeCourseTab === 'contenido'" @click="activeCourseTab = 'contenido'"><i class="pi pi-book" aria-hidden="true" /> Secciones <span v-if="sections.length">{{ sections.length }}</span></button>
           <button type="button" :class="{ active: activeCourseTab === 'materiales' }" :aria-pressed="activeCourseTab === 'materiales'" @click="activeCourseTab = 'materiales'"><i class="pi pi-folder-open" aria-hidden="true" /> Materiales</button>
           <button type="button" :class="{ active: activeCourseTab === 'tareas' }" :aria-pressed="activeCourseTab === 'tareas'" @click="activeCourseTab = 'tareas'"><i class="pi pi-check-square" aria-hidden="true" /> Tareas <span v-if="assignments.length">{{ assignments.length }}</span></button>
+          <button type="button" :class="{ active: activeCourseTab === 'evaluaciones' }" :aria-pressed="activeCourseTab === 'evaluaciones'" @click="activeCourseTab = 'evaluaciones'"><i class="pi pi-verified" aria-hidden="true" /> Evaluaciones <span v-if="quizzes.quizzes.value.length">{{ quizzes.quizzes.value.length }}</span></button>
           <button type="button" :class="{ active: activeCourseTab === 'foro' }" :aria-pressed="activeCourseTab === 'foro'" @click="activeCourseTab = 'foro'"><i class="pi pi-comments" aria-hidden="true" /> Foro</button>
         </nav>
 
@@ -292,6 +429,36 @@
           <div class="section-heading">
             <div><h2>Alumnos</h2><p>Matriculá, revisá participantes y enviá avisos.</p></div>
             <span v-if="courseEnrollments.length" class="section-count">{{ courseEnrollments.length }}</span>
+          </div>
+
+          <details class="create-disclosure">
+            <summary><i class="pi pi-sitemap" /> Grupos</summary>
+            <div class="disclosure-body">
+              <form class="enroll-form" @submit.prevent="handleCreateGroup">
+                <InputText v-model="newGroupName" placeholder="Nombre del grupo (ej.: Comisión A)" class="enroll-input" />
+                <Button type="submit" label="Crear grupo" :loading="creatingGroup" size="small" />
+              </form>
+              <ul v-if="courseGroups.groups.value.length" class="group-list">
+                <li v-for="group in courseGroups.groups.value" :key="group.id" class="group-item">
+                  <div class="group-item-head">
+                    <strong>{{ group.name }}</strong>
+                    <button type="button" class="remove-btn" title="Eliminar grupo" @click="courseGroups.deleteGroup(group.id)"><i class="pi pi-trash" /></button>
+                  </div>
+                  <div v-if="group.member_ids.length" class="group-members">
+                    <span v-for="userId in group.member_ids" :key="userId" class="group-member-chip">{{ enrollmentName(userId) }} <button type="button" @click="courseGroups.removeMember(group.id, userId)"><i class="pi pi-times" /></button></span>
+                  </div>
+                  <div v-if="unassignedEnrollments(group.id).length" class="field-row">
+                    <Select v-model="addMemberDrafts[group.id]" :options="unassignedEnrollments(group.id)" option-label="user_name" option-value="user_id" placeholder="Agregar alumno…" />
+                    <Button type="button" label="Agregar" size="small" @click="handleAddMember(group.id)" />
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </details>
+
+          <div v-if="courseGroups.groups.value.length" class="group-filter">
+            <span>Filtrar por grupo:</span>
+            <Select v-model="groupFilter" :options="[{ id: 'all', name: 'Todos' }, ...courseGroups.groups.value]" option-label="name" option-value="id" />
           </div>
 
           <details class="create-disclosure">
@@ -333,7 +500,7 @@
           />
           <ul v-else class="enrollment-list">
             <li
-              v-for="enrollment in courseEnrollments"
+              v-for="enrollment in filteredEnrollments"
               :key="enrollment.id"
               class="enrollment-item"
             >
@@ -488,6 +655,94 @@
           <div class="dialog-actions"><Button label="Cancelar" text severity="secondary" @click="assignmentToDelete = null" /><Button label="Eliminar tarea" severity="danger" @click="confirmDeleteAssignment" /></div>
         </Dialog>
 
+        <section v-if="activeCourseTab === 'evaluaciones'" class="quizzes-section workspace-section">
+          <div class="section-heading">
+            <div><h2>Evaluaciones</h2><p>Corrección automática — opción múltiple, verdadero/falso y completar espacios.</p></div>
+            <span v-if="quizzes.quizzes.value.length" class="section-count">{{ quizzes.quizzes.value.length }}</span>
+          </div>
+
+          <details class="create-disclosure">
+            <summary><i class="pi pi-plus" /> Nueva evaluación</summary>
+            <div class="disclosure-body">
+              <form class="quiz-form" @submit.prevent="handleCreateQuiz">
+                <InputText v-model="newQuiz.title" placeholder="Título" required />
+                <Textarea v-model="newQuiz.description" rows="2" placeholder="Descripción (opcional)" />
+                <div class="field-row">
+                  <InputText v-model="newQuiz.maxAttempts" type="number" min="0" placeholder="Intentos permitidos (0 = ilimitado)" />
+                  <InputText v-model="newQuiz.timeLimitMin" type="number" min="1" placeholder="Límite en minutos (opcional)" />
+                </div>
+                <Button type="submit" label="Crear evaluación" :loading="creatingQuiz" size="small" class="submit-btn" />
+              </form>
+            </div>
+          </details>
+
+          <StateMessage
+            v-if="!quizzes.quizzes.value.length"
+            dense
+            icon="pi-verified"
+            title="Todavía no hay evaluaciones"
+            description="Creá una evaluación y sumá preguntas para que tus alumnos las resuelvan."
+          />
+          <ul v-else class="assignment-list">
+            <li v-for="quiz in quizzes.quizzes.value" :key="quiz.id" class="assignment-item">
+              <div class="assignment-head">
+                <div>
+                  <div v-if="editingQuizId === quiz.id" class="assignment-edit" @click.stop>
+                    <InputText v-model="editingQuiz.title" size="small" placeholder="Título" />
+                    <Textarea v-model="editingQuiz.description" rows="2" placeholder="Descripción" />
+                    <div class="field-row"><InputText v-model="editingQuiz.maxAttempts" type="number" min="0" placeholder="Intentos" /><InputText v-model="editingQuiz.timeLimitMin" type="number" min="1" placeholder="Minutos" /></div>
+                    <div class="edit-actions"><Button type="button" label="Guardar" size="small" @click="saveQuiz" /><Button type="button" label="Cancelar" text size="small" @click="editingQuizId = null" /></div>
+                  </div>
+                  <div v-else class="assignment-title">{{ quiz.title }}</div>
+                  <div class="assignment-meta">
+                    <span>{{ quiz.max_attempts === 0 ? "intentos ilimitados" : `${quiz.max_attempts} intento(s)` }} ·</span>
+                    <span v-if="quiz.time_limit_secs"> {{ Math.round(quiz.time_limit_secs / 60) }} min ·</span>
+                    <span>{{ (questionDrafts[quiz.id] || quizzes.questions.value[quiz.id])?.length ?? 0 }} preguntas</span>
+                  </div>
+                </div>
+                <div class="item-actions"><button type="button" class="item-action" title="Intentos" @click.stop="openAttempts(quiz)"><i class="pi pi-chart-bar" /></button><button type="button" class="item-action" title="Preguntas" @click.stop="openQuestions(quiz)"><i class="pi pi-list" /></button><button type="button" class="item-action" title="Editar" @click.stop="beginEditQuiz(quiz)"><i class="pi pi-pencil" /></button><button type="button" class="item-action" title="Eliminar" @click.stop="quizToDelete = quiz"><i class="pi pi-trash" /></button></div>
+              </div>
+
+              <div v-if="questionsOpen === quiz.id" class="rubric-editor">
+                <strong>Preguntas</strong>
+                <div v-for="(question, index) in questionDrafts[quiz.id] || []" :key="index" class="question-row">
+                  <div class="field-row">
+                    <Select v-model="question.type" :options="QUESTION_TYPES" option-label="label" option-value="value" />
+                    <InputText :model-value="String(question.points)" type="number" min="1" placeholder="Puntos" @update:model-value="question.points = Number($event)" />
+                    <Button icon="pi pi-trash" text size="small" @click="removeQuestion(quiz.id, index)" />
+                  </div>
+                  <Textarea v-model="question.statement" rows="2" :placeholder="question.type === 'fill_blanks' ? 'Enunciado — usá {{1}}, {{2}}… para marcar espacios' : 'Enunciado'" />
+                  <Textarea v-if="question.type === 'multiple_choice'" :model-value="question.options.join('\n')" rows="3" placeholder="Una opción por línea" @update:model-value="question.options = ($event as string).split('\n').map((o) => o.trim()).filter(Boolean)" />
+                  <Select v-if="question.type === 'true_false'" v-model="question.correct_answer" :options="[{ label: 'Verdadero', value: 'true' }, { label: 'Falso', value: 'false' }]" option-label="label" option-value="value" placeholder="Respuesta correcta" />
+                  <InputText v-else-if="question.type === 'multiple_choice'" v-model="question.correct_answer" placeholder="Respuesta correcta (debe ser una de las opciones)" />
+                  <div v-else-if="question.type === 'fill_blanks'" class="field-row">
+                    <div v-for="id in blankIds(question.statement)" :key="id" class="blank-field"><label>Espacio {{ id }}</label><InputText :model-value="blankAnswer(question, id)" @update:model-value="setBlankAnswer(question, id, $event as string)" /></div>
+                  </div>
+                </div>
+                <Button type="button" label="Agregar pregunta" text size="small" @click="addQuestion(quiz.id)" /><Button type="button" label="Guardar preguntas" size="small" @click="saveQuestionsFor(quiz.id)" />
+              </div>
+
+              <div v-if="attemptsOpen === quiz.id" class="rubric-editor">
+                <strong>Intentos</strong>
+                <StateMessage v-if="!quizAttempts.attemptsByQuiz.value[quiz.id]?.length" dense icon="pi-inbox" title="Nadie rindió esta evaluación todavía" />
+                <ul v-else class="attempt-list">
+                  <li v-for="attempt in quizAttempts.attemptsByQuiz.value[quiz.id]" :key="attempt.id">
+                    <span>{{ attempt.user_name || attempt.user_id }} · intento {{ attempt.attempt_number }}</span>
+                    <span v-if="attempt.submitted_at">{{ attempt.score }}/{{ attempt.max_score }}</span>
+                    <span v-else class="attempt-pending">en curso</span>
+                  </li>
+                </ul>
+              </div>
+            </li>
+          </ul>
+        </section>
+
+        <Dialog :visible="!!quizToDelete" modal header="Eliminar evaluación" :style="{ width: 'min(420px, calc(100vw - 32px))' }" @update:visible="(visible) => { if (!visible) quizToDelete = null; }">
+          <p>Vas a eliminar <strong>{{ quizToDelete?.title }}</strong>, sus preguntas e intentos.</p>
+          <small>Esta acción no se puede deshacer.</small>
+          <div class="dialog-actions"><Button label="Cancelar" text severity="secondary" @click="quizToDelete = null" /><Button label="Eliminar evaluación" severity="danger" @click="confirmDeleteQuiz" /></div>
+        </Dialog>
+
         <section v-if="activeCourseTab === 'foro'" class="forum-section-wrap">
           <ForumSection :course-id="courseId" />
         </section>
@@ -540,7 +795,7 @@
   .course-label-form { display: flex; align-items: center; gap: 2px; }
   .course-label-form :deep(.p-inputtext) { width: 150px; padding: 5px 8px; font-size: var(--text-xs); }
 
-  .course-nav { display: flex; gap: var(--space-2); overflow-x: auto; padding: var(--space-3); margin-bottom: var(--space-5); border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--surface-card); box-shadow: var(--shadow-card); }
+  .course-nav { display: flex; gap: var(--space-2); overflow-x: auto; padding: var(--space-3); margin-bottom: var(--space-5); border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--surface-card); box-shadow: var(--shadow-card); mask-image: linear-gradient(to right, transparent, black var(--space-3), black calc(100% - var(--space-3)), transparent); -webkit-mask-image: linear-gradient(to right, transparent, black var(--space-3), black calc(100% - var(--space-3)), transparent); }
   .course-nav button { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 var(--space-3); border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-secondary); font-size: var(--text-xs); font-weight: 700; white-space: nowrap; cursor: pointer; }
   .course-nav button:hover { background: var(--surface-hover); color: var(--text-primary); }
   .course-nav button.active { background: var(--fill-primary-soft); color: var(--practiq-violet-dark); }
@@ -625,6 +880,15 @@
     background: var(--surface-card);
     box-shadow: var(--shadow-card);
   }
+
+  .group-list { display: flex; flex-direction: column; gap: var(--space-3); list-style: none; padding: 0; margin: var(--space-3) 0 0; }
+  .group-item { padding: var(--space-3); border: 1px solid var(--surface-border); border-radius: var(--radius-sm); background: var(--surface-card); }
+  .group-item-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-2); }
+  .group-item-head strong { color: var(--text-heading); font-size: var(--text-sm); }
+  .group-members { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-bottom: var(--space-2); }
+  .group-member-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 7px; border-radius: 999px; background: var(--fill-primary-soft); color: var(--practiq-violet-dark); font-size: var(--text-xs); font-weight: 700; }
+  .group-member-chip button { border: 0; padding: 0; background: transparent; color: inherit; cursor: pointer; }
+  .group-filter { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); font-size: var(--text-xs); color: var(--text-secondary); font-weight: 700; }
 
   .enrollment-user {
     flex: 1;
@@ -737,6 +1001,12 @@
     gap: var(--space-2);
   }
   .due-datetime { display: flex; flex-direction: column; gap: 4px; color: var(--text-muted); font-size: var(--text-xs); font-weight: 700; }
+  .question-row { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) 0; border-top: 1px solid var(--surface-border); }
+  .question-row:first-of-type { border-top: 0; }
+  .blank-field { display: flex; flex-direction: column; gap: 2px; font-size: var(--text-xs); color: var(--text-muted); }
+  .attempt-list { display: flex; flex-direction: column; gap: var(--space-1); list-style: none; padding: 0; margin: 0; }
+  .attempt-list li { display: flex; justify-content: space-between; padding: var(--space-1) 0; font-size: var(--text-sm); }
+  .attempt-pending { color: var(--text-muted); font-style: italic; }
 
   .submit-btn {
     align-self: flex-start;
