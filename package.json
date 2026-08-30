@@ -1,0 +1,28 @@
+{
+  "name": "practiq-campus-fe",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "check:css-tokens": "node scripts/check-css-tokens.mjs",
+    "build": "npm run check:css-tokens && vue-tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@primeuix/themes": "^3.0.0-alpha.6",
+    "axios": "^1.7.9",
+    "pinia": "^2.3.1",
+    "primeicons": "^7.0.0",
+    "primevue": "^4.5.5",
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.7",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "@vue/tsconfig": "^0.7.0",
+    "typescript": "~5.7.2",
+    "vite": "^6.0.5",
+    "vue-tsc": "^2.1.10"
+  }
+}

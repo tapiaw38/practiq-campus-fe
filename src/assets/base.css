@@ -1,0 +1,393 @@
+:root {
+  /* Accent — teal/slate, not the violet Practiq's student app uses. Same
+     token vocabulary as practiq-fe's base.css so the two design systems
+     stay comparable, but Campus ships this palette as its only default:
+     it has no runtime theme switcher, it just looks serious out of the box. */
+  --practiq-violet-50: #f0fdfa;
+  --practiq-violet-100: #ccfbf1;
+  --practiq-violet-200: #99f6e4;
+  --practiq-violet-300: #5eead4;
+  --practiq-violet-400: #2dd4bf;
+  --practiq-violet-500: #14b8a6;
+  --practiq-violet-600: #0d9488;
+  --practiq-violet-700: #0f766e;
+  --practiq-violet-800: #115e59;
+  --practiq-violet-900: #134e4a;
+  --practiq-violet-950: #042f2e;
+  --practiq-violet: #0d9488;
+  --practiq-violet-light: #14b8a6;
+  --practiq-violet-pale: #ccfbf1;
+  --practiq-violet-bg: #f0fdfa;
+  --practiq-violet-dark: #115e59;
+  --practiq-indigo: #1e293b;
+  --practiq-indigo-soft: #cbd5e1;
+
+  /* RGB channels for alpha and gradients */
+  --practiq-violet-rgb: 13, 148, 136;
+  --practiq-violet-light-rgb: 20, 184, 166;
+  --practiq-indigo-rgb: 30, 41, 59;
+  --color-success-rgb: 16, 185, 129;
+  --color-error-rgb: 239, 68, 68;
+  --color-warning-rgb: 245, 158, 11;
+  --color-info-rgb: 59, 130, 246;
+  --surface-card-rgb: 255, 255, 255;
+  --surface-bg-rgb: 248, 250, 252;
+  --surface-border-rgb: 148, 163, 184;
+  --text-primary-rgb: 30, 41, 59;
+
+  /* Semantic colors */
+  --color-success: #10b981;
+  --color-success-bg: #ecfdf5;
+  --color-success-dark: #047857;
+  --color-error: #ef4444;
+  --color-error-bg: #fef2f2;
+  --color-error-dark: #b91c1c;
+  --color-warning: #f59e0b;
+  --color-warning-bg: #fffbeb;
+  --color-warning-dark: #b45309;
+  --color-warning-strong: #d97706;
+  --color-info: #3b82f6;
+  --color-info-bg: rgba(59, 130, 246, 0.1);
+  --color-info-dark: #1d4ed8;
+  --color-on-primary: #ffffff;
+  --color-on-brand-panel: #ffffff;
+
+  /* Surfaces */
+  --surface-bg: #f8fafc;
+  --surface-bg-soft: #f7f8fa;
+  --surface-bg-cool: #f8fafc;
+  --surface-bg-muted: #f6f7f9;
+  --surface-card: #ffffff;
+  --surface-hover: #f1f5f9;
+  --surface-border: #e2e8f0;
+  --surface-subtle: rgba(248, 250, 252, 0.9);
+  --surface-elevated: rgba(var(--surface-card-rgb), 0.85);
+  --surface-elevated-strong: rgba(var(--surface-card-rgb), 0.92);
+  --surface-glass: rgba(var(--surface-card-rgb), 0.78);
+  --surface-glass-border: rgba(var(--surface-card-rgb), 0.9);
+  --surface-scrim: rgba(15, 23, 42, 0.34);
+  --surface-overlay: rgba(0, 0, 0, 0.4);
+  --surface-card-border: #e8ecf1;
+
+  --border-color: var(--surface-border);
+  --border-default: var(--surface-border);
+  --border-subtle: var(--surface-border);
+  --border-strong: #cbd5e1;
+  --surface-base: var(--surface-bg);
+  --surface-ground: var(--surface-card);
+  --fill-error-subtle: var(--color-error-bg);
+
+  /* Text */
+  --text-heading: #0f172a;
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+  --text-brand-panel-muted: rgba(var(--surface-card-rgb), 0.8);
+  --text-brand-panel-soft: rgba(var(--surface-card-rgb), 0.75);
+
+  /* Typography — sizes, tighter than the student app: this is read by
+     adults at a desk, not by a child on a tablet. */
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 13px;
+  --text-md: 13px;
+  --text-lg: 14px;
+
+  --font-hero: clamp(1.1rem, 2.5vw, 1.35rem);
+  --font-section-title: 15px;
+  --font-stat-value: 18px;
+  --font-kicker: 11px;
+  --font-label: 11px;
+  --font-body: 13px;
+  --font-caption: 12px;
+
+  /* Shadows — flatter than the student app's; a hard drop shadow reads as
+     playful, not as a serious admin surface. */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 2px 6px rgba(15, 23, 42, 0.06);
+  --shadow-lg: 0 4px 12px rgba(15, 23, 42, 0.08);
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-card-lg: 0 2px 6px rgba(15, 23, 42, 0.08);
+  --shadow-panel: 0 12px 28px rgba(15, 23, 42, 0.1);
+  --shadow-soft: 0 8px 20px rgba(15, 23, 42, 0.06);
+  --shadow-violet: 0 1px 3px rgba(var(--practiq-violet-rgb), 0.18);
+  --shadow-violet-lg: 0 2px 8px rgba(var(--practiq-violet-rgb), 0.2);
+  --shadow-indigo: 0 1px 3px rgba(var(--practiq-violet-rgb), 0.18);
+  --shadow-auth-card: 0 1px 2px rgba(15, 23, 42, 0.05), 0 8px 24px rgba(15, 23, 42, 0.06);
+  --shadow-illustration: 0 10px 24px rgba(15, 23, 42, 0.12);
+
+  /* Elevation contract — use these instead of inventing a border per screen. */
+  --elevation-flat-bg: var(--surface-bg);
+  --elevation-tint-bg: var(--surface-elevated);
+  --elevation-tint-shadow: var(--shadow-card);
+  --elevation-panel-bg: var(--surface-card);
+  --elevation-panel-shadow: var(--shadow-panel);
+
+  /* Gradients and transparent fills */
+  --gradient-app-bg:
+    radial-gradient(circle at top left, rgba(var(--practiq-violet-rgb), 0.06), transparent 16%),
+    radial-gradient(circle at bottom right, rgba(var(--color-info-rgb), 0.05), transparent 18%),
+    linear-gradient(180deg, var(--surface-bg-cool) 0%, var(--surface-bg-soft) 42%, var(--surface-bg-muted) 100%);
+  --gradient-auth-bg:
+    radial-gradient(ellipse at 90% 10%, rgba(var(--practiq-violet-rgb), 0.05), transparent 50%),
+    radial-gradient(ellipse at 10% 90%, rgba(var(--color-info-rgb), 0.04), transparent 50%),
+    var(--surface-bg);
+  --gradient-brand-panel: linear-gradient(155deg, var(--practiq-violet-900) 0%, var(--practiq-violet-700) 40%, var(--practiq-indigo) 100%);
+  /* Flat, not a two-hue sweep: a rainbow gradient reads as decoration here. */
+  --gradient-brand: linear-gradient(135deg, var(--practiq-violet-600), var(--practiq-violet-700));
+  --gradient-brand-soft: linear-gradient(135deg, rgba(var(--practiq-violet-rgb), 0.1), rgba(var(--color-info-rgb), 0.08));
+  --gradient-brand-avatar: linear-gradient(135deg, rgba(var(--practiq-violet-rgb), 0.16), rgba(var(--color-info-rgb), 0.14));
+  --gradient-mobile-topbar: linear-gradient(180deg, rgba(var(--surface-bg-rgb), 0.96), rgba(var(--surface-bg-rgb), 0.76) 75%, transparent);
+  --gradient-card-accent:
+    radial-gradient(circle at top left, rgba(var(--practiq-violet-rgb), 0.08), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(var(--color-info-rgb), 0.06), transparent 22%),
+    var(--surface-elevated);
+  --fill-primary-soft: rgba(var(--practiq-violet-rgb), 0.1);
+  --fill-primary-subtle: rgba(var(--practiq-violet-rgb), 0.08);
+  --fill-primary-faint: rgba(var(--practiq-violet-rgb), 0.06);
+  --fill-success-subtle: rgba(var(--color-success-rgb), 0.08);
+  --fill-warning-subtle: rgba(var(--color-warning-rgb), 0.08);
+  --fill-border-muted: rgba(var(--surface-border-rgb), 0.2);
+  --focus-ring-primary: 0 0 0 3px rgba(var(--practiq-violet-light-rgb), 0.14);
+  --focus-ring-error: 0 0 0 3px rgba(var(--color-error-rgb), 0.14);
+
+  /* Border radius — tighter than the student app's, on purpose. */
+  --radius-xs: 3px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 7px;
+  --radius-xl: 8px;
+  --radius-2xl: 10px;
+  --radius-pill: 999px;
+
+  --transition: all 0.15s ease;
+  --transition-fast: all 0.1s ease;
+
+  /* Spacing scale — tighter than the student app's. */
+  --space-1: 3px;
+  --space-2: 6px;
+  --space-3: 10px;
+  --space-4: 13px;
+  --space-5: 16px;
+  --space-6: 20px;
+  --space-8: 26px;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.surface-flat {
+  background: var(--elevation-flat-bg);
+}
+
+.surface-card {
+  background: var(--elevation-tint-bg);
+  box-shadow: var(--elevation-tint-shadow);
+}
+
+.surface-panel {
+  background: var(--elevation-panel-bg);
+  box-shadow: var(--elevation-panel-shadow);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+html {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background: var(--gradient-app-bg);
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+a {
+  color: var(--practiq-violet);
+  text-decoration: none;
+}
+
+input, textarea, select {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+button, a, input, textarea, select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 3px solid rgba(var(--practiq-violet-rgb), 0.3);
+  outline-offset: 2px;
+}
+
+/* Teacher workspace: calm, information-first hierarchy. Scoped by shell so
+   student surfaces keep their lighter presentation. */
+.teacher-shell {
+  font-family: "IBM Plex Sans", Inter, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  background: #f5f8f9;
+}
+
+.teacher-shell .sidebar {
+  background: #ffffff;
+  border-right-color: #dce5e8;
+  box-shadow: 6px 0 24px rgba(15, 23, 42, 0.04);
+}
+
+.teacher-shell .nav-section-label {
+  color: #7b8794;
+  letter-spacing: 0.1em;
+}
+
+.teacher-shell .nav-item {
+  min-height: 42px;
+  border-radius: var(--radius-md);
+}
+
+.teacher-shell .nav-item-active {
+  background: #e6f5f2;
+  color: #0f5f59;
+  box-shadow: inset 3px 0 0 #0f766e;
+}
+
+.teacher-shell .nav-item-active .nav-icon {
+  background: #c8eee8;
+  color: #0f766e;
+}
+
+.teacher-shell .main-content {
+  padding: 26px 30px 42px;
+}
+
+.teacher-shell .dashboard,
+.teacher-shell .course-detail,
+.teacher-shell .courses-page,
+.teacher-shell .reviews-page,
+.teacher-shell .review-dashboard,
+.teacher-shell .strategy-dashboard,
+.teacher-shell .admin-shell,
+.teacher-shell .ac-root,
+.teacher-shell .editor-shell,
+.teacher-shell .sp-page {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.teacher-shell .dashboard-head,
+.teacher-shell .page-header,
+.teacher-shell .course-head,
+.teacher-shell .course-header,
+.teacher-shell .sp-header {
+  border-color: #dce5e8;
+}
+
+.teacher-shell .course-card,
+.teacher-shell .stat-card,
+.teacher-shell .panel-card,
+.teacher-shell .content-section,
+.teacher-shell .dashboard-section,
+.teacher-shell .assignment-item,
+.teacher-shell .enrollment-item {
+  border: 1px solid #e0e7e9;
+  border-radius: var(--radius-md);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.045);
+}
+
+.teacher-shell .course-card:hover,
+.teacher-shell .assignment-item:hover {
+  border-color: #b6dcd7;
+  box-shadow: 0 6px 16px rgba(15, 118, 110, 0.1);
+  transform: translateY(-1px);
+}
+
+.teacher-shell .state-message {
+  border: 1px dashed #cbd8da;
+  background: #ffffff;
+}
+
+.teacher-shell button,
+.teacher-shell a,
+.teacher-shell input,
+.teacher-shell textarea,
+.teacher-shell select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 860px) {
+  .teacher-shell .main-content {
+    padding: 16px 14px 30px;
+  }
+
+  .teacher-shell .dashboard,
+  .teacher-shell .course-detail,
+  .teacher-shell .courses-page,
+  .teacher-shell .reviews-page,
+  .teacher-shell .review-dashboard,
+  .teacher-shell .strategy-dashboard,
+  .teacher-shell .admin-shell,
+  .teacher-shell .ac-root,
+  .teacher-shell .editor-shell,
+  .teacher-shell .sp-page {
+    max-width: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .teacher-shell .main-content {
+    padding: 12px 10px 24px;
+  }
+
+  .teacher-shell .dashboard-head,
+  .teacher-shell .page-header,
+  .teacher-shell .course-head,
+  .teacher-shell .course-header,
+  .teacher-shell .sp-header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .teacher-shell .dashboard-actions,
+  .teacher-shell .page-header__right,
+  .teacher-shell .grade-header__actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .teacher-shell .dashboard-actions > *,
+  .teacher-shell .page-header__right > *,
+  .teacher-shell .grade-header__actions > * {
+    flex: 1 1 145px;
+    justify-content: center;
+    min-height: 42px;
+  }
+
+  .teacher-shell .course-grid,
+  .teacher-shell .stats-row,
+  .teacher-shell .summary-row,
+  .teacher-shell .progress-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .teacher-shell .course-card,
+  .teacher-shell .stat-card,
+  .teacher-shell .panel-card,
+  .teacher-shell .content-section,
+  .teacher-shell .dashboard-section {
+    padding: 14px;
+  }
+}
