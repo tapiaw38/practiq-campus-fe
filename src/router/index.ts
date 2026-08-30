@@ -88,12 +88,6 @@ const router = createRouter({
       meta: { requiresAuth: true, profileType: "teacher" },
     },
     {
-      path: "/teacher/courses/new",
-      name: "teacher-course-create",
-      component: () => import("@/views/teacher/CourseCreateView.vue"),
-      meta: { requiresAuth: true, profileType: "teacher" },
-    },
-    {
       path: "/teacher/courses/:id",
       name: "teacher-course-detail",
       component: () => import("@/views/teacher/CourseDetailView.vue"),

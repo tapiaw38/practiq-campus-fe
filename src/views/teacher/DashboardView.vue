@@ -5,10 +5,18 @@
   import { useAuthStore } from "@/stores/authStore";
   import { usePreferences } from "@/composables/usePreferences";
 
-  const { courses, loading, loadCourses, deleteCourse } = useCourses();
+  const { courses, loading, loadCourses, deleteCourse, createCourse } = useCourses();
   const { loadPreference, savePreference } = usePreferences();
   const authStore = useAuthStore();
   const deleting = ref(false);
+  const showCreate = ref(false);
+  const creating = ref(false);
+  const draft = ref({ title: "", description: "", labels: [] as string[] });
+  const labelDraft = ref("");
+  const savedLabels = computed(() =>
+    [...new Set(courses.value.flatMap((course) => course.labels ?? []))]
+      .filter((label) => !draft.value.labels.some((item) => item.toLowerCase() === label.toLowerCase())),
+  );
   const viewMode = ref<"grid" | "list">("grid");
   const groupByLabels = ref(false);
   const preferencesLoaded = ref(false);
@@ -48,6 +56,33 @@
     }).catch(() => undefined);
   });
 
+  function openCreate() {
+    draft.value = { title: "", description: "", labels: [] };
+    labelDraft.value = "";
+    showCreate.value = true;
+  }
+
+  function addLabel(value = labelDraft.value) {
+    const label = value.trim();
+    if (label && !draft.value.labels.some((item) => item.toLowerCase() === label.toLowerCase())) draft.value.labels.push(label);
+    labelDraft.value = "";
+  }
+
+  function removeLabel(label: string) {
+    draft.value.labels = draft.value.labels.filter((item) => item !== label);
+  }
+
+  async function handleCreate() {
+    if (creating.value || !draft.value.title.trim()) return;
+    creating.value = true;
+    try {
+      await createCourse({ ...draft.value });
+      showCreate.value = false;
+    } catch {
+      // useCourses already surfaced the error via toast
+    } finally { creating.value = false; }
+  }
+
   async function confirmDelete() {
     if (!courseToDelete.value || deleting.value) return;
     deleting.value = true;
@@ -68,9 +103,9 @@
           <p>Administrá tus cursos, actividades y comunicación en un solo lugar.</p>
         </div>
         <div class="dashboard-actions">
-          <RouterLink to="/teacher/courses/new" class="new-course-btn">
+          <button type="button" class="new-course-btn" @click="openCreate">
             <i class="pi pi-plus"></i> Nuevo curso
-          </RouterLink>
+          </button>
         </div>
       </header>
 
@@ -84,7 +119,7 @@
 
       <div v-if="loading" class="state-message">Cargando…</div>
       <div v-else-if="!courses.length" class="state-message">
-        <strong>Todavía no creaste ningún curso.</strong><span>Creá tu primer curso para empezar a organizar contenido y alumnos.</span><RouterLink to="/teacher/courses/new" class="empty-action"><i class="pi pi-plus"></i> Crear curso</RouterLink>
+        <strong>Todavía no creaste ningún curso.</strong><span>Creá tu primer curso para empezar a organizar contenido y alumnos.</span><button type="button" class="empty-action" @click="openCreate"><i class="pi pi-plus"></i> Crear curso</button>
       </div>
       <div v-else>
         <component v-for="group in courseGroups" :is="groupByLabels ? 'section' : 'div'" :key="group.label || 'all'" :class="groupByLabels ? 'course-group' : 'course-collection'">
@@ -99,6 +134,34 @@
           </div>
         </component>
       </div>
+      <Dialog v-model:visible="showCreate" modal header="Nuevo curso" :style="{ width: 'min(520px, calc(100vw - 32px))' }">
+        <form class="course-form" @submit.prevent="handleCreate">
+          <label class="field">
+            <span class="field-label">Título</span>
+            <InputText v-model="draft.title" autofocus required />
+          </label>
+          <div class="field">
+            <span class="field-label">Etiquetas</span>
+            <div class="label-entry">
+              <InputText v-model="labelDraft" list="saved-course-labels" placeholder="Ej.: 2.º A, Turno tarde" @keydown.enter.prevent="addLabel()" />
+              <datalist id="saved-course-labels"><option v-for="label in savedLabels" :key="label" :value="label" /></datalist>
+              <Button type="button" label="Agregar" size="small" @click="addLabel()" />
+            </div>
+            <div v-if="draft.labels.length" class="label-chips">
+              <span v-for="label in draft.labels" :key="label">{{ label }} <button type="button" @click="removeLabel(label)"><i class="pi pi-times" /></button></span>
+            </div>
+            <small>Al escribir se sugieren etiquetas usadas anteriormente. También podés crear una nueva.</small>
+          </div>
+          <label class="field">
+            <span class="field-label">Descripción</span>
+            <Textarea v-model="draft.description" rows="4" />
+          </label>
+          <div class="dialog-actions">
+            <Button type="button" label="Cancelar" severity="secondary" text :disabled="creating" @click="showCreate = false" />
+            <Button type="submit" label="Crear curso" :loading="creating" />
+          </div>
+        </form>
+      </Dialog>
       <Dialog :visible="!!courseToDelete" modal header="Eliminar curso" :style="{ width: 'min(440px, calc(100vw - 32px))' }" @update:visible="(visible) => { if (!visible && !deleting) courseToDelete = null; }">
         <div class="delete-dialog"><span class="delete-dialog-icon"><i class="pi pi-exclamation-triangle"></i></span><p>Vas a eliminar <strong>{{ courseToDelete?.title }}</strong>.</p><small>También se eliminarán matrículas, secciones, tareas, entregas, foros y eventos vinculados. Esta acción no se puede deshacer.</small></div>
         <div class="dialog-actions"><Button label="Cancelar" severity="secondary" text :disabled="deleting" @click="courseToDelete = null" /><Button label="Eliminar curso" severity="danger" :loading="deleting" @click="confirmDelete" /></div>
@@ -133,12 +196,19 @@
     align-items: center;
     gap: var(--space-1);
     padding: var(--space-2) var(--space-4);
+    border: 0;
     border-radius: var(--radius-md);
     background: var(--gradient-brand);
     color: var(--color-on-primary);
     font-weight: 700;
     font-size: var(--text-sm);
+    cursor: pointer;
   }
+
+  .course-form { display:flex;flex-direction:column;gap:var(--space-4); }
+  .field { display:flex;flex-direction:column;gap:var(--space-1); }
+  .field-label { font-size:var(--text-xs);font-weight:700;color:var(--text-secondary); }
+  .label-entry{display:flex;gap:var(--space-2)}.label-entry .p-inputtext{flex:1}.label-chips{display:flex;gap:var(--space-1);flex-wrap:wrap}.label-chips span{display:inline-flex;align-items:center;gap:var(--space-1);padding:3px 7px;border-radius:999px;background:var(--fill-primary-soft);color:var(--practiq-violet-dark);font-size:var(--text-xs);font-weight:700}.label-chips button{border:0;background:transparent;color:inherit;padding:0;cursor:pointer}.field small{color:var(--text-muted);font-size:var(--text-xs)}
   .summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-3);margin-bottom:var(--space-6)}.summary-card{display:flex;align-items:center;gap:var(--space-3);min-width:0;padding:var(--space-4);border:1px solid var(--surface-border);border-radius:var(--radius-md);background:var(--surface-card);color:inherit}.summary-card strong,.summary-card small{display:block}.summary-card strong{color:var(--text-heading);font-size:var(--text-lg)}.summary-card small{color:var(--text-secondary);font-size:var(--text-xs)}.summary-card--link:hover{box-shadow:var(--shadow-card)}.summary-icon{display:grid;place-items:center;width:38px;height:38px;flex:0 0 38px;border-radius:var(--radius-md);background:var(--fill-primary-subtle);color:var(--practiq-violet-dark)}.summary-icon--success{background:var(--fill-success-subtle);color:var(--color-success-dark)}.summary-icon--info{background:var(--fill-primary-soft);color:var(--practiq-violet-dark)}.summary-arrow{margin-left:auto;color:var(--text-muted);font-size:var(--text-sm)}
   .courses-heading{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);margin-bottom:var(--space-3)}.courses-heading h2{margin:0;color:var(--text-heading);font-size:var(--text-lg)}.courses-heading p{margin:var(--space-1) 0 0;color:var(--text-secondary);font-size:var(--text-xs)}.courses-tools{display:flex;align-items:center;gap:var(--space-3)}.text-action{display:inline-flex;align-items:center;gap:var(--space-1);color:var(--practiq-violet-dark);font-size:var(--text-xs);font-weight:800}.view-controls{display:flex;align-items:center;gap:2px;padding:3px;border:1px solid var(--surface-border);border-radius:var(--radius-sm);background:var(--surface-card)}.view-controls button{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-1);height:28px;min-width:28px;padding:0 var(--space-2);border:0;border-radius:calc(var(--radius-sm) - 2px);background:transparent;color:var(--text-muted);font-size:var(--text-xs);font-weight:800;cursor:pointer}.view-controls button:hover{background:var(--surface-hover);color:var(--text-primary)}.view-controls button.active{background:var(--fill-primary-soft);color:var(--practiq-violet-dark)}.view-controls span{width:1px;height:16px;margin:0 2px;background:var(--surface-border)}.view-controls em{font-style:normal}
 
@@ -220,6 +290,6 @@
     font-size: var(--text-sm);
     color: var(--text-secondary);
   }
-  .course-labels{display:flex;gap:var(--space-1);flex-wrap:wrap;margin-top:var(--space-3)}.course-labels span{padding:2px 6px;border-radius:999px;background:var(--fill-primary-soft);color:var(--practiq-violet-dark);font-size:10px;font-weight:800}.course-open{display:inline-flex;align-items:center;gap:var(--space-1);margin-top:var(--space-4);color:var(--practiq-violet-dark);font-size:var(--text-xs);font-weight:800}.delete-course{display:inline-flex;align-items:center;gap:var(--space-1);align-self:flex-start;margin-top:var(--space-3);padding:0;border:0;background:transparent;color:var(--text-muted);font-size:var(--text-xs);cursor:pointer}.delete-course:hover{color:var(--color-error-dark);text-decoration:underline}.empty-action{display:inline-flex;align-items:center;gap:var(--space-1);padding:var(--space-2) var(--space-3);border-radius:var(--radius-md);background:var(--gradient-brand);color:var(--color-on-primary);font-size:var(--text-sm);font-weight:800}.delete-dialog{display:grid;grid-template-columns:auto 1fr;gap:var(--space-3);align-items:start}.delete-dialog p{margin:0;color:var(--text-primary)}.delete-dialog small{grid-column:2;color:var(--text-secondary);line-height:1.45}.delete-dialog-icon{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:var(--fill-warning-subtle);color:var(--color-warning-dark)}.dialog-actions{display:flex;justify-content:flex-end;gap:var(--space-2);margin-top:var(--space-5)}
+  .course-labels{display:flex;gap:var(--space-1);flex-wrap:wrap;margin-top:var(--space-3)}.course-labels span{padding:2px 6px;border-radius:999px;background:var(--fill-primary-soft);color:var(--practiq-violet-dark);font-size:10px;font-weight:800}.course-open{display:inline-flex;align-items:center;gap:var(--space-1);margin-top:var(--space-4);color:var(--practiq-violet-dark);font-size:var(--text-xs);font-weight:800}.delete-course{display:inline-flex;align-items:center;gap:var(--space-1);align-self:flex-start;margin-top:var(--space-3);padding:0;border:0;background:transparent;color:var(--text-muted);font-size:var(--text-xs);cursor:pointer}.delete-course:hover{color:var(--color-error-dark);text-decoration:underline}.empty-action{display:inline-flex;align-items:center;gap:var(--space-1);padding:var(--space-2) var(--space-3);border:0;border-radius:var(--radius-md);background:var(--gradient-brand);color:var(--color-on-primary);font-size:var(--text-sm);font-weight:800;cursor:pointer}.delete-dialog{display:grid;grid-template-columns:auto 1fr;gap:var(--space-3);align-items:start}.delete-dialog p{margin:0;color:var(--text-primary)}.delete-dialog small{grid-column:2;color:var(--text-secondary);line-height:1.45}.delete-dialog-icon{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:var(--fill-warning-subtle);color:var(--color-warning-dark)}.dialog-actions{display:flex;justify-content:flex-end;gap:var(--space-2);margin-top:var(--space-5)}
   @media(max-width:700px){.dashboard-head{align-items:stretch;flex-direction:column;padding:var(--space-5)}.new-course-btn{justify-content:center}.summary-grid{grid-template-columns:1fr}.courses-heading{align-items:flex-start;flex-direction:column}.courses-tools{width:100%;justify-content:space-between}.course-list .course-card{grid-template-columns:auto minmax(0,1fr);row-gap:var(--space-2)}.course-list .course-main{grid-column:1/-1;grid-row:2}.course-list .course-open{grid-column:1;grid-row:3}.course-list .delete-course{grid-column:2;grid-row:3;justify-self:end}}
 </style>

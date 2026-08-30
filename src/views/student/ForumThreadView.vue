@@ -81,7 +81,7 @@
 <template>
   <component :is="isTeacher ? TeacherLayout : StudentLayout">
     <div class="thread-page">
-      <button class="back-btn" type="button" @click="router.push(`${isTeacher ? '/teacher' : '/student'}/courses/${courseId}`)">
+      <button class="back-btn" type="button" @click="router.push(isTeacher ? `/teacher/courses/${courseId}?tab=foro` : `/student/courses/${courseId}?tab=forum`)">
         <i class="pi pi-arrow-left"></i> Volver al foro
       </button>
       <div v-if="!thread" class="state-message">Cargando tema…</div>

@@ -19,8 +19,10 @@
   const route = useRoute();
   const router = useRouter();
   const courseId = route.params.id as string;
-  type CourseTab = "alumnos" | "contenido" | "materiales" | "tareas" | "foro";
-  const activeCourseTab = ref<CourseTab>("alumnos");
+  const courseTabs = ["alumnos", "contenido", "materiales", "tareas", "foro"] as const;
+  type CourseTab = (typeof courseTabs)[number];
+  const requestedTab = route.query.tab as CourseTab;
+  const activeCourseTab = ref<CourseTab>(courseTabs.includes(requestedTab) ? requestedTab : "alumnos");
 
   const { currentCourse, courses, loading: courseLoading, loadCourse, loadCourses, updateCourse } =
     useCourses();
@@ -279,8 +281,8 @@
 <template>
   <TeacherLayout>
     <div class="course-detail">
-      <button class="back-btn" type="button" @click="router.back()">
-        <i class="pi pi-arrow-left"></i> Volver
+      <button class="back-btn" type="button" @click="router.push('/teacher/dashboard')">
+        <i class="pi pi-arrow-left"></i> Volver a mis cursos
       </button>
 
       <div v-if="courseLoading || !currentCourse" class="state-message">
