@@ -2,6 +2,7 @@
   import { onMounted, ref } from "vue";
   import { useRoute, useRouter } from "vue-router";
   import StudentLayout from "@/layouts/StudentLayout.vue";
+  import StateMessage from "@/components/ui/StateMessage.vue";
   import { useCourses } from "@/composables/useCourses";
   import { useCourseSections } from "@/composables/useCourseSections";
   import { useAssignments } from "@/composables/useAssignments";
@@ -94,7 +95,7 @@
         <i class="pi pi-arrow-left"></i> Volver a mis cursos
       </button>
 
-      <div v-if="loading || !currentCourse" class="state-message">Cargando…</div>
+      <StateMessage v-if="loading || !currentCourse" variant="loading" :rows="4" loading-label="Cargando curso" />
       <template v-else>
         <header class="course-head">
           <h1>{{ currentCourse.title }}</h1>
@@ -120,9 +121,13 @@
 
         <section v-if="activeCourseTab === 'assignments'" class="assignments-section">
           <h2>Tareas</h2>
-          <div v-if="!assignments.length" class="state-message">
-            Todavía no hay tareas.
-          </div>
+          <StateMessage
+            v-if="!assignments.length"
+            dense
+            icon="pi-file-edit"
+            title="Todavía no hay tareas"
+            description="Cuando tu docente publique una actividad, la vas a ver acá."
+          />
           <ul v-else class="assignment-list">
             <li v-for="assignment in assignments" :key="assignment.id" class="assignment-item">
               <div class="assignment-title">{{ assignment.title }}</div>
@@ -210,13 +215,6 @@
     margin-bottom: var(--space-4);
   }
 
-  .state-message {
-    padding: var(--space-6);
-    border-radius: var(--radius-lg);
-    background: var(--surface-card);
-    color: var(--text-secondary);
-    font-size: var(--text-sm);
-  }
 
   .course-head {
     display: flex;

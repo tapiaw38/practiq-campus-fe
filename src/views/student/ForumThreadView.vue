@@ -1,4 +1,5 @@
 <script setup lang="ts">
+  import StateMessage from "@/components/ui/StateMessage.vue";
   import { computed, onMounted, ref } from "vue";
   import { useRoute, useRouter } from "vue-router";
   import StudentLayout from "@/layouts/StudentLayout.vue";
@@ -84,7 +85,7 @@
       <button class="back-btn" type="button" @click="router.push(isTeacher ? `/teacher/courses/${courseId}?tab=foro` : `/student/courses/${courseId}?tab=forum`)">
         <i class="pi pi-arrow-left"></i> Volver al foro
       </button>
-      <div v-if="!thread" class="state-message">Cargando tema…</div>
+      <StateMessage v-if="!thread" variant="loading" :rows="3" loading-label="Cargando tema del foro" />
       <template v-else>
         <header class="thread-header">
           <span class="eyebrow">Tema del foro</span>

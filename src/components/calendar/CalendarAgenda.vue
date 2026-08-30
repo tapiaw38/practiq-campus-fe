@@ -1,4 +1,5 @@
 <script setup lang="ts">
+  import StateMessage from "@/components/ui/StateMessage.vue";
   import { computed, onMounted, ref, watch } from "vue";
   import { useCalendar } from "@/composables/useCalendar";
   import { useCourses } from "@/composables/useCourses";
@@ -107,7 +108,7 @@
 <template>
   <div class="calendar-agenda">
     <div class="page-head"><div><h1>Calendario</h1><p class="hint">Eventos de tus cursos y fechas de entrega.</p></div><Button v-if="authStore.isTeacher" icon="pi pi-plus" label="Agregar evento" @click="openEventModal()" /></div>
-    <div v-if="loading" class="state-message">Cargando…</div>
+    <StateMessage v-if="loading" variant="loading" :rows="3" loading-label="Cargando calendario" />
     <div v-else class="calendar-layout">
       <section class="calendar-card" aria-label="Calendario mensual">
         <div class="calendar-toolbar"><Button icon="pi pi-chevron-left" text rounded aria-label="Mes anterior" @click="shiftMonth(-1)" /><h2>{{ monthLabel }}</h2><Button icon="pi pi-chevron-right" text rounded aria-label="Mes siguiente" @click="shiftMonth(1)" /></div>

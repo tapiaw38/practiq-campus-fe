@@ -1,6 +1,7 @@
 <script setup lang="ts">
   import { onMounted, ref } from "vue";
   import TeacherLayout from "@/layouts/TeacherLayout.vue";
+import StateMessage from "@/components/ui/StateMessage.vue";
   import { useUsers } from "@/composables/useUsers";
 
   const { users, loading, pageMeta, loadUsers, createOrSyncUser, setBlocked } = useUsers();
@@ -118,10 +119,13 @@
       </form>
 
       <div class="users-toolbar"><form class="search-form" @submit.prevent="searchUsers"><InputText v-model="search" placeholder="Buscar por nombre o email" /><Button type="submit" icon="pi pi-search" label="Buscar" size="small" /></form><span>{{ pageMeta.total }} {{ pageMeta.total === 1 ? "usuario" : "usuarios" }}</span></div>
-      <div v-if="loading" class="state-message">Cargando…</div>
-      <div v-else-if="!users.length" class="state-message">
-        Todavía no hay usuarios sincronizados.
-      </div>
+      <StateMessage v-if="loading" variant="loading" loading-label="Cargando usuarios" :rows="5" />
+      <StateMessage
+        v-else-if="!users.length"
+        icon="pi-users"
+        title="Todavía no hay usuarios sincronizados"
+        description="Verificá un email desde el formulario de arriba para traer una cuenta al campus."
+      />
       <ul v-else class="user-list">
         <li v-for="user in users" :key="user.id" class="user-item" :class="{ 'user-item--blocked': user.is_blocked }">
           <div class="user-identity"><span class="user-name">{{ user.full_name || "(sin nombre)" }}</span><span class="user-email">{{ user.email }}</span></div>

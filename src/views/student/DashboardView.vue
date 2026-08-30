@@ -2,6 +2,8 @@
   import { computed, onMounted, ref, watch } from "vue";
   import { useToast } from "primevue/usetoast";
   import StudentLayout from "@/layouts/StudentLayout.vue";
+  import StateMessage from "@/components/ui/StateMessage.vue";
+  import SkeletonGrid from "@/components/ui/SkeletonGrid.vue";
   import { useCourses } from "@/composables/useCourses";
   import { useCalendar } from "@/composables/useCalendar";
   import { useMessages } from "@/composables/useMessages";
@@ -145,24 +147,30 @@
 
       <div class="summary-grid">
         <div class="summary-card">
-          <span class="summary-icon"><i class="pi pi-book"></i></span>
+          <span class="summary-icon"><i class="pi pi-book" aria-hidden="true"></i></span>
           <div>
-            <strong>{{ visibleCourses.length }}</strong>
+            <span v-if="loading" class="skeleton summary-skeleton" aria-hidden="true"></span>
+            <strong v-else>{{ visibleCourses.length }}</strong>
             <small>{{ visibleCourses.length === 1 ? "curso activo" : "cursos activos" }}</small>
           </div>
         </div>
         <RouterLink to="/student/calendar" class="summary-card summary-card--link">
-          <span class="summary-icon summary-icon--warning"><i class="pi pi-clock"></i></span>
-          <div><strong>{{ upcomingAssignments.length }}</strong><small>entregas próximas</small></div>
-          <i class="pi pi-arrow-right summary-arrow"></i>
+          <span class="summary-icon summary-icon--warning"><i class="pi pi-clock" aria-hidden="true"></i></span>
+          <div>
+            <span v-if="calendarLoading" class="skeleton summary-skeleton" aria-hidden="true"></span>
+            <strong v-else>{{ upcomingAssignments.length }}</strong>
+            <small>entregas próximas</small>
+          </div>
+          <i class="pi pi-arrow-right summary-arrow" aria-hidden="true"></i>
         </RouterLink>
         <RouterLink to="/student/messages" class="summary-card summary-card--link">
-          <span class="summary-icon summary-icon--message"><i class="pi pi-envelope"></i></span>
+          <span class="summary-icon summary-icon--message"><i class="pi pi-envelope" aria-hidden="true"></i></span>
           <div>
-            <strong>{{ unreadCount }}</strong>
+            <span v-if="messagesLoading" class="skeleton summary-skeleton" aria-hidden="true"></span>
+            <strong v-else>{{ unreadCount }}</strong>
             <small>{{ unreadCount === 1 ? "mensaje sin leer" : "mensajes sin leer" }}</small>
           </div>
-          <i class="pi pi-arrow-right summary-arrow"></i>
+          <i class="pi pi-arrow-right summary-arrow" aria-hidden="true"></i>
         </RouterLink>
       </div>
 
@@ -208,12 +216,19 @@
         </div>
       </div>
 
-      <div v-if="loading" class="state-message">Cargando tus cursos…</div>
-      <div v-else-if="!visibleCourses.length" class="state-message state-message--empty">
-        <strong>Todavía no estás matriculado en ningún curso.</strong>
-        <span>Explorá los cursos publicados o pedile a tu docente que te agregue.</span>
-        <RouterLink to="/student/explore" class="empty-action"><i class="pi pi-compass"></i> Explorar cursos</RouterLink>
-      </div>
+      <SkeletonGrid v-if="loading" :cards="3" loading-label="Cargando tus cursos" />
+      <StateMessage
+        v-else-if="!visibleCourses.length"
+        icon="pi-book"
+        title="Todavía no estás matriculado en ningún curso"
+        description="Explorá los cursos publicados o pedile a tu docente que te agregue."
+      >
+        <template #action>
+          <RouterLink to="/student/explore" class="empty-action">
+            <i class="pi pi-compass" aria-hidden="true"></i> Explorar cursos
+          </RouterLink>
+        </template>
+      </StateMessage>
       <div v-else>
         <component
           v-for="group in courseGroups"
@@ -260,8 +275,8 @@
             </div>
             <RouterLink to="/student/calendar" class="section-link">Ver calendario</RouterLink>
           </div>
-          <div v-if="calendarLoading" class="section-state">Cargando entregas…</div>
-          <div v-else-if="!upcomingAssignments.length" class="section-state">No tenés entregas próximas.</div>
+          <StateMessage v-if="calendarLoading" variant="loading" dense :rows="2" loading-label="Cargando entregas" />
+          <p v-else-if="!upcomingAssignments.length" class="section-state">No tenés entregas próximas.</p>
           <div v-else class="assignment-list">
             <RouterLink
               v-for="assignment in upcomingAssignments"
@@ -288,8 +303,8 @@
             </div>
             <RouterLink to="/student/messages" class="section-link">Ver mensajes</RouterLink>
           </div>
-          <div v-if="messagesLoading" class="section-state">Cargando mensajes…</div>
-          <div v-else-if="!recentConversations.length" class="section-state">Todavía no tenés mensajes.</div>
+          <StateMessage v-if="messagesLoading" variant="loading" dense :rows="2" loading-label="Cargando mensajes" />
+          <p v-else-if="!recentConversations.length" class="section-state">Todavía no tenés mensajes.</p>
           <div v-else class="message-list">
             <RouterLink
               v-for="conversation in recentConversations"
@@ -326,22 +341,15 @@
     color: var(--text-heading);
   }
   .dashboard-head p{margin:0;color:var(--text-secondary);font-size:var(--text-sm)}.eyebrow{color:var(--practiq-violet-dark);font-size:var(--text-xs);font-weight:800;text-transform:uppercase;letter-spacing:.06em}.head-action{display:inline-flex;align-items:center;gap:var(--space-2);padding:var(--space-2) var(--space-3);border-radius:var(--radius-md);background:var(--surface-card);color:var(--practiq-violet-dark);font-size:var(--text-sm);font-weight:700;box-shadow:var(--shadow-card)}
-  .summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-3);margin-bottom:var(--space-6)}.summary-card{display:flex;align-items:center;gap:var(--space-3);min-width:0;padding:var(--space-4);border:1px solid var(--surface-border);border-radius:var(--radius-md);background:var(--surface-card);color:inherit}.summary-card strong,.summary-card small{display:block}.summary-card strong{color:var(--text-heading);font-size:var(--text-lg)}.summary-card small{color:var(--text-secondary);font-size:var(--text-xs)}.summary-card--link:hover{box-shadow:var(--shadow-card)}.summary-icon{display:grid;place-items:center;width:38px;height:38px;flex:0 0 38px;border-radius:var(--radius-md);background:var(--fill-primary-subtle);color:var(--practiq-violet-dark)}.summary-icon--warning{background:var(--fill-warning-subtle);color:var(--color-warning-dark)}.summary-icon--message{background:var(--fill-success-subtle);color:var(--color-success-dark)}.summary-arrow{margin-left:auto;color:var(--text-muted);font-size:var(--text-sm)}
+  .summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--space-3);margin-bottom:var(--space-6)}.summary-card{display:flex;align-items:center;gap:var(--space-3);min-width:0;padding:var(--space-4);border:1px solid var(--surface-border);border-radius:var(--radius-md);background:var(--surface-card);color:inherit}.summary-card strong,.summary-card small{display:block}.summary-skeleton{display:block;width:28px;height:16px;margin-bottom:2px}.summary-card strong{color:var(--text-heading);font-size:var(--text-lg)}.summary-card small{color:var(--text-secondary);font-size:var(--text-xs)}.summary-card--link:hover{box-shadow:var(--shadow-card)}.summary-icon{display:grid;place-items:center;width:38px;height:38px;flex:0 0 38px;border-radius:var(--radius-md);background:var(--fill-primary-subtle);color:var(--practiq-violet-dark)}.summary-icon--warning{background:var(--fill-warning-subtle);color:var(--color-warning-dark)}.summary-icon--message{background:var(--fill-success-subtle);color:var(--color-success-dark)}.summary-arrow{margin-left:auto;color:var(--text-muted);font-size:var(--text-sm)}
 
   .courses-heading{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);margin-bottom:var(--space-3)}.courses-heading h2{margin:0;color:var(--text-heading);font-size:var(--text-lg)}.courses-heading p{margin:var(--space-1) 0 0;color:var(--text-secondary);font-size:var(--text-xs)}.courses-tools{display:flex;align-items:center;gap:var(--space-3)}.text-action{display:inline-flex;align-items:center;gap:var(--space-1);color:var(--practiq-violet-dark);font-size:var(--text-xs);font-weight:800}.view-controls{display:flex;align-items:center;gap:2px;padding:3px;border:1px solid var(--surface-border);border-radius:var(--radius-sm);background:var(--surface-card)}.view-controls button{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-1);height:28px;min-width:28px;padding:0 var(--space-2);border:0;border-radius:calc(var(--radius-sm) - 2px);background:transparent;color:var(--text-muted);font-size:var(--text-xs);font-weight:800;cursor:pointer}.view-controls button:hover{background:var(--surface-hover);color:var(--text-primary)}.view-controls button.active{background:var(--fill-primary-soft);color:var(--practiq-violet-dark)}.view-controls span{width:1px;height:16px;margin:0 2px;background:var(--surface-border)}.view-controls em{font-style:normal}
 
-  .state-message {
-    padding: var(--space-6);
-    border-radius: var(--radius-md);
-    background: var(--surface-card);
-    color: var(--text-secondary);
-    font-size: var(--text-sm);
-  }
-  .state-message--empty{display:flex;flex-direction:column;align-items:flex-start;gap:var(--space-3);border:1px solid var(--surface-border)}.state-message--empty strong{color:var(--text-heading)}.empty-action{display:inline-flex;align-items:center;gap:var(--space-1);padding:var(--space-2) var(--space-3);border-radius:var(--radius-md);background:var(--gradient-brand);color:var(--color-on-primary);font-size:var(--text-sm);font-weight:800}
+  .empty-action{display:inline-flex;align-items:center;gap:var(--space-1);min-height:40px;padding:var(--space-2) var(--space-4);border-radius:var(--radius-md);background:var(--gradient-brand);color:var(--color-on-primary);font-size:var(--text-sm);font-weight:800;box-shadow:var(--shadow-violet)}
 
   .course-group + .course-group { margin-top: var(--space-6); }
   .course-group-head { display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-2);padding:0 var(--space-1);color:var(--text-secondary);font-size:var(--text-sm);font-weight:800; }
-  .course-group-head span{display:inline-flex;align-items:center;gap:var(--space-1)}.course-group-head small{display:grid;min-width:21px;height:21px;place-items:center;border-radius:var(--radius-pill);background:var(--surface-hover);color:var(--text-muted);font-size:var(--text-xs)}
+  .course-group-head span{display:inline-flex;align-items:center;gap:var(--space-1)}.course-group-head small{display:grid;min-width:21px;height:21px;place-items:center;border-radius:var(--radius-pill);background:var(--surface-hover);color:var(--text-secondary);font-size:var(--text-xs)}
 
   .course-grid {
     display: grid;
@@ -434,6 +442,7 @@
   }
 
   .section-state {
+    margin: 0;
     padding: var(--space-4) 0;
     color: var(--text-secondary);
     font-size: var(--text-sm);

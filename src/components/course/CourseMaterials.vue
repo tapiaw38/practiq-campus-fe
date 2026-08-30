@@ -1,4 +1,5 @@
 <script setup lang="ts">
+  import StateMessage from "@/components/ui/StateMessage.vue";
   import { computed, onMounted, ref } from "vue";
   import { useCourseMaterials } from "@/composables/useCourseMaterials";
   import type { CourseSection, MaterialKind } from "@/types";
@@ -62,7 +63,7 @@
       </form>
     </details>
 
-    <div v-if="loading" class="materials-state">Cargando materiales…</div>
+    <StateMessage v-if="loading" variant="loading" dense :rows="2" loading-label="Cargando materiales" />
     <div v-else-if="!visibleMaterials.length" class="materials-state">{{ canManage ? "Todavía no adjuntaste materiales." : "Tu docente todavía no adjuntó materiales." }}</div>
     <ul v-else class="materials-list">
       <li v-for="material in visibleMaterials" :key="material.id" class="material-item">

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+  import StateMessage from "@/components/ui/StateMessage.vue";
   import { computed, nextTick, onMounted, ref, watch } from "vue";
   import { useAuthStore } from "@/stores/authStore";
   import { useMessages } from "@/composables/useMessages";
@@ -190,13 +191,13 @@
           <InputText v-model="conversationQuery" placeholder="Buscar mensajes" aria-label="Buscar conversaciones" />
         </div>
         <div class="conversation-list">
-          <div v-if="loading" class="state-message state-message--compact">Cargando…</div>
-          <div v-else-if="!conversations.length" class="state-message state-message--compact">
+          <StateMessage v-if="loading" variant="loading" dense :rows="3" loading-label="Cargando conversaciones" />
+          <p v-else-if="!conversations.length" class="state-message state-message--compact">
             Aún no tenés conversaciones.
-          </div>
-          <div v-else-if="!filteredConversations.length" class="state-message state-message--compact">
-            No hay coincidencias.
-          </div>
+          </p>
+          <p v-else-if="!filteredConversations.length" class="state-message state-message--compact">
+            No hay coincidencias para “{{ conversationQuery }}”.
+          </p>
         <button
           v-for="conv in filteredConversations"
           :key="conv.id"

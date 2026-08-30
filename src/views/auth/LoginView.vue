@@ -3,6 +3,7 @@
   import { useRouter } from "vue-router";
   import { useAuth } from "@/composables/useAuth";
   import GoogleButton from "@/components/auth/GoogleButton.vue";
+  import PasswordField from "@/components/ui/PasswordField.vue";
 
   const router = useRouter();
   const { login } = useAuth();
@@ -50,19 +51,23 @@
       </p>
 
       <form class="auth-form" @submit.prevent="handleSubmit">
-        <label class="field">
-          <span class="field-label">Email</span>
-          <InputText v-model="email" type="email" required autocomplete="email" />
-        </label>
-        <label class="field">
-          <span class="field-label">Contraseña</span>
+        <div class="field">
+          <label class="field-label" for="login-email">Email</label>
           <InputText
-            v-model="password"
-            type="password"
+            id="login-email"
+            v-model="email"
+            type="email"
             required
-            autocomplete="current-password"
+            autocomplete="email"
+            autofocus
           />
-        </label>
+        </div>
+        <PasswordField
+          v-model="password"
+          input-id="login-password"
+          label="Contraseña"
+          autocomplete="current-password"
+        />
         <Button
           type="submit"
           label="Entrar"

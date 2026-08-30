@@ -2,6 +2,7 @@
   import { computed, onMounted, ref } from "vue";
   import { useRoute, useRouter } from "vue-router";
   import TeacherLayout from "@/layouts/TeacherLayout.vue";
+  import StateMessage from "@/components/ui/StateMessage.vue";
   import { useCourses } from "@/composables/useCourses";
   import { useEnrollments } from "@/composables/useEnrollments";
   import { usePractiqStudents } from "@/composables/usePractiqStudents";
@@ -276,6 +277,13 @@
       savingLabels.value = false;
     }
   }
+  // The status picker listed the raw API values — "draft", "published" — in an
+  // otherwise Spanish screen.
+  const COURSE_STATUS_OPTIONS = [
+    { value: "draft", label: "Borrador" },
+    { value: "published", label: "Publicado" },
+    { value: "archived", label: "Archivado" },
+  ];
 </script>
 
 <template>
@@ -285,15 +293,21 @@
         <i class="pi pi-arrow-left"></i> Volver a mis cursos
       </button>
 
-      <div v-if="courseLoading || !currentCourse" class="state-message">
-        Cargando…
-      </div>
+      <StateMessage
+        v-if="courseLoading || !currentCourse"
+        variant="loading"
+        :rows="4"
+        loading-label="Cargando curso"
+      />
       <template v-else>
         <header class="course-head">
           <h1>{{ currentCourse.title }}</h1>
           <Select
             :model-value="currentCourse.status"
-            :options="['draft', 'published', 'archived']"
+            :options="COURSE_STATUS_OPTIONS"
+            option-label="label"
+            option-value="value"
+            aria-label="Estado del curso"
             @update:model-value="handleStatusChange"
           />
         </header>
@@ -316,17 +330,17 @@
         </div>
 
         <nav class="course-nav" aria-label="Secciones del curso">
-          <button type="button" :class="{ active: activeCourseTab === 'alumnos' }" @click="activeCourseTab = 'alumnos'"><i class="pi pi-users" /> Alumnos <span>{{ courseEnrollments.length }}</span></button>
-          <button type="button" :class="{ active: activeCourseTab === 'contenido' }" @click="activeCourseTab = 'contenido'"><i class="pi pi-book" /> Secciones <span>{{ sections.length }}</span></button>
-          <button type="button" :class="{ active: activeCourseTab === 'materiales' }" @click="activeCourseTab = 'materiales'"><i class="pi pi-folder-open" /> Materiales</button>
-          <button type="button" :class="{ active: activeCourseTab === 'tareas' }" @click="activeCourseTab = 'tareas'"><i class="pi pi-check-square" /> Tareas <span>{{ assignments.length }}</span></button>
-          <button type="button" :class="{ active: activeCourseTab === 'foro' }" @click="activeCourseTab = 'foro'"><i class="pi pi-comments" /> Foro</button>
+          <button type="button" :class="{ active: activeCourseTab === 'alumnos' }" :aria-pressed="activeCourseTab === 'alumnos'" @click="activeCourseTab = 'alumnos'"><i class="pi pi-users" aria-hidden="true" /> Alumnos <span v-if="courseEnrollments.length">{{ courseEnrollments.length }}</span></button>
+          <button type="button" :class="{ active: activeCourseTab === 'contenido' }" :aria-pressed="activeCourseTab === 'contenido'" @click="activeCourseTab = 'contenido'"><i class="pi pi-book" aria-hidden="true" /> Secciones <span v-if="sections.length">{{ sections.length }}</span></button>
+          <button type="button" :class="{ active: activeCourseTab === 'materiales' }" :aria-pressed="activeCourseTab === 'materiales'" @click="activeCourseTab = 'materiales'"><i class="pi pi-folder-open" aria-hidden="true" /> Materiales</button>
+          <button type="button" :class="{ active: activeCourseTab === 'tareas' }" :aria-pressed="activeCourseTab === 'tareas'" @click="activeCourseTab = 'tareas'"><i class="pi pi-check-square" aria-hidden="true" /> Tareas <span v-if="assignments.length">{{ assignments.length }}</span></button>
+          <button type="button" :class="{ active: activeCourseTab === 'foro' }" :aria-pressed="activeCourseTab === 'foro'" @click="activeCourseTab = 'foro'"><i class="pi pi-comments" aria-hidden="true" /> Foro</button>
         </nav>
 
         <section v-if="activeCourseTab === 'alumnos'" class="enrollments-section workspace-section">
           <div class="section-heading">
             <div><h2>Alumnos</h2><p>Matriculá, revisá participantes y enviá avisos.</p></div>
-            <span class="section-count">{{ courseEnrollments.length }}</span>
+            <span v-if="courseEnrollments.length" class="section-count">{{ courseEnrollments.length }}</span>
           </div>
 
           <details class="create-disclosure">
@@ -358,10 +372,14 @@
             </button>
           </div>
 
-          <div v-if="enrollmentsLoading" class="state-message">Cargando…</div>
-          <div v-else-if="!courseEnrollments.length" class="state-message">
-            Nadie está matriculado todavía.
-          </div>
+          <StateMessage v-if="enrollmentsLoading" variant="loading" dense :rows="3" loading-label="Cargando alumnos" />
+          <StateMessage
+            v-else-if="!courseEnrollments.length"
+            dense
+            icon="pi-users"
+            title="Nadie está matriculado todavía"
+            description="Agregá alumnos por email desde el formulario de arriba."
+          />
           <ul v-else class="enrollment-list">
             <li
               v-for="enrollment in courseEnrollments"
@@ -402,7 +420,7 @@
         <section v-if="activeCourseTab === 'contenido'" class="content-section workspace-section">
           <div class="section-heading">
             <div><h2>Secciones</h2><p>Ordená el material del curso por unidades o temas.</p></div>
-            <span class="section-count">{{ sections.length }}</span>
+            <span v-if="sections.length" class="section-count">{{ sections.length }}</span>
           </div>
           <details class="create-disclosure">
             <summary><i class="pi pi-plus" /> Agregar sección</summary>
@@ -426,7 +444,7 @@
         <section v-if="activeCourseTab === 'tareas'" class="content-section workspace-section">
           <div class="section-heading">
             <div><h2>Tareas</h2><p>Creá actividades y abrí una tarea para revisar sus entregas.</p></div>
-            <span class="section-count">{{ assignments.length }}</span>
+            <span v-if="assignments.length" class="section-count">{{ assignments.length }}</span>
           </div>
           <details class="create-disclosure">
             <summary><i class="pi pi-plus" /> Crear tarea</summary>
@@ -469,9 +487,13 @@
           </form>
           </details>
 
-          <div v-if="!assignments.length" class="state-message">
-            Todavía no hay tareas.
-          </div>
+          <StateMessage
+            v-if="!assignments.length"
+            dense
+            icon="pi-file-edit"
+            title="Todavía no hay tareas"
+            description="Creá una tarea para que tus alumnos puedan entregar y recibir devoluciones."
+          />
           <ul v-else class="assignment-list">
             <li v-for="assignment in assignments" :key="assignment.id" class="assignment-item">
               <div class="assignment-head">
@@ -506,13 +528,13 @@
               <CourseMaterials :course-id="courseId" :assignment-id="assignment.id" :can-manage="true" />
 
               <div v-if="false" class="submissions-panel">
-                <div v-if="submissionsLoading" class="state-message">Cargando…</div>
-                <div
+                <StateMessage v-if="submissionsLoading" variant="loading" dense :rows="2" loading-label="Cargando entregas" />
+                <StateMessage
                   v-else-if="!(submissionsByAssignment[assignment.id] || []).length"
-                  class="state-message"
-                >
-                  Nadie entregó todavía.
-                </div>
+                  dense
+                  icon="pi-inbox"
+                  title="Nadie entregó todavía"
+                />
                 <ul v-else class="submission-list">
                   <li
                     v-for="submission in submissionsByAssignment[assignment.id]"
@@ -590,14 +612,6 @@
     margin-bottom: var(--space-4);
   }
 
-  .state-message {
-    padding: var(--space-6);
-    border-radius: var(--radius-lg);
-    background: var(--surface-card);
-    color: var(--text-secondary);
-    font-size: var(--text-sm);
-  }
-
   .course-head {
     display: flex;
     align-items: center;
@@ -626,8 +640,10 @@
 
   .course-nav { display: flex; gap: var(--space-2); overflow-x: auto; padding: var(--space-3); margin-bottom: var(--space-5); border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--surface-card); box-shadow: var(--shadow-card); }
   .course-nav button { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 var(--space-3); border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-secondary); font-size: var(--text-xs); font-weight: 700; white-space: nowrap; cursor: pointer; }
-  .course-nav button:hover, .course-nav button.active { background: var(--surface-hover); color: var(--practiq-violet-dark); }
-  .course-nav span, .section-count { display: grid; min-width: 20px; height: 20px; padding: 0 5px; place-items: center; border-radius: var(--radius-pill); background: var(--surface-hover); color: var(--text-muted); font-size: var(--text-xs); }
+  .course-nav button:hover { background: var(--surface-hover); color: var(--text-primary); }
+  .course-nav button.active { background: var(--fill-primary-soft); color: var(--practiq-violet-dark); }
+  .course-nav button.active span { background: var(--surface-card); color: var(--practiq-violet-dark); }
+  .course-nav span, .section-count { display: grid; min-width: 20px; height: 20px; padding: 0 5px; place-items: center; border-radius: var(--radius-pill); background: var(--surface-hover); color: var(--text-secondary); font-size: var(--text-xs); font-weight: 700; }
 
   .workspace-section { padding: var(--space-5); border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--surface-card); box-shadow: var(--shadow-card); }
   .section-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-3); margin-bottom: var(--space-4); }

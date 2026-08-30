@@ -1,4 +1,5 @@
 <script setup lang="ts">
+  import StateMessage from "@/components/ui/StateMessage.vue";
   import { computed, onMounted, ref } from "vue";
   import { useRouter } from "vue-router";
   import { storeToRefs } from "pinia";
@@ -54,8 +55,14 @@
     </form>
     <p v-else class="forum-note">Los temas nuevos los inicia el docente. Podés entrar a un tema y responder.</p>
 
-    <div v-if="loading" class="state-message">Cargando…</div>
-    <div v-else-if="!threads.length" class="state-message">Todavía no hay temas.</div>
+    <StateMessage v-if="loading" variant="loading" dense :rows="2" loading-label="Cargando temas del foro" />
+    <StateMessage
+      v-else-if="!threads.length"
+      dense
+      icon="pi-comments"
+      title="Todavía no hay temas"
+      :description="isTeacher ? 'Creá el primer tema para abrir la conversación del curso.' : 'Los temas nuevos los inicia el docente.'"
+    />
     <ul v-else class="thread-list">
       <li v-for="thread in visibleThreads" :key="thread.id" class="thread-item">
         <button class="thread-head" type="button" @click="openThread(thread.id)">

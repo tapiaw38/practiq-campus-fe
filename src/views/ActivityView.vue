@@ -3,6 +3,8 @@ import { computed, onMounted, ref } from "vue";
 import { RouterLink } from "vue-router";
 import StudentLayout from "@/layouts/StudentLayout.vue";
 import TeacherLayout from "@/layouts/TeacherLayout.vue";
+import PageHeader from "@/components/ui/PageHeader.vue";
+import StateMessage from "@/components/ui/StateMessage.vue";
 import { useAuthStore } from "@/stores/authStore";
 import { useCourses } from "@/composables/useCourses";
 import { AssignmentService } from "@/services/assignments/assignmentService";
@@ -21,8 +23,53 @@ onMounted(async () => { try { const courses = await loadCourses(); const data = 
   ...ms.map((x) => ({ id:`m:${x.id}`,course,kind:"material" as const,title:`Nuevo material: ${x.title}`,detail:x.description || (x.kind === "file" ? "Archivo compartido" : "Enlace compartido"),at:x.created_at,to:`/${role.value}/courses/${course.id}` })),
   ...fs.data.map((x) => ({ id:`f:${x.id}`,course,kind:"forum" as const,title:`Nuevo foro: ${x.title}`,detail:x.description || "Nueva discusión",at:x.created_at,to:`/${role.value}/courses/${course.id}/forum/${x.id}` }))
 ]; })); items.value = data.flat().sort((a,b) => new Date(b.at).getTime() - new Date(a.at).getTime()); } finally { loading.value = false; } });
+const courseFilterOptions = computed(() => [
+  { id: "all", title: "Todos los cursos" },
+  ...Array.from(new Map(items.value.map((item) => [item.course.id, item.course])).values()),
+]);
+function formatDateTime(value: string) { return new Date(value).toLocaleString("es-AR", { dateStyle: "medium", timeStyle: "short" }); }
 function icon(kind: Activity["kind"]) { return kind === "assignment" ? "pi-file-edit" : kind === "material" ? "pi-folder-open" : "pi-comments"; }
 function label(kind: Activity["kind"]) { return kind === "assignment" ? "Tarea" : kind === "material" ? "Material" : "Foro"; }
 </script>
-<template><component :is="isTeacher ? TeacherLayout : StudentLayout"><section class="activity-page"><header><div><p class="eyebrow">Novedades</p><h1>Actividad reciente</h1><p>Últimas tareas, materiales y foros publicados en tus cursos.</p></div><Select v-model="selectedCourse" :options="[{id:'all',title:'Todos los cursos'}, ...Array.from(new Map(items.map(x=>[x.course.id,x.course])).values())]" option-label="title" option-value="id" class="course-filter" /></header><div v-if="loading" class="state">Cargando actividad…</div><div v-else-if="!visible.length" class="state">Aún no hay novedades en estos cursos.</div><ol v-else class="feed"><li v-for="item in visible" :key="item.id"><span class="feed-icon"><i :class="`pi ${icon(item.kind)}`"></i></span><RouterLink :to="item.to"><small>{{ item.course.title }} · {{ label(item.kind) }}</small><strong>{{ item.title }}</strong><span>{{ item.detail }}</span><time>{{ new Date(item.at).toLocaleString("es-AR", {dateStyle:"medium",timeStyle:"short"}) }}</time></RouterLink></li></ol></section></component></template>
-<style scoped>.activity-page{max-width:900px}.activity-page header{display:flex;align-items:flex-end;justify-content:space-between;gap:var(--space-4);margin-bottom:var(--space-5)}.eyebrow{margin:0;color:var(--practiq-violet-dark);font-size:var(--text-xs);font-weight:800;letter-spacing:.06em;text-transform:uppercase}h1{margin:3px 0 0;color:var(--text-heading);font-size:24px}header p:not(.eyebrow){margin:var(--space-1) 0 0;color:var(--text-secondary);font-size:var(--text-sm)}.course-filter{width:230px}.feed{position:relative;display:flex;flex-direction:column;gap:var(--space-2);padding:0;list-style:none}.feed:before{position:absolute;top:20px;bottom:20px;left:19px;width:1px;background:var(--surface-border);content:""}.feed li{position:relative;display:flex;gap:var(--space-3);align-items:flex-start}.feed-icon{z-index:1;display:grid;width:40px;height:40px;flex:0 0 40px;border:1px solid var(--surface-border);border-radius:50%;place-items:center;background:var(--surface-card);color:var(--practiq-violet-dark)}.feed a{display:flex;min-width:0;flex:1;flex-direction:column;gap:3px;padding:var(--space-3) var(--space-4);border:1px solid var(--surface-border);border-radius:var(--radius-md);background:var(--surface-card);box-shadow:var(--shadow-card);color:inherit}.feed a:hover{border-color:var(--practiq-violet-dark)}.feed small,time,.feed span{color:var(--text-secondary);font-size:var(--text-xs)}.feed small{color:var(--practiq-violet-dark);font-weight:700}.feed strong{color:var(--text-heading);font-size:var(--text-sm)}time{margin-top:var(--space-1);color:var(--text-muted)}.state{padding:var(--space-6);border-radius:var(--radius-md);background:var(--surface-card);color:var(--text-secondary);text-align:center}@media(max-width:600px){.activity-page header{align-items:stretch;flex-direction:column}.course-filter{width:100%}}</style>
+<template>
+  <component :is="isTeacher ? TeacherLayout : StudentLayout">
+    <section class="activity-page">
+      <PageHeader
+        eyebrow="Novedades"
+        title="Actividad reciente"
+        subtitle="Últimas tareas, materiales y foros publicados en tus cursos."
+      >
+        <template #actions>
+          <Select
+            v-model="selectedCourse"
+            :options="courseFilterOptions"
+            option-label="title"
+            option-value="id"
+            class="course-filter"
+            aria-label="Filtrar por curso"
+          />
+        </template>
+      </PageHeader>
+
+      <StateMessage v-if="loading" variant="loading" loading-label="Cargando actividad" :rows="4" />
+      <StateMessage
+        v-else-if="!visible.length"
+        icon="pi-bolt"
+        title="Todavía no hay novedades"
+        description="Cuando se publique una tarea, un material o un foro en tus cursos, aparecerá acá."
+      />
+      <ol v-else class="feed">
+        <li v-for="item in visible" :key="item.id">
+          <span class="feed-icon"><i :class="`pi ${icon(item.kind)}`" aria-hidden="true"></i></span>
+          <RouterLink :to="item.to">
+            <small>{{ item.course.title }} · {{ label(item.kind) }}</small>
+            <strong>{{ item.title }}</strong>
+            <span>{{ item.detail }}</span>
+            <time :datetime="item.at">{{ formatDateTime(item.at) }}</time>
+          </RouterLink>
+        </li>
+      </ol>
+    </section>
+  </component>
+</template>
+<style scoped>.activity-page{max-width:900px}.course-filter{width:230px}@media(max-width:600px){.course-filter{width:100%}}.feed{position:relative;display:flex;flex-direction:column;gap:var(--space-2);padding:0;list-style:none}.feed:before{position:absolute;top:20px;bottom:20px;left:19px;width:1px;background:var(--surface-border);content:""}.feed li{position:relative;display:flex;gap:var(--space-3);align-items:flex-start}.feed-icon{z-index:1;display:grid;width:40px;height:40px;flex:0 0 40px;border:1px solid var(--surface-border);border-radius:50%;place-items:center;background:var(--surface-card);color:var(--practiq-violet-dark)}.feed a{display:flex;min-width:0;flex:1;flex-direction:column;gap:3px;padding:var(--space-3) var(--space-4);border:1px solid var(--surface-border);border-radius:var(--radius-md);background:var(--surface-card);box-shadow:var(--shadow-card);color:inherit}.feed a:hover{border-color:var(--practiq-violet-dark)}.feed small,time,.feed span{color:var(--text-secondary);font-size:var(--text-xs)}.feed small{color:var(--practiq-violet-dark);font-weight:700}.feed strong{color:var(--text-heading);font-size:var(--text-sm)}time{margin-top:var(--space-1);color:var(--text-muted)}</style>
