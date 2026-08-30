@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import StateMessage from "@/components/ui/StateMessage.vue";
+  import { formatDateTime } from "@/utils/datetime";
   import { computed, nextTick, onMounted, ref, watch } from "vue";
   import { useAuthStore } from "@/stores/authStore";
   import { useMessages } from "@/composables/useMessages";
@@ -244,7 +245,7 @@
               :class="{ 'message-item--mine': msg.sender_id === authStore.profile?.id }"
             >
               <p class="message-body">{{ msg.body }}</p>
-              <span class="message-time">{{ new Date(msg.sent_at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) }}</span>
+              <span class="message-time">{{ formatDateTime(msg.sent_at) }}</span>
             </li>
             <li ref="threadEnd"></li>
           </ul>

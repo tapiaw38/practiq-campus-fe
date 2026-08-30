@@ -3,6 +3,7 @@
   import { useRoute, useRouter } from "vue-router";
   import TeacherLayout from "@/layouts/TeacherLayout.vue";
   import StateMessage from "@/components/ui/StateMessage.vue";
+  import { formatDateTime } from "@/utils/datetime";
   import { useCourses } from "@/composables/useCourses";
   import { useEnrollments } from "@/composables/useEnrollments";
   import { usePractiqStudents } from "@/composables/usePractiqStudents";
@@ -511,7 +512,7 @@
                       {{ sectionTitle(assignment.section_id) }} ·
                     </span>
                     <span v-if="assignment.due_at">
-                      vence {{ new Date(assignment.due_at).toLocaleString() }} ·
+                      vence {{ formatDateTime(assignment.due_at) }} ·
                     </span>
                     <span>máx. {{ assignment.max_score }}</span>
                   </div>

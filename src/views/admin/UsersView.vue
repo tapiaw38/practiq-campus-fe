@@ -2,6 +2,7 @@
   import { onMounted, ref } from "vue";
   import TeacherLayout from "@/layouts/TeacherLayout.vue";
 import StateMessage from "@/components/ui/StateMessage.vue";
+import PageHeader from "@/components/ui/PageHeader.vue";
   import { useUsers } from "@/composables/useUsers";
 
   const { users, loading, pageMeta, loadUsers, createOrSyncUser, setBlocked } = useUsers();
@@ -67,12 +68,11 @@ import StateMessage from "@/components/ui/StateMessage.vue";
 <template>
   <TeacherLayout>
     <div class="users">
-      <h1>Usuarios</h1>
-      <p class="hint">
-        Poné el email: si ya tiene cuenta en Practiq/Auth se sincroniza sola
-        (sin pedir contraseña). Si es nuevo, vas a completar nombre y
-        contraseña temporal.
-      </p>
+      <PageHeader
+        eyebrow="Administración"
+        title="Usuarios"
+        subtitle="Poné el email: si ya tiene cuenta en Practiq/Auth se sincroniza sola (sin pedir contraseña). Si es nuevo, vas a completar nombre y contraseña temporal."
+      />
 
       <form class="create-form" @submit.prevent="handleSubmit">
         <InputText
@@ -145,19 +145,6 @@ import StateMessage from "@/components/ui/StateMessage.vue";
 <style scoped>
   .users {
     max-width: 880px;
-  }
-
-  .users h1 {
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--text-heading);
-    margin-bottom: var(--space-1);
-  }
-
-  .hint {
-    font-size: var(--text-sm);
-    color: var(--text-secondary);
-    margin-bottom: var(--space-5);
   }
 
   .create-form {

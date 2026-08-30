@@ -3,6 +3,7 @@
   import { useRoute, useRouter } from "vue-router";
   import StudentLayout from "@/layouts/StudentLayout.vue";
   import StateMessage from "@/components/ui/StateMessage.vue";
+  import { formatDateTime } from "@/utils/datetime";
   import { useCourses } from "@/composables/useCourses";
   import { useCourseSections } from "@/composables/useCourseSections";
   import { useAssignments } from "@/composables/useAssignments";
@@ -86,6 +87,12 @@
     const input = event.target as HTMLInputElement;
     submissionFiles.value[assignmentId] = input.files?.[0] ?? null;
   }
+  // The badge printed the raw API value ("published"), and in English, on a
+  // screen a student reads. Same student-facing wording as the dashboard: the
+  // draft/published split is authoring state they have no use for.
+  function studentCourseStatus(status: string) {
+    return status === "archived" ? "Finalizado" : "Activo";
+  }
 </script>
 
 <template>
@@ -99,7 +106,7 @@
       <template v-else>
         <header class="course-head">
           <h1>{{ currentCourse.title }}</h1>
-          <span class="course-status">{{ currentCourse.status }}</span>
+          <span class="course-status">{{ studentCourseStatus(currentCourse.status) }}</span>
         </header>
         <p v-if="currentCourse.description" class="course-description">
           {{ currentCourse.description }}
@@ -136,7 +143,7 @@
                   {{ sectionTitle(assignment.section_id) }} ·
                 </span>
                 <span v-if="assignment.due_at">
-                  vence {{ new Date(assignment.due_at).toLocaleString() }} ·
+                  vence {{ formatDateTime(assignment.due_at) }} ·
                 </span>
                 <span>máx. {{ assignment.max_score }}</span>
               </div>
