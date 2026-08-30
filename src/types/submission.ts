@@ -1,5 +1,11 @@
 export type SubmissionStatus = "submitted" | "graded";
 
+export interface SubmissionRubricScore {
+  criterion_id: string;
+  score: number;
+  feedback: string;
+}
+
 export interface Submission {
   id: string;
   assignment_id: string;
@@ -11,4 +17,5 @@ export interface Submission {
   feedback: string;
   submitted_at: string;
   graded_at: string | null;
+  rubric_scores: SubmissionRubricScore[];
 }

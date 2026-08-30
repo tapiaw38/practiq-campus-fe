@@ -94,6 +94,15 @@
           <span>Mensajes</span>
           <span v-if="unreadCount" class="nav-badge">{{ unreadCount }}</span>
         </RouterLink>
+        <RouterLink to="/student/notifications" class="nav-item" active-class="nav-item-active">
+          <span class="nav-icon"><i class="pi pi-bell"></i></span>
+          <span>Notificaciones</span>
+        </RouterLink>
+        <RouterLink to="/student/grades" class="nav-item" active-class="nav-item-active">
+          <span class="nav-icon"><i class="pi pi-chart-bar"></i></span>
+          <span>Calificaciones</span>
+        </RouterLink>
+        <RouterLink to="/student/activity" class="nav-item" active-class="nav-item-active"><span class="nav-icon"><i class="pi pi-bolt"></i></span><span>Actividad</span></RouterLink>
       </nav>
 
       <div class="sidebar-footer">

@@ -8,6 +8,7 @@ import Button from 'primevue/button'
 import InputText from 'primevue/inputtext'
 import Textarea from 'primevue/textarea'
 import Select from 'primevue/select'
+import DatePicker from 'primevue/datepicker'
 
 import App from './App.vue'
 import router from './router'
@@ -27,5 +28,6 @@ app.component('Button', Button)
 app.component('InputText', InputText)
 app.component('Textarea', Textarea)
 app.component('Select', Select)
+app.component('DatePicker', DatePicker)
 
 app.mount('#app')

@@ -7,11 +7,14 @@
   import { usePractiqStudents } from "@/composables/usePractiqStudents";
   import { useCourseSections } from "@/composables/useCourseSections";
   import { useAssignments } from "@/composables/useAssignments";
+  import { useCourseMaterials } from "@/composables/useCourseMaterials";
   import { useSubmissions } from "@/composables/useSubmissions";
+  import { useRubric } from "@/composables/useRubric";
+  import type { RubricCriterion } from "@/services/rubrics/rubricService";
   import { useMessages } from "@/composables/useMessages";
   import ForumSection from "@/components/forum/ForumSection.vue";
   import CourseMaterials from "@/components/course/CourseMaterials.vue";
-  import type { CourseStatus } from "@/types";
+  import type { CourseStatus, Submission } from "@/types";
 
   const route = useRoute();
   const router = useRouter();
@@ -33,6 +36,7 @@
 
   const { sections, loadSections, createSection, updateSection, deleteSection } = useCourseSections();
   const { assignments, loadAssignments, createAssignment, updateAssignment, deleteAssignment } = useAssignments();
+  const { createMaterial, uploadMaterial } = useCourseMaterials();
   const {
     submissionsByAssignment,
     loading: submissionsLoading,
@@ -75,21 +79,44 @@
   const newAssignment = ref({
     title: "",
     description: "",
-    dueAt: "",
+    dueAt: null as Date | null,
     maxScore: "100",
     sectionId: "",
   });
+  const newAttachment = ref({ mode: "file" as "file" | "link", title: "", linkURL: "" });
+  const newAttachmentFile = ref<File | null>(null);
   const creatingAssignment = ref(false);
   const editingAssignmentId = ref<string | null>(null);
-  const editingAssignmentTitle = ref("");
+  const editingAssignment = ref({ title: "", description: "", dueAt: "", maxScore: "100", sectionId: "" });
+  const assignmentToDelete = ref<{ id: string; title: string } | null>(null);
+  const rubric = useRubric();
+  const rubricDrafts = ref<Record<string, { title: string; description: string; max_score: number }[]>>({});
+  const rubricOpen = ref<string | null>(null);
 
   const expandedAssignmentId = ref<string | null>(null);
-  const gradeDrafts = ref<Record<string, { score: string; feedback: string }>>({});
+  const gradingCriteria = ref<Record<string, RubricCriterion[]>>({});
+  const gradeDrafts = ref<Record<string, { score: string; feedback: string; rubric_scores: Record<string, { score: string; feedback: string }> }>>({});
 
   function beginEditSection(section: { id: string; title: string }) { editingSectionId.value = section.id; editingSectionTitle.value = section.title; }
   async function saveSection() { if (!editingSectionId.value || !editingSectionTitle.value.trim()) return; await updateSection(courseId, editingSectionId.value, editingSectionTitle.value.trim()); editingSectionId.value = null; }
-  function beginEditAssignment(assignment: { id: string; title: string }) { editingAssignmentId.value = assignment.id; editingAssignmentTitle.value = assignment.title; }
-  async function saveAssignment() { const item = assignments.value.find((a) => a.id === editingAssignmentId.value); if (!item || !editingAssignmentTitle.value.trim()) return; await updateAssignment(courseId, item.id, { title: editingAssignmentTitle.value.trim(), description: item.description, due_at: item.due_at || undefined, max_score: item.max_score, section_id: item.section_id }); editingAssignmentId.value = null; }
+  function beginEditAssignment(assignment: { id: string; title: string; description: string; due_at: string | null; max_score: number; section_id: string | null }) {
+    editingAssignmentId.value = assignment.id;
+    editingAssignment.value = { title: assignment.title, description: assignment.description, dueAt: assignment.due_at ? assignment.due_at.slice(0, 16) : "", maxScore: String(assignment.max_score), sectionId: assignment.section_id || "" };
+  }
+  async function editRubric(id: string) { await rubric.load(id); rubricDrafts.value[id] = rubric.criteria.value.map((x) => ({ title: x.title, description: x.description, max_score: x.max_score })); rubricOpen.value = id; }
+  function addCriterion(id: string) { (rubricDrafts.value[id] ||= []).push({ title: "", description: "", max_score: 1 }); }
+  async function saveRubric(id: string, max: number) { const list = rubricDrafts.value[id] || []; if (list.reduce((s, x) => s + Number(x.max_score), 0) !== max) return; await rubric.save(id, list); rubricOpen.value = null; }
+  async function saveAssignment() {
+    const item = assignments.value.find((a) => a.id === editingAssignmentId.value);
+    if (!item || !editingAssignment.value.title.trim()) return;
+    await updateAssignment(courseId, item.id, { title: editingAssignment.value.title.trim(), description: editingAssignment.value.description, due_at: editingAssignment.value.dueAt ? new Date(editingAssignment.value.dueAt).toISOString() : undefined, max_score: Number(editingAssignment.value.maxScore), section_id: editingAssignment.value.sectionId || null });
+    editingAssignmentId.value = null;
+  }
+  async function confirmDeleteAssignment() {
+    if (!assignmentToDelete.value) return;
+    await deleteAssignment(courseId, assignmentToDelete.value.id);
+    assignmentToDelete.value = null;
+  }
 
   onMounted(() => {
     loadCourse(courseId);
@@ -126,21 +153,41 @@
     if (!newAssignment.value.title.trim() || creatingAssignment.value) return;
     creatingAssignment.value = true;
     try {
-      await createAssignment(courseId, {
+      const created = await createAssignment(courseId, {
         title: newAssignment.value.title.trim(),
         description: newAssignment.value.description,
         due_at: newAssignment.value.dueAt
-          ? new Date(newAssignment.value.dueAt).toISOString()
+          ? newAssignment.value.dueAt.toISOString()
           : undefined,
         max_score: Number(newAssignment.value.maxScore) || undefined,
         section_id: newAssignment.value.sectionId || null,
       });
-      newAssignment.value = { title: "", description: "", dueAt: "", maxScore: "100", sectionId: "" };
+      const hasAttachment = newAttachment.value.mode === "file" ? !!newAttachmentFile.value : !!newAttachment.value.linkURL.trim();
+      if (hasAttachment) {
+        const url = newAttachment.value.mode === "file"
+          ? (await uploadMaterial(newAttachmentFile.value!)).url
+          : newAttachment.value.linkURL.trim();
+        await createMaterial(courseId, {
+          assignment_id: created.id,
+          title: newAttachment.value.title.trim() || (newAttachmentFile.value?.name.replace(/\.[^.]+$/, "") || "Adjunto de tarea"),
+          kind: newAttachment.value.mode,
+          url,
+        });
+      }
+      newAssignment.value = { title: "", description: "", dueAt: null, maxScore: "100", sectionId: "" };
+      newAttachment.value = { mode: "file", title: "", linkURL: "" };
+      newAttachmentFile.value = null;
     } catch {
       // useAssignments already surfaced the error via toast
     } finally {
       creatingAssignment.value = false;
     }
+  }
+
+  function selectNewAttachment(event: Event) {
+    const input = event.target as HTMLInputElement;
+    newAttachmentFile.value = input.files?.[0] ?? null;
+    if (!newAttachment.value.title && newAttachmentFile.value) newAttachment.value.title = newAttachmentFile.value.name.replace(/\.[^.]+$/, "");
   }
 
   async function toggleSubmissions(assignmentId: string) {
@@ -149,21 +196,37 @@
       return;
     }
     expandedAssignmentId.value = assignmentId;
-    await loadByAssignment(assignmentId);
+    await Promise.all([
+      loadByAssignment(assignmentId),
+      rubric.load(assignmentId).then(() => { gradingCriteria.value[assignmentId] = [...rubric.criteria.value]; }),
+    ]);
   }
 
-  function draftFor(submissionId: string) {
-    if (!gradeDrafts.value[submissionId]) {
-      gradeDrafts.value[submissionId] = { score: "", feedback: "" };
+  function draftFor(submission: Submission, assignmentId: string) {
+    if (!gradeDrafts.value[submission.id]) {
+      const saved = new Map(submission.rubric_scores.map((score) => [score.criterion_id, score]));
+      const rubricScores = Object.fromEntries((gradingCriteria.value[assignmentId] || []).map((criterion) => {
+        const previous = saved.get(criterion.id || "");
+        return [criterion.id || "", { score: previous ? String(previous.score) : "", feedback: previous?.feedback || "" }];
+      }));
+      gradeDrafts.value[submission.id] = { score: submission.score == null ? "" : String(submission.score), feedback: submission.feedback || "", rubric_scores: rubricScores };
     }
-    return gradeDrafts.value[submissionId];
+    return gradeDrafts.value[submission.id];
   }
 
   async function handleGrade(assignmentId: string, submissionId: string) {
-    const draft = draftFor(submissionId);
+    const submission = (submissionsByAssignment.value[assignmentId] || []).find((item) => item.id === submissionId);
+    if (!submission) return;
+    const draft = draftFor(submission, assignmentId);
+    const criteria = gradingCriteria.value[assignmentId] || [];
+    if (criteria.length) {
+      const rubricScores = criteria.map((criterion) => ({ criterion_id: criterion.id || "", score: Number(draft.rubric_scores[criterion.id || ""]?.score), feedback: draft.rubric_scores[criterion.id || ""]?.feedback || "" }));
+      if (rubricScores.some((item) => !Number.isInteger(item.score))) return;
+      await grade(assignmentId, submissionId, 0, draft.feedback, rubricScores);
+      return;
+    }
     const score = Number(draft.score);
-    if (Number.isNaN(score)) return;
-    await grade(assignmentId, submissionId, score, draft.feedback);
+    if (!Number.isNaN(score)) await grade(assignmentId, submissionId, score, draft.feedback);
   }
 
   async function handleEnroll() {
@@ -372,12 +435,15 @@
               rows="2"
               placeholder="Descripción (opcional)"
             />
+            <div class="task-attachment">
+              <label>Adjunto opcional</label>
+              <div class="attachment-mode"><button type="button" :class="{ active: newAttachment.mode === 'file' }" @click="newAttachment.mode = 'file'"><i class="pi pi-upload" /> Archivo</button><button type="button" :class="{ active: newAttachment.mode === 'link' }" @click="newAttachment.mode = 'link'"><i class="pi pi-link" /> Enlace</button></div>
+              <InputText v-model="newAttachment.title" placeholder="Título adjunto (opcional)" />
+              <input v-if="newAttachment.mode === 'file'" type="file" class="file-input" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.txt,image/*,audio/*,video/*" @change="selectNewAttachment" />
+              <InputText v-else v-model="newAttachment.linkURL" type="url" placeholder="https://…" />
+            </div>
             <div class="field-row">
-              <InputText
-                v-model="newAssignment.dueAt"
-                type="datetime-local"
-                placeholder="Fecha de entrega (opcional)"
-              />
+              <label class="due-datetime">Fecha y hora<DatePicker v-model="newAssignment.dueAt" show-time hour-format="24" show-icon fluid date-format="dd/mm/yy" placeholder="Elegí fecha y hora" /></label>
               <InputText
                 v-model="newAssignment.maxScore"
                 type="number"
@@ -406,9 +472,15 @@
           </div>
           <ul v-else class="assignment-list">
             <li v-for="assignment in assignments" :key="assignment.id" class="assignment-item">
-              <div class="assignment-head" @click="toggleSubmissions(assignment.id)">
+              <div class="assignment-head">
                 <div>
-                  <div v-if="editingAssignmentId === assignment.id" class="inline-edit"><InputText v-model="editingAssignmentTitle" size="small" @keyup.enter="saveAssignment" /><button type="button" class="item-action" @click="saveAssignment"><i class="pi pi-check" /></button></div>
+                  <div v-if="editingAssignmentId === assignment.id" class="assignment-edit" @click.stop>
+                    <InputText v-model="editingAssignment.title" size="small" placeholder="Título" />
+                    <Textarea v-model="editingAssignment.description" rows="2" placeholder="Descripción" />
+                    <div class="field-row"><InputText v-model="editingAssignment.dueAt" type="datetime-local" /><InputText v-model="editingAssignment.maxScore" type="number" min="1" /></div>
+                    <Select v-model="editingAssignment.sectionId" :options="[{ id: '', title: 'Sin sección' }, ...sections]" option-label="title" option-value="id" />
+                    <div class="edit-actions"><Button type="button" label="Guardar" size="small" @click="saveAssignment" /><Button type="button" label="Cancelar" text size="small" @click="editingAssignmentId = null" /></div>
+                  </div>
                   <div v-else class="assignment-title">{{ assignment.title }}</div>
                   <div class="assignment-meta">
                     <span v-if="sectionTitle(assignment.section_id)">
@@ -420,13 +492,18 @@
                     <span>máx. {{ assignment.max_score }}</span>
                   </div>
                 </div>
-                <div class="item-actions"><button type="button" class="item-action" title="Editar" @click.stop="beginEditAssignment(assignment)"><i class="pi pi-pencil" /></button><button type="button" class="item-action" title="Eliminar" @click.stop="deleteAssignment(courseId, assignment.id)"><i class="pi pi-trash" /></button></div><i
-                  class="pi"
-                  :class="expandedAssignmentId === assignment.id ? 'pi-chevron-up' : 'pi-chevron-down'"
-                ></i>
+                <div class="item-actions"><button type="button" class="item-action" title="Ver entregas" @click="router.push(`/teacher/courses/${courseId}/assignments/${assignment.id}/submissions`)"><i class="pi pi-users" /></button><button type="button" class="item-action" title="Rúbrica" @click.stop="editRubric(assignment.id)"><i class="pi pi-list" /></button><button type="button" class="item-action" title="Editar" @click.stop="beginEditAssignment(assignment)"><i class="pi pi-pencil" /></button><button type="button" class="item-action" title="Eliminar" @click.stop="assignmentToDelete = assignment"><i class="pi pi-trash" /></button></div>
               </div>
 
-              <div v-if="expandedAssignmentId === assignment.id" class="submissions-panel">
+              <div v-if="rubricOpen === assignment.id" class="rubric-editor">
+                <strong>Rúbrica · {{ assignment.max_score }} puntos</strong>
+                <div v-for="(criterion, index) in rubricDrafts[assignment.id] || []" :key="index" class="rubric-row"><InputText v-model="criterion.title" placeholder="Criterio" /><InputText v-model="criterion.description" placeholder="Descripción" /><InputText :model-value="String(criterion.max_score)" type="number" min="1" @update:model-value="criterion.max_score = Number($event)" /></div>
+                <Button type="button" label="Agregar criterio" text size="small" @click="addCriterion(assignment.id)" /><Button type="button" label="Guardar rúbrica" size="small" @click="saveRubric(assignment.id, assignment.max_score)" />
+              </div>
+
+              <CourseMaterials :course-id="courseId" :assignment-id="assignment.id" :can-manage="true" />
+
+              <div v-if="false" class="submissions-panel">
                 <div v-if="submissionsLoading" class="state-message">Cargando…</div>
                 <div
                   v-else-if="!(submissionsByAssignment[assignment.id] || []).length"
@@ -451,14 +528,17 @@
                     </div>
                     <p class="submission-content">{{ submission.content }}</p>
                     <div class="grade-form">
+                      <template v-if="(gradingCriteria[assignment.id] || []).length">
+                        <div v-for="criterion in gradingCriteria[assignment.id]" :key="criterion.id" class="rubric-grade-row">
+                          <strong>{{ criterion.title }} <small>/ {{ criterion.max_score }}</small></strong>
+                          <InputText v-model="draftFor(submission, assignment.id).rubric_scores[criterion.id!].score" type="number" min="0" :max="criterion.max_score" placeholder="Puntos" class="grade-score" />
+                          <InputText v-model="draftFor(submission, assignment.id).rubric_scores[criterion.id!].feedback" placeholder="Comentario por criterio" class="grade-feedback" />
+                        </div>
+                        <span class="rubric-total">Total automático: {{ (gradingCriteria[assignment.id] || []).reduce((total, criterion) => total + (Number(draftFor(submission, assignment.id).rubric_scores[criterion.id!]?.score) || 0), 0) }} / {{ assignment.max_score }}</span>
+                      </template>
+                      <InputText v-else v-model="draftFor(submission, assignment.id).score" type="number" placeholder="Nota" class="grade-score" />
                       <InputText
-                        v-model="draftFor(submission.id).score"
-                        type="number"
-                        placeholder="Nota"
-                        class="grade-score"
-                      />
-                      <InputText
-                        v-model="draftFor(submission.id).feedback"
+                        v-model="draftFor(submission, assignment.id).feedback"
                         placeholder="Comentario (opcional)"
                         class="grade-feedback"
                       />
@@ -475,6 +555,12 @@
             </li>
           </ul>
         </section>
+
+        <Dialog :visible="!!assignmentToDelete" modal header="Eliminar tarea" :style="{ width: 'min(420px, calc(100vw - 32px))' }" @update:visible="(visible) => { if (!visible) assignmentToDelete = null; }">
+          <p>Vas a eliminar <strong>{{ assignmentToDelete?.title }}</strong>, sus adjuntos, rúbrica y entregas.</p>
+          <small>Esta acción no se puede deshacer.</small>
+          <div class="dialog-actions"><Button label="Cancelar" text severity="secondary" @click="assignmentToDelete = null" /><Button label="Eliminar tarea" severity="danger" @click="confirmDeleteAssignment" /></div>
+        </Dialog>
 
         <section v-if="activeCourseTab === 'foro'" class="forum-section-wrap">
           <ForumSection :course-id="courseId" />
@@ -704,6 +790,8 @@
   }
 
   .item-actions, .inline-edit { display: inline-flex; align-items: center; gap: 4px; }
+  .assignment-edit { display: flex; flex-direction: column; gap: var(--space-2); min-width: min(460px, 100%); }
+  .edit-actions, .dialog-actions { display: flex; gap: var(--space-2); justify-content: flex-end; }
   .item-action { border: 0; background: transparent; color: var(--text-muted); cursor: pointer; padding: 3px; }
   .item-action:hover { color: var(--practiq-violet-dark); }
 
@@ -717,12 +805,18 @@
     box-shadow: none;
     margin-bottom: var(--space-4);
   }
+  .task-attachment { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border: 1px dashed var(--surface-border); border-radius: var(--radius-sm); }
+  .task-attachment label { color: var(--text-secondary); font-size: var(--text-xs); font-weight: 700; }
+  .attachment-mode { display: flex; gap: var(--space-1); }
+  .attachment-mode button { border: 0; border-radius: var(--radius-sm); background: transparent; padding: 6px 9px; color: var(--text-muted); font-size: var(--text-xs); font-weight: 700; cursor: pointer; }
+  .attachment-mode button.active { background: var(--fill-primary-soft); color: var(--practiq-violet-dark); }
 
   .field-row {
     display: grid;
     grid-template-columns: 2fr 1fr;
     gap: var(--space-2);
   }
+  .due-datetime { display: flex; flex-direction: column; gap: 4px; color: var(--text-muted); font-size: var(--text-xs); font-weight: 700; }
 
   .submit-btn {
     align-self: flex-start;
@@ -814,6 +908,18 @@
     display: flex;
     gap: var(--space-2);
   }
+
+  .rubric-grade-row {
+    display: grid;
+    grid-template-columns: minmax(120px, 1fr) 88px minmax(160px, 2fr);
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+  }
+
+  .rubric-grade-row strong { font-size: var(--text-xs); color: var(--text-secondary); }
+  .rubric-grade-row small, .rubric-total { color: var(--text-muted); font-size: var(--text-xs); }
+  .rubric-total { width: 100%; font-weight: 700; }
 
   .grade-score {
     width: 80px;

@@ -2,6 +2,7 @@ import type { AxiosInstance } from "axios";
 import type { CourseMaterial, MaterialKind, UploadedFile } from "@/types";
 
 export interface CreateMaterialParams {
+	assignment_id?: string | null;
   section_id?: string | null;
   title: string;
   description?: string;

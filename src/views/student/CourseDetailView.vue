@@ -6,8 +6,11 @@
   import { useCourseSections } from "@/composables/useCourseSections";
   import { useAssignments } from "@/composables/useAssignments";
   import { useSubmissions } from "@/composables/useSubmissions";
+  import { useRubric } from "@/composables/useRubric";
+  import { campusApi } from "@/api/request/server";
   import ForumSection from "@/components/forum/ForumSection.vue";
   import CourseMaterials from "@/components/course/CourseMaterials.vue";
+  import type { Assignment } from "@/types";
 
   const route = useRoute();
   const router = useRouter();
@@ -19,9 +22,13 @@
   const { sections, loadSections } = useCourseSections();
   const { assignments, loadAssignments } = useAssignments();
   const { mySubmissions, loadMine, submit } = useSubmissions();
+  const rubric = useRubric();
+  const rubrics = ref<Record<string, typeof rubric.criteria.value>>({});
 
   const submissionDrafts = ref<Record<string, string>>({});
   const submitting = ref<Record<string, boolean>>({});
+  const resubmitting = ref<Record<string, boolean>>({});
+  const submissionFiles = ref<Record<string, File | null>>({});
 
   onMounted(async () => {
     await loadCourse(courseId);
@@ -29,6 +36,7 @@
     const list = await loadAssignments(courseId);
     for (const a of list) {
       loadMine(a.id);
+      await rubric.load(a.id); rubrics.value[a.id] = [...rubric.criteria.value];
     }
   });
 
@@ -38,17 +46,42 @@
   }
 
   async function handleSubmit(assignmentId: string) {
-    const content = submissionDrafts.value[assignmentId]?.trim();
-    if (!content || submitting.value[assignmentId]) return;
+    let content = submissionDrafts.value[assignmentId]?.trim() || "";
+    const file = submissionFiles.value[assignmentId];
+    if ((!content && !file) || submitting.value[assignmentId]) return;
     submitting.value[assignmentId] = true;
     try {
+      if (file) {
+        const body = new FormData();
+        body.append("folder", "submissions");
+        body.append("file", file);
+        const { data } = await campusApi.post<{ data: { url: string } }>("/uploads", body);
+        content = `${content}${content ? "\n\n" : ""}Archivo adjunto: ${file.name}\n${data.data.url}`;
+      }
       await submit(assignmentId, content);
       submissionDrafts.value[assignmentId] = "";
+      submissionFiles.value[assignmentId] = null;
+      resubmitting.value[assignmentId] = false;
     } catch {
       // useSubmissions already surfaced the error via toast
     } finally {
       submitting.value[assignmentId] = false;
     }
+  }
+
+  function canResubmit(assignment: Assignment) {
+    if (mySubmissions.value[assignment.id]?.graded_at) return false;
+    return !assignment.due_at || new Date(assignment.due_at) > new Date();
+  }
+
+  function startResubmit(assignmentId: string) {
+    submissionDrafts.value[assignmentId] = mySubmissions.value[assignmentId]?.content || "";
+    resubmitting.value[assignmentId] = true;
+  }
+
+  function selectSubmissionFile(assignmentId: string, event: Event) {
+    const input = event.target as HTMLInputElement;
+    submissionFiles.value[assignmentId] = input.files?.[0] ?? null;
   }
 </script>
 
@@ -71,6 +104,9 @@
         <p v-else class="course-description course-description--empty">
           El docente todavía no agregó una descripción.
         </p>
+        <div v-if="currentCourse.labels?.length" class="course-labels">
+          <span v-for="label in currentCourse.labels" :key="label">{{ label }}</span>
+        </div>
 
         <nav class="course-nav" aria-label="Contenido del curso">
           <button type="button" :class="{ active: activeCourseTab === 'materials' }" @click="activeCourseTab = 'materials'"><i class="pi pi-folder-open" /> Materiales</button>
@@ -100,8 +136,10 @@
               <p v-if="assignment.description" class="assignment-description">
                 {{ assignment.description }}
               </p>
+              <ul v-if="rubrics[assignment.id]?.length" class="rubric-list"><li v-for="criterion in rubrics[assignment.id]" :key="criterion.title"><strong>{{ criterion.title }}</strong><span>{{ criterion.description }}</span><em>{{ criterion.max_score }} pts</em></li></ul>
+              <CourseMaterials :course-id="courseId" :assignment-id="assignment.id" />
 
-              <div v-if="mySubmissions[assignment.id]" class="my-submission">
+              <div v-if="mySubmissions[assignment.id] && !resubmitting[assignment.id]" class="my-submission">
                 <p class="submission-content">{{ mySubmissions[assignment.id]?.content }}</p>
                 <span
                   class="submission-status"
@@ -116,6 +154,15 @@
                 <p v-if="mySubmissions[assignment.id]?.feedback" class="submission-feedback">
                   {{ mySubmissions[assignment.id]?.feedback }}
                 </p>
+                <ul v-if="mySubmissions[assignment.id]?.rubric_scores?.length" class="rubric-feedback-list">
+                  <li v-for="score in mySubmissions[assignment.id]?.rubric_scores" :key="score.criterion_id">
+                    <strong>{{ rubrics[assignment.id]?.find((criterion) => criterion.id === score.criterion_id)?.title }}</strong>
+                    <span>{{ score.score }} / {{ rubrics[assignment.id]?.find((criterion) => criterion.id === score.criterion_id)?.max_score }}</span>
+                    <p v-if="score.feedback">{{ score.feedback }}</p>
+                  </li>
+                </ul>
+                <Button v-if="canResubmit(assignment)" label="Actualizar entrega" icon="pi pi-refresh" size="small" text @click="startResubmit(assignment.id)" />
+                <small v-else class="submission-locked">{{ mySubmissions[assignment.id]?.graded_at ? "Entrega corregida: ya no se puede modificar" : "El plazo de entrega venció" }}</small>
               </div>
               <form v-else class="submit-form" @submit.prevent="handleSubmit(assignment.id)">
                 <Textarea
@@ -123,13 +170,15 @@
                   rows="3"
                   placeholder="Tu respuesta o link de entrega"
                 />
+                <label class="submission-file"><i class="pi pi-paperclip" /> Adjuntar archivo<input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.txt,image/*,audio/*,video/*" @change="selectSubmissionFile(assignment.id, $event)" /><small v-if="submissionFiles[assignment.id]">{{ submissionFiles[assignment.id]?.name }}</small></label>
                 <Button
                   type="submit"
-                  label="Entregar"
+                  :label="resubmitting[assignment.id] ? 'Reenviar entrega' : 'Entregar'"
                   size="small"
                   :loading="submitting[assignment.id]"
                   class="submit-btn"
                 />
+                <Button v-if="resubmitting[assignment.id]" type="button" label="Cancelar" severity="secondary" text size="small" @click="resubmitting[assignment.id] = false" />
               </form>
             </li>
           </ul>
@@ -200,6 +249,8 @@
     color: var(--text-muted);
   }
 
+  .course-labels{display:flex;gap:var(--space-1);flex-wrap:wrap;margin-top:var(--space-3)}.course-labels span{padding:2px 6px;border-radius:999px;background:var(--fill-primary-soft);color:var(--practiq-violet-dark);font-size:10px;font-weight:800}
+
   .course-nav{display:flex;gap:var(--space-2);overflow-x:auto;padding:var(--space-3);margin-top:var(--space-5);border:1px solid var(--surface-border);border-radius:var(--radius-md);background:var(--surface-card);box-shadow:var(--shadow-card)}.course-nav button{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:0 var(--space-3);border:0;border-radius:var(--radius-sm);background:transparent;color:var(--text-secondary);font-size:var(--text-xs);font-weight:700;white-space:nowrap;cursor:pointer}.course-nav button:hover,.course-nav button.active{background:var(--surface-hover);color:var(--practiq-violet-dark)}.course-nav span{display:grid;min-width:20px;height:20px;place-items:center;border-radius:var(--radius-pill);background:var(--surface-hover);color:var(--text-muted);font-size:var(--text-xs)}
 
   .assignments-section {
@@ -269,6 +320,13 @@
     color: var(--color-success-dark);
   }
 
+  .submission-locked {
+    display: block;
+    margin-top: var(--space-2);
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+  }
+
   .submission-feedback {
     font-size: var(--text-sm);
     color: var(--text-secondary);
@@ -276,12 +334,21 @@
     font-style: italic;
   }
 
+  .rubric-feedback-list { display: grid; gap: var(--space-2); margin: var(--space-3) 0; padding: 0; list-style: none; }
+  .rubric-feedback-list li { display: grid; grid-template-columns: 1fr auto; gap: 2px var(--space-3); padding: var(--space-2); border-radius: var(--radius-sm); background: var(--surface-card); font-size: var(--text-xs); }
+  .rubric-feedback-list strong { color: var(--text-primary); }
+  .rubric-feedback-list span { color: var(--practiq-violet-dark); font-weight: 700; }
+  .rubric-feedback-list p { grid-column: 1 / -1; margin: 0; color: var(--text-secondary); }
+
   .submit-form {
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
     margin-top: var(--space-3);
   }
+  .submission-file { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); color: var(--practiq-violet-dark); font-size: var(--text-xs); font-weight: 700; cursor: pointer; }
+  .submission-file input { max-width: 220px; color: var(--text-secondary); font-weight: 400; }
+  .submission-file small { color: var(--text-muted); font-weight: 400; }
 
   .submit-btn {
     align-self: flex-start;

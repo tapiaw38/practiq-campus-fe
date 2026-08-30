@@ -1,9 +1,9 @@
 <script setup lang="ts">
-  import { onMounted, ref } from "vue";
+  import { computed, onMounted, ref } from "vue";
   import { useCourseMaterials } from "@/composables/useCourseMaterials";
   import type { CourseSection, MaterialKind } from "@/types";
 
-  const props = withDefaults(defineProps<{ courseId: string; sections?: CourseSection[]; canManage?: boolean }>(), { sections: () => [], canManage: false });
+  const props = withDefaults(defineProps<{ courseId: string; assignmentId?: string | null; sections?: CourseSection[]; canManage?: boolean }>(), { assignmentId: null, sections: () => [], canManage: false });
   const { materials, loading, loadMaterials, createMaterial, uploadMaterial, deleteMaterial } = useCourseMaterials();
   const mode = ref<MaterialKind>("file");
   const title = ref("");
@@ -13,6 +13,7 @@
   const selectedFile = ref<File | null>(null);
   const saving = ref(false);
   const materialToDelete = ref<(typeof materials.value)[number] | null>(null);
+  const visibleMaterials = computed(() => props.assignmentId ? materials.value.filter((material) => material.assignment_id === props.assignmentId) : materials.value.filter((material) => !material.assignment_id));
 
   onMounted(() => { void loadMaterials(props.courseId).catch(() => undefined); });
 
@@ -29,7 +30,7 @@
     saving.value = true;
     try {
       const url = mode.value === "file" ? (await uploadMaterial(selectedFile.value!)).url : linkURL.value.trim();
-      await createMaterial(props.courseId, { title: title.value.trim(), description: description.value.trim(), section_id: sectionId.value || null, kind: mode.value, url });
+      await createMaterial(props.courseId, { title: title.value.trim(), description: description.value.trim(), section_id: sectionId.value || null, assignment_id: props.assignmentId, kind: mode.value, url });
       title.value = ""; description.value = ""; sectionId.value = ""; linkURL.value = ""; selectedFile.value = null;
     } finally { saving.value = false; }
   }
@@ -45,7 +46,7 @@
 
 <template>
   <section class="materials-section">
-    <div class="materials-heading"><div><h2>Materiales</h2><p>{{ canManage ? "Compartí archivos, enlaces y recursos con el curso." : "Archivos y enlaces compartidos por tu docente." }}</p></div><span v-if="materials.length" class="material-count">{{ materials.length }}</span></div>
+    <div class="materials-heading"><div><h2>{{ assignmentId ? "Adjuntos" : "Materiales" }}</h2><p>{{ canManage ? "Compartí archivos, enlaces y recursos con esta tarea." : "Archivos y enlaces adjuntos por tu docente." }}</p></div><span v-if="visibleMaterials.length" class="material-count">{{ visibleMaterials.length }}</span></div>
 
     <details v-if="canManage" class="add-material">
       <summary><i class="pi pi-plus" /> Agregar material</summary>
@@ -62,9 +63,9 @@
     </details>
 
     <div v-if="loading" class="materials-state">Cargando materiales…</div>
-    <div v-else-if="!materials.length" class="materials-state">{{ canManage ? "Todavía no compartiste materiales." : "Tu docente todavía no compartió materiales." }}</div>
+    <div v-else-if="!visibleMaterials.length" class="materials-state">{{ canManage ? "Todavía no adjuntaste materiales." : "Tu docente todavía no adjuntó materiales." }}</div>
     <ul v-else class="materials-list">
-      <li v-for="material in materials" :key="material.id" class="material-item">
+      <li v-for="material in visibleMaterials" :key="material.id" class="material-item">
         <span class="material-icon"><i :class="material.kind === 'link' ? 'pi pi-link' : 'pi pi-file'" /></span>
         <div class="material-content"><a :href="material.view_url || material.url" target="_blank" rel="noopener noreferrer">{{ material.title }} <i class="pi pi-external-link" /></a><p v-if="material.description">{{ material.description }}</p><small><span v-if="sectionName(material.section_id)">{{ sectionName(material.section_id) }} · </span>{{ material.kind === 'link' ? 'Enlace' : 'Archivo' }} · {{ new Date(material.created_at).toLocaleDateString() }}</small></div>
         <button v-if="canManage" type="button" class="delete-material" title="Eliminar material" @click="materialToDelete = material"><i class="pi pi-trash" /></button>

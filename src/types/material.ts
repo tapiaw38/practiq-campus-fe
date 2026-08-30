@@ -3,6 +3,7 @@ export type MaterialKind = "file" | "link";
 export interface CourseMaterial {
   id: string;
   course_id: string;
+  assignment_id?: string | null;
   section_id: string | null;
   title: string;
   description: string;

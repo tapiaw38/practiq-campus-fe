@@ -69,6 +69,19 @@ const router = createRouter({
       meta: { requiresAuth: true, profileType: "student" },
     },
     {
+      path: "/student/notifications",
+      name: "student-notifications",
+      component: () => import("@/views/NotificationsView.vue"),
+      meta: { requiresAuth: true, profileType: "student" },
+    },
+    {
+      path: "/student/grades",
+      name: "student-grades",
+      component: () => import("@/views/GradesView.vue"),
+      meta: { requiresAuth: true, profileType: "student" },
+    },
+    { path: "/student/activity", name: "student-activity", component: () => import("@/views/ActivityView.vue"), meta: { requiresAuth: true, profileType: "student" } },
+    {
       path: "/teacher/dashboard",
       name: "teacher-dashboard",
       component: () => import("@/views/teacher/DashboardView.vue"),
@@ -86,6 +99,7 @@ const router = createRouter({
       component: () => import("@/views/teacher/CourseDetailView.vue"),
       meta: { requiresAuth: true, profileType: "teacher" },
     },
+    { path: "/teacher/courses/:courseId/assignments/:assignmentId/submissions", name: "teacher-assignment-submissions", component: () => import("@/views/teacher/AssignmentSubmissionsView.vue"), meta: { requiresAuth: true, profileType: "teacher" } },
     {
       path: "/teacher/courses/:courseId/forum/:threadId",
       name: "teacher-forum-thread",
@@ -104,6 +118,19 @@ const router = createRouter({
       component: () => import("@/views/teacher/MessagesView.vue"),
       meta: { requiresAuth: true, profileType: "teacher" },
     },
+    {
+      path: "/teacher/notifications",
+      name: "teacher-notifications",
+      component: () => import("@/views/NotificationsView.vue"),
+      meta: { requiresAuth: true, profileType: "teacher" },
+    },
+    {
+      path: "/teacher/grades",
+      name: "teacher-grades",
+      component: () => import("@/views/GradesView.vue"),
+      meta: { requiresAuth: true, profileType: "teacher" },
+    },
+    { path: "/teacher/activity", name: "teacher-activity", component: () => import("@/views/ActivityView.vue"), meta: { requiresAuth: true, profileType: "teacher" } },
     {
       path: "/admin/users",
       name: "admin-users",

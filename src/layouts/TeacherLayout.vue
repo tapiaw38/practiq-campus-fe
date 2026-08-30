@@ -90,6 +90,15 @@
           <span>Mensajes</span>
           <span v-if="unreadCount" class="nav-badge">{{ unreadCount }}</span>
         </RouterLink>
+        <RouterLink to="/teacher/notifications" class="nav-item" active-class="nav-item-active">
+          <span class="nav-icon"><i class="pi pi-bell"></i></span>
+          <span>Notificaciones</span>
+        </RouterLink>
+        <RouterLink to="/teacher/grades" class="nav-item" active-class="nav-item-active">
+          <span class="nav-icon"><i class="pi pi-chart-bar"></i></span>
+          <span>Calificaciones</span>
+        </RouterLink>
+        <RouterLink to="/teacher/activity" class="nav-item" active-class="nav-item-active"><span class="nav-icon"><i class="pi pi-bolt"></i></span><span>Actividad</span></RouterLink>
         <template v-if="authStore.isSuperAdmin">
           <div class="nav-section-label">Administración</div>
           <RouterLink

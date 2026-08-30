@@ -1,0 +1,2 @@
+import { ref } from "vue"; import { campusApi } from "@/api/request/server"; import { RubricService, type RubricCriterion } from "@/services/rubrics/rubricService";
+const service=new RubricService(campusApi); export function useRubric(){const criteria=ref<RubricCriterion[]>([]);async function load(id:string){criteria.value=(await service.list(id)) || []};async function save(id:string,x:RubricCriterion[]){await service.replace(id,x);criteria.value=x};return{criteria,load,save}}

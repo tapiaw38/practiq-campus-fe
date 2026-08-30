@@ -1,7 +1,7 @@
 import { ref } from "vue";
 import { useToast } from "primevue/usetoast";
 import { campusApi } from "@/api/request/server";
-import { SubmissionService } from "@/services/submissions/submissionService";
+import { SubmissionService, type GradeRubricScore } from "@/services/submissions/submissionService";
 import type { Submission } from "@/types";
 
 const submissionService = new SubmissionService(campusApi);
@@ -44,9 +44,9 @@ export function useSubmissions() {
     }
   }
 
-  async function grade(assignmentId: string, submissionId: string, score: number, feedback: string) {
+  async function grade(assignmentId: string, submissionId: string, score: number, feedback: string, rubricScores?: GradeRubricScore[]) {
     try {
-      const { data } = await submissionService.grade(submissionId, score, feedback);
+      const { data } = await submissionService.grade(submissionId, score, feedback, rubricScores);
       submissionsByAssignment.value = {
         ...submissionsByAssignment.value,
         [assignmentId]: (submissionsByAssignment.value[assignmentId] || []).map((s) =>
