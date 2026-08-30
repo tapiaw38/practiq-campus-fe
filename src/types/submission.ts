@@ -6,6 +6,15 @@ export interface SubmissionRubricScore {
   feedback: string;
 }
 
+/** A file the student uploaded with their submission. */
+export interface SubmissionAttachment {
+  filename: string;
+  /** Stored private-bucket value; not openable on its own. */
+  url: string;
+  /** Short-lived signed URL — this is what the browser opens. */
+  view_url: string;
+}
+
 export interface Submission {
   id: string;
   assignment_id: string;
@@ -18,4 +27,5 @@ export interface Submission {
   submitted_at: string;
   graded_at: string | null;
   rubric_scores: SubmissionRubricScore[];
+  attachments: SubmissionAttachment[];
 }

@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import TeacherLayout from "@/layouts/TeacherLayout.vue";
 import PageHeader from "@/components/ui/PageHeader.vue";
 import StateMessage from "@/components/ui/StateMessage.vue";
+import SubmissionBody from "@/components/ui/SubmissionBody.vue";
 import { useSubmissions } from "@/composables/useSubmissions";
 import { useRubric } from "@/composables/useRubric";
 import { AssignmentService } from "@/services/assignments/assignmentService";
@@ -43,7 +44,7 @@ async function save(s:Submission){const d=draft(s);if(rubric.criteria.value.leng
           <small v-if="s.status === 'graded'">· Nota {{ s.score }}</small>
           <small v-else class="submission-pending">· Sin corregir</small>
         </h2>
-        <p class="content">{{ s.content }}</p>
+        <SubmissionBody class="content" :content="s.content" :attachments="s.attachments" />
         <div v-for="c in rubric.criteria.value" :key="c.id" class="criterion">
           <strong>{{ c.title }} / {{ c.max_score }}</strong>
           <InputText
@@ -76,4 +77,4 @@ async function save(s:Submission){const d=draft(s);if(rubric.criteria.value.leng
     </section>
   </TeacherLayout>
 </template>
-<style scoped>.page{max-width:900px}.back-link{margin-bottom:var(--space-3)}.submission small{color:var(--text-muted);font-weight:600}.submission-pending{color:var(--color-warning-dark)}.save-btn{align-self:flex-start}.submission{display:flex;flex-direction:column;gap:var(--space-3);margin-bottom:var(--space-3);padding:var(--space-4);border:1px solid var(--surface-border);border-radius:var(--radius-md);background:var(--surface-card)}.submission h2{font-size:var(--text-md)}.content{white-space:pre-wrap;color:var(--text-secondary)}.criterion{display:grid;grid-template-columns:1fr 110px 2fr;gap:var(--space-2);align-items:center}@media(max-width:600px){.criterion{grid-template-columns:1fr}}</style>
+<style scoped>.page{max-width:900px}.back-link{margin-bottom:var(--space-3)}.submission small{color:var(--text-muted);font-weight:600}.submission-pending{color:var(--color-warning-dark)}.save-btn{align-self:flex-start}.submission{display:flex;flex-direction:column;gap:var(--space-3);margin-bottom:var(--space-3);padding:var(--space-4);border:1px solid var(--surface-border);border-radius:var(--radius-md);background:var(--surface-card)}.submission h2{font-size:var(--text-md)}.criterion{display:grid;grid-template-columns:1fr 110px 2fr;gap:var(--space-2);align-items:center}@media(max-width:600px){.criterion{grid-template-columns:1fr}}</style>
