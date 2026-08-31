@@ -44,7 +44,7 @@
 <template>
   <div class="auth-shell">
     <div class="auth-card">
-      <div class="auth-brand">Practiq Campus</div>
+      <div class="auth-brand"><img src="/logo.png" alt="" class="auth-brand-logo" /> Practiq Campus</div>
       <h1 class="auth-title">Iniciar sesión</h1>
       <p class="auth-subtitle">
         Usá el mismo email y contraseña de tu cuenta Practiq.
@@ -107,12 +107,20 @@
   }
 
   .auth-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
     font-size: var(--text-xs);
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--practiq-violet);
     margin-bottom: var(--space-2);
+  }
+
+  .auth-brand-logo {
+    width: 20px;
+    height: 20px;
   }
 
   .auth-title {

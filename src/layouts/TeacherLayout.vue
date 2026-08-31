@@ -60,7 +60,7 @@
       >
         <i class="pi pi-bars" aria-hidden="true"></i>
       </button>
-      <div class="topbar-brand">Practiq Campus</div>
+      <div class="topbar-brand"><img src="/logo.png" alt="" class="brand-logo" /> Practiq Campus</div>
       <div class="topbar-avatar" aria-hidden="true">{{ userInitial }}</div>
     </header>
 
@@ -81,7 +81,7 @@
       tabindex="-1"
     >
       <div class="sidebar-brand">
-        <span class="brand-text">Practiq Campus</span>
+        <span class="brand-text"><img src="/logo.png" alt="" class="brand-logo" /> Practiq Campus</span>
         <button
           class="close-btn"
           type="button"
@@ -192,6 +192,10 @@
     border-right: 1px solid var(--surface-border);
     padding: var(--space-4);
     gap: var(--space-4);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
   }
 
   .sidebar-brand {
@@ -203,9 +207,17 @@
   }
 
   .brand-text {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
     font-weight: 700;
     font-size: var(--text-lg);
     color: var(--text-heading);
+  }
+
+  .brand-logo {
+    width: 24px;
+    height: 24px;
   }
 
   .close-btn {
@@ -378,8 +390,16 @@
     }
 
     .topbar-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
       font-weight: 700;
       color: var(--text-heading);
+    }
+
+    .topbar-brand .brand-logo {
+      width: 20px;
+      height: 20px;
     }
 
     .topbar-avatar {
