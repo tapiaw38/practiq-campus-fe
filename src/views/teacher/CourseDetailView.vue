@@ -17,7 +17,7 @@
   import { useCourseGroups } from "@/composables/useCourseGroups";
   import ForumSection from "@/components/forum/ForumSection.vue";
   import CourseMaterials from "@/components/course/CourseMaterials.vue";
-  import type { CourseStatus } from "@/types";
+  import type { Assignment, CourseStatus } from "@/types";
   import type { Quiz, QuizQuestionType } from "@/types/quiz";
   import type { QuestionParams } from "@/services/quizzes/quizService";
 
@@ -110,9 +110,11 @@
   const enrolling = ref(false);
 
   const newSectionTitle = ref("");
+  const newSectionDescription = ref("");
   const creatingSection = ref(false);
   const editingSectionId = ref<string | null>(null);
   const editingSectionTitle = ref("");
+  const editingSectionDescription = ref("");
 
   const newAssignment = ref({
     title: "",
@@ -120,12 +122,15 @@
     dueAt: null as Date | null,
     maxScore: "100",
     sectionId: "",
+    weight: "100",
+    visibleGroupId: "",
+    unlockAfter: "",
   });
   const newAttachment = ref({ mode: "file" as "file" | "link", title: "", linkURL: "" });
   const newAttachmentFile = ref<File | null>(null);
   const creatingAssignment = ref(false);
   const editingAssignmentId = ref<string | null>(null);
-  const editingAssignment = ref({ title: "", description: "", dueAt: "", maxScore: "100", sectionId: "" });
+  const editingAssignment = ref({ title: "", description: "", dueAt: "", maxScore: "100", sectionId: "", weight: "100", visibleGroupId: "", unlockAfter: "" });
   const assignmentToDelete = ref<{ id: string; title: string } | null>(null);
   const rubric = useRubric();
   const rubricDrafts = ref<Record<string, { title: string; description: string; max_score: number }[]>>({});
@@ -138,10 +143,10 @@
     { label: "Verdadero/Falso", value: "true_false" },
     { label: "Completar espacios", value: "fill_blanks" },
   ];
-  const newQuiz = ref({ title: "", description: "", maxAttempts: "1", timeLimitMin: "" });
+  const newQuiz = ref({ title: "", description: "", maxAttempts: "1", timeLimitMin: "", sectionId: "", weight: "100", visibleGroupId: "", unlockAfter: "" });
   const creatingQuiz = ref(false);
   const editingQuizId = ref<string | null>(null);
-  const editingQuiz = ref({ title: "", description: "", maxAttempts: "1", timeLimitMin: "" });
+  const editingQuiz = ref({ title: "", description: "", maxAttempts: "1", timeLimitMin: "", sectionId: "", weight: "100", visibleGroupId: "", unlockAfter: "" });
   const quizToDelete = ref<Quiz | null>(null);
   const questionsOpen = ref<string | null>(null);
   const questionDrafts = ref<Record<string, QuestionParams[]>>({});
@@ -156,8 +161,12 @@
         description: newQuiz.value.description,
         max_attempts: Number(newQuiz.value.maxAttempts) || 1,
         time_limit_secs: newQuiz.value.timeLimitMin ? Number(newQuiz.value.timeLimitMin) * 60 : null,
+        section_id: newQuiz.value.sectionId || null,
+        weight: Number(newQuiz.value.weight) || 100,
+        visible_group_id: newQuiz.value.visibleGroupId || null,
+        ...parseUnlockAfter(newQuiz.value.unlockAfter),
       });
-      newQuiz.value = { title: "", description: "", maxAttempts: "1", timeLimitMin: "" };
+      newQuiz.value = { title: "", description: "", maxAttempts: "1", timeLimitMin: "", sectionId: "", weight: "100", visibleGroupId: "", unlockAfter: "" };
     } catch {
       // useQuizzes already surfaced the error via toast
     } finally {
@@ -167,7 +176,7 @@
 
   function beginEditQuiz(quiz: Quiz) {
     editingQuizId.value = quiz.id;
-    editingQuiz.value = { title: quiz.title, description: quiz.description, maxAttempts: String(quiz.max_attempts), timeLimitMin: quiz.time_limit_secs ? String(Math.round(quiz.time_limit_secs / 60)) : "" };
+    editingQuiz.value = { title: quiz.title, description: quiz.description, maxAttempts: String(quiz.max_attempts), timeLimitMin: quiz.time_limit_secs ? String(Math.round(quiz.time_limit_secs / 60)) : "", sectionId: quiz.section_id || "", weight: String(quiz.weight), visibleGroupId: quiz.visible_group_id || "", unlockAfter: unlockAfterValue(quiz.unlock_after_type, quiz.unlock_after_id) };
   }
   async function saveQuiz() {
     if (!editingQuizId.value || !editingQuiz.value.title.trim()) return;
@@ -176,6 +185,10 @@
       description: editingQuiz.value.description,
       max_attempts: Number(editingQuiz.value.maxAttempts) || 1,
       time_limit_secs: editingQuiz.value.timeLimitMin ? Number(editingQuiz.value.timeLimitMin) * 60 : null,
+      section_id: editingQuiz.value.sectionId || null,
+      weight: Number(editingQuiz.value.weight) || 100,
+      visible_group_id: editingQuiz.value.visibleGroupId || null,
+      ...parseUnlockAfter(editingQuiz.value.unlockAfter),
     });
     editingQuizId.value = null;
   }
@@ -186,7 +199,12 @@
   }
 
   function blankIds(statement: string): string[] {
-    return [...statement.matchAll(/\{\{\s*(\d+)\s*\}\}/g)].map((m) => m[1]);
+    return [...new Set([...statement.matchAll(/\{\{\s*(\d+)\s*\}\}/g)].map((m) => m[1]))];
+  }
+  function insertBlank(question: QuestionParams) {
+    const next = blankIds(question.statement).length + 1;
+    const trimmed = question.statement.trimEnd();
+    question.statement = (trimmed ? trimmed + " " : "") + `{{${next}}}`;
   }
   async function openQuestions(quiz: Quiz) {
     const list = await quizzes.loadQuestions(quiz.id);
@@ -197,6 +215,23 @@
   }
   function addQuestion(quizId: string) {
     (questionDrafts.value[quizId] ||= []).push({ type: "multiple_choice", statement: "", options: ["", ""], correct_answer: "", points: 1 });
+  }
+  function changeQuestionType(question: QuestionParams, type: QuizQuestionType) {
+    question.type = type;
+    question.correct_answer = type === "true_false" ? "true" : type === "fill_blanks" ? "{}" : "";
+    question.options = type === "multiple_choice" ? ["", ""] : [];
+  }
+  function addOption(question: QuestionParams) { question.options.push(""); }
+  function removeOption(question: QuestionParams, index: number) {
+    question.options.splice(index, 1);
+    if (question.correct_answer && !question.options.includes(question.correct_answer)) question.correct_answer = "";
+  }
+  function normalizeOptions(question: QuestionParams) { question.options = question.options.map((option) => option.trim()).filter(Boolean); if (question.correct_answer && !question.options.includes(question.correct_answer)) question.correct_answer = ""; }
+  function questionError(question: QuestionParams): string {
+    if (!question.statement.trim()) return "Falta el enunciado.";
+    if (question.type === "multiple_choice" && (question.options.length < 2 || question.options.some((option) => !option.trim()) || !question.options.includes(question.correct_answer))) return "Agregá dos opciones válidas y elegí una correcta.";
+    if (question.type === "fill_blanks" && (!blankIds(question.statement).length || blankIds(question.statement).some((id) => !blankAnswer(question, id).trim()))) return "Indicá {{1}}, {{2}}… y completá cada respuesta.";
+    return "";
   }
   function removeQuestion(quizId: string, index: number) {
     questionDrafts.value[quizId]?.splice(index, 1);
@@ -210,6 +245,7 @@
     try { return JSON.parse(question.correct_answer || "{}")[id] || ""; } catch { return ""; }
   }
   async function saveQuestionsFor(quizId: string) {
+    if ((questionDrafts.value[quizId] || []).some((question) => questionError(question))) return;
     try {
       await quizzes.saveQuestions(quizId, questionDrafts.value[quizId] || []);
       questionsOpen.value = null;
@@ -224,11 +260,37 @@
   }
 
 
-  function beginEditSection(section: { id: string; title: string }) { editingSectionId.value = section.id; editingSectionTitle.value = section.title; }
-  async function saveSection() { if (!editingSectionId.value || !editingSectionTitle.value.trim()) return; await updateSection(courseId, editingSectionId.value, editingSectionTitle.value.trim()); editingSectionId.value = null; }
-  function beginEditAssignment(assignment: { id: string; title: string; description: string; due_at: string | null; max_score: number; section_id: string | null }) {
+  function beginEditSection(section: { id: string; title: string; description: string }) { editingSectionId.value = section.id; editingSectionTitle.value = section.title; editingSectionDescription.value = section.description; }
+  async function saveSection() { if (!editingSectionId.value || !editingSectionTitle.value.trim()) return; await updateSection(courseId, editingSectionId.value, editingSectionTitle.value.trim(), editingSectionDescription.value); editingSectionId.value = null; }
+
+  // A "Tarea: X" / "Evaluación: Y" prerequisite picker shared by the
+  // assignment and quiz forms — a composite "type:id" string is simplest to
+  // bind to a single Select, split back into the two fields the API wants
+  // on save.
+  function unlockOptions(excludeType?: string, excludeId?: string) {
+    const opts: { label: string; value: string }[] = [{ label: "Sin requisito", value: "" }];
+    for (const a of assignments.value) {
+      if (excludeType === "assignment" && excludeId === a.id) continue;
+      opts.push({ label: `Tarea: ${a.title}`, value: `assignment:${a.id}` });
+    }
+    for (const q of quizzes.quizzes.value) {
+      if (excludeType === "quiz" && excludeId === q.id) continue;
+      opts.push({ label: `Evaluación: ${q.title}`, value: `quiz:${q.id}` });
+    }
+    return opts;
+  }
+  function parseUnlockAfter(value: string): { unlock_after_type: "assignment" | "quiz" | null; unlock_after_id: string | null } {
+    if (!value) return { unlock_after_type: null, unlock_after_id: null };
+    const [type, id] = value.split(":");
+    return { unlock_after_type: type as "assignment" | "quiz", unlock_after_id: id };
+  }
+  function unlockAfterValue(type: string | null, id: string | null) {
+    return type && id ? `${type}:${id}` : "";
+  }
+
+  function beginEditAssignment(assignment: Assignment) {
     editingAssignmentId.value = assignment.id;
-    editingAssignment.value = { title: assignment.title, description: assignment.description, dueAt: assignment.due_at ? assignment.due_at.slice(0, 16) : "", maxScore: String(assignment.max_score), sectionId: assignment.section_id || "" };
+    editingAssignment.value = { title: assignment.title, description: assignment.description, dueAt: assignment.due_at ? assignment.due_at.slice(0, 16) : "", maxScore: String(assignment.max_score), sectionId: assignment.section_id || "", weight: String(assignment.weight), visibleGroupId: assignment.visible_group_id || "", unlockAfter: unlockAfterValue(assignment.unlock_after_type, assignment.unlock_after_id) };
   }
   async function editRubric(id: string) { await rubric.load(id); rubricDrafts.value[id] = rubric.criteria.value.map((x) => ({ title: x.title, description: x.description, max_score: x.max_score })); rubricOpen.value = id; }
   function addCriterion(id: string) { (rubricDrafts.value[id] ||= []).push({ title: "", description: "", max_score: 1 }); }
@@ -236,7 +298,7 @@
   async function saveAssignment() {
     const item = assignments.value.find((a) => a.id === editingAssignmentId.value);
     if (!item || !editingAssignment.value.title.trim()) return;
-    await updateAssignment(courseId, item.id, { title: editingAssignment.value.title.trim(), description: editingAssignment.value.description, due_at: editingAssignment.value.dueAt ? new Date(editingAssignment.value.dueAt).toISOString() : undefined, max_score: Number(editingAssignment.value.maxScore), section_id: editingAssignment.value.sectionId || null });
+    await updateAssignment(courseId, item.id, { title: editingAssignment.value.title.trim(), description: editingAssignment.value.description, due_at: editingAssignment.value.dueAt ? new Date(editingAssignment.value.dueAt).toISOString() : undefined, max_score: Number(editingAssignment.value.maxScore), section_id: editingAssignment.value.sectionId || null, weight: Number(editingAssignment.value.weight) || 100, visible_group_id: editingAssignment.value.visibleGroupId || null, ...parseUnlockAfter(editingAssignment.value.unlockAfter) });
     editingAssignmentId.value = null;
   }
   async function confirmDeleteAssignment() {
@@ -264,8 +326,9 @@
     if (!newSectionTitle.value.trim() || creatingSection.value) return;
     creatingSection.value = true;
     try {
-      await createSection(courseId, newSectionTitle.value.trim());
+      await createSection(courseId, newSectionTitle.value.trim(), newSectionDescription.value);
       newSectionTitle.value = "";
+      newSectionDescription.value = "";
     } catch {
       // useCourseSections already surfaced the error via toast
     } finally {
@@ -290,6 +353,9 @@
           : undefined,
         max_score: Number(newAssignment.value.maxScore) || undefined,
         section_id: newAssignment.value.sectionId || null,
+        weight: Number(newAssignment.value.weight) || 100,
+        visible_group_id: newAssignment.value.visibleGroupId || null,
+        ...parseUnlockAfter(newAssignment.value.unlockAfter),
       });
       const hasAttachment = newAttachment.value.mode === "file" ? !!newAttachmentFile.value : !!newAttachment.value.linkURL.trim();
       if (hasAttachment) {
@@ -303,7 +369,7 @@
           url,
         });
       }
-      newAssignment.value = { title: "", description: "", dueAt: null, maxScore: "100", sectionId: "" };
+      newAssignment.value = { title: "", description: "", dueAt: null, maxScore: "100", sectionId: "", weight: "100", visibleGroupId: "", unlockAfter: "" };
       newAttachment.value = { mode: "file", title: "", linkURL: "" };
       newAttachmentFile.value = null;
     } catch {
@@ -544,13 +610,26 @@
             <summary><i class="pi pi-plus" /> Agregar sección</summary>
             <form class="inline-form disclosure-body" @submit.prevent="handleCreateSection">
               <InputText v-model="newSectionTitle" placeholder="Ej.: Unidad 1 — Números" class="enroll-input" />
-              <Button type="submit" label="Agregar" :loading="creatingSection" size="small" />
+              <Textarea v-model="newSectionDescription" rows="2" placeholder="Contenido de la sección (opcional)" />
+              <Button type="submit" label="Agregar" :loading="creatingSection" size="small" class="submit-btn" />
             </form>
           </details>
           <ul v-if="sections.length" class="section-list">
             <li v-for="section in sections" :key="section.id" class="section-chip">
-              <template v-if="editingSectionId === section.id"><InputText v-model="editingSectionTitle" size="small" @keyup.enter="saveSection" /><button type="button" class="item-action" @click="saveSection"><i class="pi pi-check" /></button></template>
-              <template v-else>{{ section.title }} <button type="button" class="item-action" title="Editar" @click="beginEditSection(section)"><i class="pi pi-pencil" /></button><button type="button" class="item-action" title="Eliminar" @click="deleteSection(courseId, section.id)"><i class="pi pi-trash" /></button></template>
+              <template v-if="editingSectionId === section.id">
+                <div class="section-edit">
+                  <InputText v-model="editingSectionTitle" size="small" placeholder="Título" />
+                  <Textarea v-model="editingSectionDescription" rows="2" placeholder="Contenido de la sección (opcional)" />
+                  <div class="edit-actions"><Button type="button" label="Guardar" size="small" @click="saveSection" /><Button type="button" label="Cancelar" text size="small" @click="editingSectionId = null" /></div>
+                </div>
+              </template>
+              <template v-else>
+                <div class="section-chip-main">
+                  <strong>{{ section.title }}</strong>
+                  <p v-if="section.description" class="section-chip-description">{{ section.description }}</p>
+                </div>
+                <span class="item-actions"><button type="button" class="item-action" title="Editar" @click="beginEditSection(section)"><i class="pi pi-pencil" /></button><button type="button" class="item-action" title="Eliminar" @click="deleteSection(courseId, section.id)"><i class="pi pi-trash" /></button></span>
+              </template>
             </li>
           </ul>
         </section>
@@ -595,6 +674,14 @@
               option-value="id"
               placeholder="Sección (opcional)"
             />
+            <details class="advanced-disclosure">
+              <summary>Avanzado: peso, visibilidad, requisito</summary>
+              <div class="advanced-body">
+                <label>Peso en el promedio<InputText v-model="newAssignment.weight" type="number" min="1" placeholder="100" /></label>
+                <label>Visible solo para<Select v-model="newAssignment.visibleGroupId" :options="[{ id: '', name: 'Todo el curso' }, ...courseGroups.groups.value]" option-label="name" option-value="id" /></label>
+                <label>Se desbloquea después de<Select v-model="newAssignment.unlockAfter" :options="unlockOptions()" option-label="label" option-value="value" /></label>
+              </div>
+            </details>
             <Button
               type="submit"
               label="Crear tarea"
@@ -621,6 +708,14 @@
                     <Textarea v-model="editingAssignment.description" rows="2" placeholder="Descripción" />
                     <div class="field-row"><InputText v-model="editingAssignment.dueAt" type="datetime-local" /><InputText v-model="editingAssignment.maxScore" type="number" min="1" /></div>
                     <Select v-model="editingAssignment.sectionId" :options="[{ id: '', title: 'Sin sección' }, ...sections]" option-label="title" option-value="id" />
+                    <details class="advanced-disclosure">
+                      <summary>Avanzado: peso, visibilidad, requisito</summary>
+                      <div class="advanced-body">
+                        <label>Peso en el promedio<InputText v-model="editingAssignment.weight" type="number" min="1" placeholder="100" /></label>
+                        <label>Visible solo para<Select v-model="editingAssignment.visibleGroupId" :options="[{ id: '', name: 'Todo el curso' }, ...courseGroups.groups.value]" option-label="name" option-value="id" /></label>
+                        <label>Se desbloquea después de<Select v-model="editingAssignment.unlockAfter" :options="unlockOptions('assignment', assignment.id)" option-label="label" option-value="value" /></label>
+                      </div>
+                    </details>
                     <div class="edit-actions"><Button type="button" label="Guardar" size="small" @click="saveAssignment" /><Button type="button" label="Cancelar" text size="small" @click="editingAssignmentId = null" /></div>
                   </div>
                   <div v-else class="assignment-title">{{ assignment.title }}</div>
@@ -632,6 +727,9 @@
                       vence {{ formatDateTime(assignment.due_at) }} ·
                     </span>
                     <span>máx. {{ assignment.max_score }}</span>
+                    <span v-if="assignment.weight !== 100"> · peso {{ assignment.weight }}</span>
+                    <span v-if="assignment.visible_group_id" class="meta-flag"><i class="pi pi-users" /> {{ courseGroups.groups.value.find((g) => g.id === assignment.visible_group_id)?.name || "grupo" }}</span>
+                    <span v-if="assignment.unlock_after_id" class="meta-flag"><i class="pi pi-lock" /> requiere requisito</span>
                   </div>
                 </div>
                 <div class="item-actions"><button type="button" class="item-action" title="Ver entregas" @click="router.push(`/teacher/courses/${courseId}/assignments/${assignment.id}/submissions`)"><i class="pi pi-users" /></button><button type="button" class="item-action" title="Rúbrica" @click.stop="editRubric(assignment.id)"><i class="pi pi-list" /></button><button type="button" class="item-action" title="Editar" @click.stop="beginEditAssignment(assignment)"><i class="pi pi-pencil" /></button><button type="button" class="item-action" title="Eliminar" @click.stop="assignmentToDelete = assignment"><i class="pi pi-trash" /></button></div>
@@ -671,6 +769,15 @@
                   <InputText v-model="newQuiz.maxAttempts" type="number" min="0" placeholder="Intentos permitidos (0 = ilimitado)" />
                   <InputText v-model="newQuiz.timeLimitMin" type="number" min="1" placeholder="Límite en minutos (opcional)" />
                 </div>
+                <Select v-model="newQuiz.sectionId" :options="[{ id: '', title: 'Sin sección' }, ...sections]" option-label="title" option-value="id" placeholder="Sección (opcional)" />
+                <details class="advanced-disclosure">
+                  <summary>Avanzado: peso, visibilidad, requisito</summary>
+                  <div class="advanced-body">
+                    <label>Peso en el promedio<InputText v-model="newQuiz.weight" type="number" min="1" placeholder="100" /></label>
+                    <label>Visible solo para<Select v-model="newQuiz.visibleGroupId" :options="[{ id: '', name: 'Todo el curso' }, ...courseGroups.groups.value]" option-label="name" option-value="id" /></label>
+                    <label>Se desbloquea después de<Select v-model="newQuiz.unlockAfter" :options="unlockOptions()" option-label="label" option-value="value" /></label>
+                  </div>
+                </details>
                 <Button type="submit" label="Crear evaluación" :loading="creatingQuiz" size="small" class="submit-btn" />
               </form>
             </div>
@@ -691,35 +798,41 @@
                     <InputText v-model="editingQuiz.title" size="small" placeholder="Título" />
                     <Textarea v-model="editingQuiz.description" rows="2" placeholder="Descripción" />
                     <div class="field-row"><InputText v-model="editingQuiz.maxAttempts" type="number" min="0" placeholder="Intentos" /><InputText v-model="editingQuiz.timeLimitMin" type="number" min="1" placeholder="Minutos" /></div>
+                    <Select v-model="editingQuiz.sectionId" :options="[{ id: '', title: 'Sin sección' }, ...sections]" option-label="title" option-value="id" placeholder="Sección (opcional)" />
+                    <details class="advanced-disclosure">
+                      <summary>Avanzado: peso, visibilidad, requisito</summary>
+                      <div class="advanced-body">
+                        <label>Peso en el promedio<InputText v-model="editingQuiz.weight" type="number" min="1" placeholder="100" /></label>
+                        <label>Visible solo para<Select v-model="editingQuiz.visibleGroupId" :options="[{ id: '', name: 'Todo el curso' }, ...courseGroups.groups.value]" option-label="name" option-value="id" /></label>
+                        <label>Se desbloquea después de<Select v-model="editingQuiz.unlockAfter" :options="unlockOptions('quiz', quiz.id)" option-label="label" option-value="value" /></label>
+                      </div>
+                    </details>
                     <div class="edit-actions"><Button type="button" label="Guardar" size="small" @click="saveQuiz" /><Button type="button" label="Cancelar" text size="small" @click="editingQuizId = null" /></div>
                   </div>
-                  <div v-else class="assignment-title">{{ quiz.title }}</div>
-                  <div class="assignment-meta">
-                    <span>{{ quiz.max_attempts === 0 ? "intentos ilimitados" : `${quiz.max_attempts} intento(s)` }} ·</span>
-                    <span v-if="quiz.time_limit_secs"> {{ Math.round(quiz.time_limit_secs / 60) }} min ·</span>
-                    <span>{{ (questionDrafts[quiz.id] || quizzes.questions.value[quiz.id])?.length ?? 0 }} preguntas</span>
-                  </div>
+                  <div v-else><div class="assignment-title">{{ quiz.title }}</div><p v-if="quiz.description" class="quiz-description">{{ quiz.description }}</p></div>
+                  <div class="quiz-metrics"><span v-if="sectionTitle(quiz.section_id)"><i class="pi pi-book" /> {{ sectionTitle(quiz.section_id) }}</span><span><i class="pi pi-list" /> {{ questionsOpen === quiz.id ? (questionDrafts[quiz.id]?.length ?? 0) : quiz.question_count }} preguntas</span><span><i class="pi pi-refresh" /> {{ quiz.max_attempts === 0 ? "Sin límite" : `${quiz.max_attempts} intento(s)` }}</span><span v-if="quiz.time_limit_secs"><i class="pi pi-clock" /> {{ Math.round(quiz.time_limit_secs / 60) }} min</span><span v-if="quiz.weight !== 100">peso {{ quiz.weight }}</span><span v-if="quiz.visible_group_id" class="meta-flag"><i class="pi pi-users" /> {{ courseGroups.groups.value.find((g) => g.id === quiz.visible_group_id)?.name || "grupo" }}</span><span v-if="quiz.unlock_after_id" class="meta-flag"><i class="pi pi-lock" /> requiere requisito</span></div>
                 </div>
-                <div class="item-actions"><button type="button" class="item-action" title="Intentos" @click.stop="openAttempts(quiz)"><i class="pi pi-chart-bar" /></button><button type="button" class="item-action" title="Preguntas" @click.stop="openQuestions(quiz)"><i class="pi pi-list" /></button><button type="button" class="item-action" title="Editar" @click.stop="beginEditQuiz(quiz)"><i class="pi pi-pencil" /></button><button type="button" class="item-action" title="Eliminar" @click.stop="quizToDelete = quiz"><i class="pi pi-trash" /></button></div>
+                <div class="quiz-actions"><Button type="button" label="Preguntas" icon="pi pi-list" size="small" outlined @click.stop="openQuestions(quiz)" /><Button type="button" label="Resultados" icon="pi pi-chart-bar" size="small" @click.stop="openAttempts(quiz)" /><button type="button" class="item-action" title="Editar evaluación" @click.stop="beginEditQuiz(quiz)"><i class="pi pi-pencil" /></button><button type="button" class="item-action" title="Eliminar evaluación" @click.stop="quizToDelete = quiz"><i class="pi pi-trash" /></button></div>
               </div>
 
-              <div v-if="questionsOpen === quiz.id" class="rubric-editor">
-                <strong>Preguntas</strong>
+              <div v-if="questionsOpen === quiz.id" class="question-editor">
+                <div class="question-editor-head"><div><strong>Constructor de preguntas</strong><small>Definí tipo, puntaje, enunciado y respuesta correcta.</small></div><Button type="button" label="Cerrar" text size="small" icon="pi pi-times" @click="questionsOpen = null" /></div>
                 <div v-for="(question, index) in questionDrafts[quiz.id] || []" :key="index" class="question-row">
-                  <div class="field-row">
-                    <Select v-model="question.type" :options="QUESTION_TYPES" option-label="label" option-value="value" />
-                    <InputText :model-value="String(question.points)" type="number" min="1" placeholder="Puntos" @update:model-value="question.points = Number($event)" />
-                    <Button icon="pi pi-trash" text size="small" @click="removeQuestion(quiz.id, index)" />
+                  <div class="question-row-head"><strong>Pregunta {{ index + 1 }}</strong><Button icon="pi pi-trash" text severity="danger" size="small" aria-label="Eliminar pregunta" @click="removeQuestion(quiz.id, index)" /></div>
+                  <div class="question-settings">
+                    <label>Tipo<Select :model-value="question.type" :options="QUESTION_TYPES" option-label="label" option-value="value" @update:model-value="changeQuestionType(question, $event as QuizQuestionType)" /></label>
+                    <label>Puntos<InputText :model-value="String(question.points)" type="number" min="1" @update:model-value="question.points = Number($event)" /></label>
                   </div>
-                  <Textarea v-model="question.statement" rows="2" :placeholder="question.type === 'fill_blanks' ? 'Enunciado — usá {{1}}, {{2}}… para marcar espacios' : 'Enunciado'" />
-                  <Textarea v-if="question.type === 'multiple_choice'" :model-value="question.options.join('\n')" rows="3" placeholder="Una opción por línea" @update:model-value="question.options = ($event as string).split('\n').map((o) => o.trim()).filter(Boolean)" />
-                  <Select v-if="question.type === 'true_false'" v-model="question.correct_answer" :options="[{ label: 'Verdadero', value: 'true' }, { label: 'Falso', value: 'false' }]" option-label="label" option-value="value" placeholder="Respuesta correcta" />
-                  <InputText v-else-if="question.type === 'multiple_choice'" v-model="question.correct_answer" placeholder="Respuesta correcta (debe ser una de las opciones)" />
+                  <label>Enunciado<Textarea v-model="question.statement" rows="3" :placeholder="question.type === 'fill_blanks' ? 'Escribí la consigna y usá el botón para marcar espacios' : 'Escribí la consigna para el alumno'" /></label>
+                  <Button v-if="question.type === 'fill_blanks'" type="button" label="Agregar espacio" icon="pi pi-plus" text size="small" @click="insertBlank(question)" />
+                  <div v-if="question.type === 'multiple_choice'" class="choice-builder"><label>Opciones</label><div v-for="(_, optionIndex) in question.options" :key="optionIndex" class="choice-row"><InputText v-model="question.options[optionIndex]" placeholder="Escribí una opción" @blur="normalizeOptions(question)" /><button type="button" class="item-action" title="Quitar opción" :disabled="question.options.length <= 2" @click="removeOption(question, optionIndex)"><i class="pi pi-times" /></button></div><Button type="button" label="Agregar opción" text size="small" icon="pi pi-plus" @click="addOption(question)" /><label>Respuesta correcta</label><div class="choice-chips"><button v-for="option in question.options.filter(Boolean)" :key="option" type="button" :class="{ selected: question.correct_answer === option }" @click="question.correct_answer = option"><i :class="question.correct_answer === option ? 'pi pi-check-circle' : 'pi pi-circle'" /> {{ option }}</button></div></div>
+                  <label v-if="question.type === 'true_false'">Respuesta correcta<Select v-model="question.correct_answer" :options="[{ label: 'Verdadero', value: 'true' }, { label: 'Falso', value: 'false' }]" option-label="label" option-value="value" /></label>
                   <div v-else-if="question.type === 'fill_blanks'" class="field-row">
                     <div v-for="id in blankIds(question.statement)" :key="id" class="blank-field"><label>Espacio {{ id }}</label><InputText :model-value="blankAnswer(question, id)" @update:model-value="setBlankAnswer(question, id, $event as string)" /></div>
                   </div>
+                  <small v-if="questionError(question)" class="question-error"><i class="pi pi-exclamation-circle" /> {{ questionError(question) }}</small>
                 </div>
-                <Button type="button" label="Agregar pregunta" text size="small" @click="addQuestion(quiz.id)" /><Button type="button" label="Guardar preguntas" size="small" @click="saveQuestionsFor(quiz.id)" />
+                <div class="question-editor-actions"><Button type="button" label="Agregar pregunta" icon="pi pi-plus" text size="small" @click="addQuestion(quiz.id)" /><Button type="button" label="Guardar preguntas" icon="pi pi-check" size="small" @click="saveQuestionsFor(quiz.id)" /></div>
               </div>
 
               <div v-if="attemptsOpen === quiz.id" class="rubric-editor">
@@ -960,18 +1073,33 @@
   .section-list {
     list-style: none;
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     gap: var(--space-2);
   }
 
   .section-chip {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-3);
     font-size: var(--text-xs);
     font-weight: 600;
     color: var(--text-secondary);
     background: var(--surface-hover);
-    padding: 2px var(--space-3);
-    border-radius: var(--radius-pill);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-sm);
   }
+  .section-chip-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .section-chip-main strong { color: var(--text-heading); font-size: var(--text-sm); }
+  .section-chip-description { margin: 0; color: var(--text-muted); font-weight: 400; white-space: pre-wrap; }
+  .section-edit { display: flex; flex-direction: column; gap: var(--space-2); width: 100%; }
+
+  .advanced-disclosure { border: 1px dashed rgba(var(--surface-border-rgb), .8); border-radius: var(--radius-sm); background: var(--surface-hover); }
+  .advanced-disclosure summary { padding: var(--space-2) var(--space-3); color: var(--text-secondary); font-size: var(--text-xs); font-weight: 700; cursor: pointer; list-style: none; }
+  .advanced-disclosure summary::-webkit-details-marker { display: none; }
+  .advanced-body { display: flex; flex-direction: column; gap: var(--space-2); padding: 0 var(--space-3) var(--space-3); }
+  .advanced-body label { display: flex; flex-direction: column; gap: 4px; font-size: var(--text-xs); color: var(--text-secondary); font-weight: 700; }
+  .meta-flag { display: inline-flex; align-items: center; gap: 4px; }
 
   .item-actions, .inline-edit { display: inline-flex; align-items: center; gap: 4px; }
   .assignment-edit { display: flex; flex-direction: column; gap: var(--space-2); min-width: min(460px, 100%); }
@@ -1001,8 +1129,22 @@
     gap: var(--space-2);
   }
   .due-datetime { display: flex; flex-direction: column; gap: 4px; color: var(--text-muted); font-size: var(--text-xs); font-weight: 700; }
-  .question-row { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) 0; border-top: 1px solid var(--surface-border); }
-  .question-row:first-of-type { border-top: 0; }
+  .question-editor { margin: var(--space-3); padding: var(--space-4); border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--surface-hover); }
+  .question-editor-head { display: flex; justify-content: space-between; gap: var(--space-3); align-items: flex-start; margin-bottom: var(--space-3); }
+  .question-editor-head strong { display: block; color: var(--text-heading); }
+  .question-editor-head small, .question-row label { color: var(--text-muted); font-size: var(--text-xs); font-weight: 700; }
+  .question-row { display: flex; flex-direction: column; gap: var(--space-3); margin-top: var(--space-3); padding: var(--space-4); border: 1px solid var(--surface-border); border-radius: var(--radius-sm); background: var(--surface-card); }
+  .question-row-head { display: flex; align-items: center; justify-content: space-between; color: var(--text-heading); }
+  .question-settings { display: grid; grid-template-columns: 2fr 1fr; gap: var(--space-2); }
+  .question-row label { display: flex; flex-direction: column; gap: 5px; }
+  .question-editor-actions { display: flex; justify-content: space-between; align-items: center; margin-top: var(--space-4); }
+  .choice-builder { display: flex; flex-direction: column; gap: var(--space-2); }
+  .choice-row { display: flex; align-items: center; gap: var(--space-1); }
+  .choice-row :deep(.p-inputtext) { flex: 1; }
+  .choice-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+  .choice-chips button { border: 1px solid var(--surface-border); border-radius: var(--radius-pill); padding: 6px 10px; background: var(--surface-card); color: var(--text-secondary); font-size: var(--text-xs); cursor: pointer; }
+  .choice-chips button.selected { border-color: var(--practiq-violet-dark); background: var(--fill-primary-soft); color: var(--practiq-violet-dark); font-weight: 700; }
+  .question-error { display: flex; align-items: center; gap: 5px; color: var(--color-error-dark); font-size: var(--text-xs); font-weight: 700; }
   .blank-field { display: flex; flex-direction: column; gap: 2px; font-size: var(--text-xs); color: var(--text-muted); }
   .attempt-list { display: flex; flex-direction: column; gap: var(--space-1); list-style: none; padding: 0; margin: 0; }
   .attempt-list li { display: flex; justify-content: space-between; padding: var(--space-1) 0; font-size: var(--text-sm); }
@@ -1045,6 +1187,11 @@
     color: var(--text-muted);
     margin-top: 2px;
   }
+
+  .quiz-description { margin: 3px 0 0; color: var(--text-secondary); font-size: var(--text-xs); line-height: 1.4; }
+  .quiz-metrics { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
+  .quiz-metrics span { display: inline-flex; align-items: center; gap: 4px; padding: 3px 7px; border-radius: var(--radius-pill); background: var(--surface-hover); color: var(--text-secondary); font-size: var(--text-xs); font-weight: 700; }
+  .quiz-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--space-1); }
 
   .submissions-panel {
     border-top: 1px solid var(--surface-border);

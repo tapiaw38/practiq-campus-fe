@@ -68,6 +68,7 @@
     return quiz.max_attempts === 0 ? `${attemptsUsed(quiz)} intentos realizados` : `${attemptsUsed(quiz)}/${quiz.max_attempts} intentos`;
   }
   function canAttempt(quiz: Quiz) {
+    if (quiz.locked) return false;
     return quiz.max_attempts === 0 || attemptsUsed(quiz) < quiz.max_attempts;
   }
   function bestScore(quiz: Quiz) {
@@ -242,6 +243,7 @@
                 <Button v-if="canResubmit(assignment)" label="Actualizar entrega" icon="pi pi-refresh" size="small" text @click="startResubmit(assignment.id)" />
                 <small v-else class="submission-locked">{{ mySubmissions[assignment.id]?.graded_at ? "Entrega corregida: ya no se puede modificar" : "El plazo de entrega venció" }}</small>
               </div>
+              <div v-else-if="assignment.locked" class="locked-state"><i class="pi pi-lock" /> {{ assignment.locked_reason }}</div>
               <form v-else class="submit-form" @submit.prevent="handleSubmit(assignment.id)">
                 <Textarea
                   v-model="submissionDrafts[assignment.id]"
@@ -275,7 +277,8 @@
               <div class="quiz-main">
                 <strong>{{ quiz.title }}</strong>
                 <p v-if="quiz.description">{{ quiz.description }}</p>
-                <span class="quiz-meta">{{ attemptsLabel(quiz) }}<template v-if="quiz.time_limit_secs"> · {{ Math.round(quiz.time_limit_secs / 60) }} min</template><template v-if="bestScore(quiz)"> · mejor nota {{ bestScore(quiz) }}</template></span>
+                <span class="quiz-meta"><template v-if="sectionTitle(quiz.section_id)">{{ sectionTitle(quiz.section_id) }} · </template>{{ attemptsLabel(quiz) }}<template v-if="quiz.time_limit_secs"> · {{ Math.round(quiz.time_limit_secs / 60) }} min</template><template v-if="bestScore(quiz)"> · mejor nota {{ bestScore(quiz) }}</template></span>
+                <span v-if="quiz.locked" class="quiz-locked-reason"><i class="pi pi-lock" /> {{ quiz.locked_reason }}</span>
               </div>
               <Button label="Comenzar" size="small" :disabled="!canAttempt(quiz)" @click="openQuiz(quiz)" />
             </li>
@@ -439,6 +442,17 @@
     font-size: var(--text-xs);
   }
 
+  .locked-state {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border-radius: var(--radius-sm);
+    background: var(--surface-hover);
+    color: var(--text-muted);
+    font-size: var(--text-sm);
+  }
+
   .submission-feedback {
     font-size: var(--text-sm);
     color: var(--text-secondary);
@@ -473,6 +487,7 @@
   .quiz-main strong { color: var(--text-heading); }
   .quiz-main p { margin: 0; color: var(--text-secondary); font-size: var(--text-sm); }
   .quiz-meta { color: var(--text-muted); font-size: var(--text-xs); }
+  .quiz-locked-reason { display: flex; align-items: center; gap: 4px; margin-top: 4px; color: var(--color-warning-dark); font-size: var(--text-xs); font-weight: 700; }
   .quiz-attempt { display: flex; flex-direction: column; gap: var(--space-4); }
   .quiz-question { display: flex; flex-direction: column; gap: var(--space-2); padding-bottom: var(--space-3); border-bottom: 1px solid var(--surface-border); }
   .quiz-statement { margin: 0; font-weight: 700; color: var(--text-heading); }

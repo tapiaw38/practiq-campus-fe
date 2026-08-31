@@ -9,6 +9,10 @@ export interface CreateQuizParams {
   max_attempts?: number;
   scheduled_at?: string | null;
   available_until?: string | null;
+  weight?: number;
+  visible_group_id?: string | null;
+  unlock_after_type?: "assignment" | "quiz" | null;
+  unlock_after_id?: string | null;
 }
 
 export interface QuestionParams {

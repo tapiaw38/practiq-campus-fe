@@ -7,6 +7,10 @@ export interface CreateAssignmentParams {
   due_at?: string;
   max_score?: number;
   section_id?: string | null;
+  weight?: number;
+  visible_group_id?: string | null;
+  unlock_after_type?: "assignment" | "quiz" | null;
+  unlock_after_id?: string | null;
 }
 
 export interface IAssignmentService {

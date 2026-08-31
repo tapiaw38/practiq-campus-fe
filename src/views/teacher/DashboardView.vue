@@ -7,7 +7,7 @@
   import { useAuthStore } from "@/stores/authStore";
   import { usePreferences } from "@/composables/usePreferences";
 
-  const { courses, loading, loadCourses, deleteCourse, createCourse } = useCourses();
+  const { courses, loading, loadCourses, deleteCourse, createCourse, duplicateCourse } = useCourses();
   const { loadPreference, savePreference } = usePreferences();
   const authStore = useAuthStore();
   const deleting = ref(false);
@@ -85,6 +85,19 @@
     } finally { creating.value = false; }
   }
 
+  const duplicatingId = ref<string | null>(null);
+  async function handleDuplicate(courseId: string) {
+    if (duplicatingId.value) return;
+    duplicatingId.value = courseId;
+    try {
+      await duplicateCourse(courseId);
+    } catch {
+      // useCourses already surfaced the error via toast
+    } finally {
+      duplicatingId.value = null;
+    }
+  }
+
   async function confirmDelete() {
     if (!courseToDelete.value || deleting.value) return;
     deleting.value = true;
@@ -152,7 +165,10 @@
               <div class="course-main"><div class="course-title">{{ course.title }}</div><p v-if="course.description" class="course-description">{{ course.description }}</p><div v-if="course.labels?.length" class="course-labels"><span v-for="label in course.labels" :key="label">{{ label }}</span></div></div>
               <div class="course-actions">
                 <span class="course-open">Gestionar curso <i class="pi pi-arrow-right" aria-hidden="true"></i></span>
-                <button class="delete-course" type="button" :aria-label="`Eliminar ${course.title}`" @click.prevent.stop="courseToDelete = course"><i class="pi pi-trash" aria-hidden="true"></i> Eliminar</button>
+                <span class="course-actions-secondary">
+                  <button class="duplicate-course" type="button" :disabled="duplicatingId === course.id" :aria-label="`Duplicar ${course.title}`" @click.prevent.stop="handleDuplicate(course.id)"><i class="pi" :class="duplicatingId === course.id ? 'pi-spin pi-spinner' : 'pi-copy'" aria-hidden="true"></i> Duplicar</button>
+                  <button class="delete-course" type="button" :aria-label="`Eliminar ${course.title}`" @click.prevent.stop="courseToDelete = course"><i class="pi pi-trash" aria-hidden="true"></i> Eliminar</button>
+                </span>
               </div>
             </RouterLink>
           </div>
@@ -315,6 +331,6 @@
     font-size: var(--text-sm);
     color: var(--text-secondary);
   }
-  .course-labels{display:flex;gap:var(--space-1);flex-wrap:wrap;margin-top:var(--space-3)}.course-labels span{padding:2px 6px;border-radius:999px;background:var(--fill-primary-soft);color:var(--practiq-violet-dark);font-size:10px;font-weight:800}.course-actions{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);margin-top:auto;padding-top:var(--space-3)}.course-open{display:inline-flex;align-items:center;gap:var(--space-1);color:var(--practiq-violet-dark);font-size:var(--text-xs);font-weight:800}.delete-course{display:inline-flex;align-items:center;gap:var(--space-1);padding:0;border:0;background:transparent;color:var(--text-muted);font-size:var(--text-xs);cursor:pointer}.delete-course:hover{color:var(--color-error-dark);text-decoration:underline}.empty-action{display:inline-flex;align-items:center;gap:var(--space-1);min-height:40px;padding:var(--space-2) var(--space-4);border:0;border-radius:var(--radius-md);background:var(--gradient-brand);color:var(--color-on-primary);font-size:var(--text-sm);font-weight:800;box-shadow:var(--shadow-violet);cursor:pointer}.delete-dialog{display:grid;grid-template-columns:auto 1fr;gap:var(--space-3);align-items:start}.delete-dialog p{margin:0;color:var(--text-primary)}.delete-dialog small{grid-column:2;color:var(--text-secondary);line-height:1.45}.delete-dialog-icon{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:var(--fill-warning-subtle);color:var(--color-warning-dark)}.dialog-actions{display:flex;justify-content:flex-end;gap:var(--space-2);margin-top:var(--space-5)}
+  .course-labels{display:flex;gap:var(--space-1);flex-wrap:wrap;margin-top:var(--space-3)}.course-labels span{padding:2px 6px;border-radius:999px;background:var(--fill-primary-soft);color:var(--practiq-violet-dark);font-size:10px;font-weight:800}.course-actions{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);margin-top:auto;padding-top:var(--space-3)}.course-open{display:inline-flex;align-items:center;gap:var(--space-1);color:var(--practiq-violet-dark);font-size:var(--text-xs);font-weight:800}.course-actions-secondary{display:inline-flex;align-items:center;gap:var(--space-3)}.delete-course,.duplicate-course{display:inline-flex;align-items:center;gap:var(--space-1);padding:0;border:0;background:transparent;color:var(--text-muted);font-size:var(--text-xs);cursor:pointer}.delete-course:hover{color:var(--color-error-dark);text-decoration:underline}.duplicate-course:hover{color:var(--practiq-violet-dark);text-decoration:underline}.duplicate-course:disabled{opacity:.6;cursor:default;text-decoration:none}.empty-action{display:inline-flex;align-items:center;gap:var(--space-1);min-height:40px;padding:var(--space-2) var(--space-4);border:0;border-radius:var(--radius-md);background:var(--gradient-brand);color:var(--color-on-primary);font-size:var(--text-sm);font-weight:800;box-shadow:var(--shadow-violet);cursor:pointer}.delete-dialog{display:grid;grid-template-columns:auto 1fr;gap:var(--space-3);align-items:start}.delete-dialog p{margin:0;color:var(--text-primary)}.delete-dialog small{grid-column:2;color:var(--text-secondary);line-height:1.45}.delete-dialog-icon{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:var(--fill-warning-subtle);color:var(--color-warning-dark)}.dialog-actions{display:flex;justify-content:flex-end;gap:var(--space-2);margin-top:var(--space-5)}
   @media(max-width:700px){.dashboard-head{align-items:stretch;flex-direction:column;padding:var(--space-5)}.new-course-btn{justify-content:center}.summary-grid{grid-template-columns:1fr}.courses-heading{align-items:flex-start;flex-direction:column}.courses-tools{width:100%;justify-content:space-between}.course-list .course-card{grid-template-columns:auto minmax(0,1fr);row-gap:var(--space-2)}.course-list .course-main{grid-column:1/-1;grid-row:2}.course-list .course-open{grid-column:1;grid-row:3}.course-list .delete-course{grid-column:2;grid-row:3;justify-self:end}}
 </style>

@@ -27,6 +27,7 @@ export interface ICourseService {
   update(id: string, params: UpdateCourseParams): Promise<{ data: Course }>;
 	delete(id: string): Promise<void>;
   syncFromPractiq(): Promise<{ data: Course[] }>;
+  duplicate(id: string): Promise<{ data: Course }>;
 }
 
 export class CourseService implements ICourseService {
@@ -56,6 +57,11 @@ export class CourseService implements ICourseService {
 
   async syncFromPractiq(): Promise<{ data: Course[] }> {
     const { data } = await this.api.post("/courses/sync-from-practiq");
+    return data;
+  }
+
+  async duplicate(id: string): Promise<{ data: Course }> {
+    const { data } = await this.api.post(`/courses/${id}/duplicate`);
     return data;
   }
 }

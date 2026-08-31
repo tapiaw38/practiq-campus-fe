@@ -66,6 +66,7 @@ export function useQuizzes() {
     try {
       await quizService.replaceQuestions(quizId, list);
       questions.value = { ...questions.value, [quizId]: list.map((q, i) => ({ id: String(i), ...q, type: q.type as QuizQuestionType })) };
+      quizzes.value = quizzes.value.map((q) => q.id === quizId ? { ...q, question_count: list.length } : q);
       toast.add({ severity: "success", summary: "Preguntas guardadas", life: 2000 });
     } catch (error) {
       const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || "No se pudieron guardar las preguntas";

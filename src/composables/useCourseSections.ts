@@ -22,9 +22,9 @@ export function useCourseSections() {
     }
   }
 
-  async function createSection(courseId: string, title: string) {
+  async function createSection(courseId: string, title: string, description = "") {
     try {
-      const { data } = await sectionService.create(courseId, title);
+      const { data } = await sectionService.create(courseId, title, description);
       sections.value = [...sections.value, data];
       toast.add({ severity: "success", summary: "Sección creada", life: 2000 });
       return data;
@@ -39,9 +39,9 @@ export function useCourseSections() {
     }
   }
 
-  async function updateSection(courseId: string, id: string, title: string) {
+  async function updateSection(courseId: string, id: string, title: string, description = "") {
     try {
-      const { data } = await sectionService.update(courseId, id, title);
+      const { data } = await sectionService.update(courseId, id, title, description);
       sections.value = sections.value.map((section) => section.id === id ? data : section);
       toast.add({ severity: "success", summary: "Sección actualizada", life: 2000 });
       return data;

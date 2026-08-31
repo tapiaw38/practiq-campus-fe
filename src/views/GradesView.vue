@@ -18,6 +18,7 @@ interface GradeRow {
   id: string;
   title: string;
   dueAt: string | null;
+  weight: number;
   // Teacher view.
   count: number;
   average: number | null;
@@ -38,8 +39,16 @@ const rows = ref<GradeRow[]>([]);
 const loading = ref(true);
 const selectedCourseId = ref("all");
 const visibleRows = computed(() => selectedCourseId.value === "all" ? rows.value : rows.value.filter((row) => row.course.id === selectedCourseId.value));
-const gradedRows = computed(() => visibleRows.value.filter((row) => row.score != null));
-const average = computed(() => gradedRows.value.length ? Math.round(gradedRows.value.reduce((sum, row) => sum + (row.score || 0) / row.maxScore * 100, 0) / gradedRows.value.length) : null);
+const gradedRows = computed(() => visibleRows.value.filter((row) => row.score != null && row.maxScore > 0));
+// Weighted rather than a flat mean: a row weighted 200 counts twice as much
+// toward the average as one weighted 100, regardless of how many points
+// each is out of.
+const average = computed(() => {
+  const totalWeight = gradedRows.value.reduce((sum, row) => sum + row.weight, 0);
+  if (!totalWeight) return null;
+  const weightedSum = gradedRows.value.reduce((sum, row) => sum + (row.score || 0) / row.maxScore * row.weight, 0);
+  return Math.round(weightedSum / totalWeight * 100);
+});
 
 function percent(score: number | null, max: number) {
   return score == null || !max ? null : Math.round(score / max * 100);
@@ -52,10 +61,10 @@ async function assignmentRows(course: Course): Promise<GradeRow[]> {
       const { data: submissions } = await submissionService.listByAssignment(assignment.id);
       const graded = submissions.filter((s) => s.score != null);
       const average = graded.length ? Math.round(graded.reduce((sum, s) => sum + (s.score || 0) / assignment.max_score * 100, 0) / graded.length) : null;
-      return { course, kind: "assignment", id: assignment.id, title: assignment.title, dueAt: assignment.due_at, count: submissions.length, average, submitted: false, score: null, maxScore: assignment.max_score, feedback: "" };
+      return { course, kind: "assignment", id: assignment.id, title: assignment.title, dueAt: assignment.due_at, weight: assignment.weight, count: submissions.length, average, submitted: false, score: null, maxScore: assignment.max_score, feedback: "" };
     }
     const { data: submission } = await submissionService.getMine(assignment.id);
-    return { course, kind: "assignment", id: assignment.id, title: assignment.title, dueAt: assignment.due_at, count: 0, average: null, submitted: !!submission, score: submission?.score ?? null, maxScore: assignment.max_score, feedback: submission?.feedback || "" };
+    return { course, kind: "assignment", id: assignment.id, title: assignment.title, dueAt: assignment.due_at, weight: assignment.weight, count: 0, average: null, submitted: !!submission, score: submission?.score ?? null, maxScore: assignment.max_score, feedback: submission?.feedback || "" };
   }));
 }
 
@@ -65,11 +74,11 @@ async function quizRows(course: Course): Promise<GradeRow[]> {
     if (teacher.value) {
       const attempts = (await quizService.listAttemptsByQuiz(quiz.id)).filter((a) => a.submitted_at);
       const average = attempts.length ? Math.round(attempts.reduce((sum, a) => sum + (a.max_score ? a.score / a.max_score * 100 : 0), 0) / attempts.length) : null;
-      return { course, kind: "quiz", id: quiz.id, title: quiz.title, dueAt: quiz.available_until, count: attempts.length, average, submitted: false, score: null, maxScore: 0, feedback: "" };
+      return { course, kind: "quiz", id: quiz.id, title: quiz.title, dueAt: quiz.available_until, weight: quiz.weight, count: attempts.length, average, submitted: false, score: null, maxScore: 0, feedback: "" };
     }
     const attempts = (await quizService.listMyAttempts(quiz.id)).filter((a) => a.submitted_at);
     const best = attempts.reduce<typeof attempts[number] | null>((max, a) => !max || a.score > max.score ? a : max, null);
-    return { course, kind: "quiz", id: quiz.id, title: quiz.title, dueAt: quiz.available_until, count: 0, average: null, submitted: !!best, score: best?.score ?? null, maxScore: best?.max_score ?? 0, feedback: "" };
+    return { course, kind: "quiz", id: quiz.id, title: quiz.title, dueAt: quiz.available_until, weight: quiz.weight, count: 0, average: null, submitted: !!best, score: best?.score ?? null, maxScore: best?.max_score ?? 0, feedback: "" };
   }));
 }
 
@@ -149,6 +158,7 @@ function exportCsv() {
               <span class="course-name">{{ row.course.title }} <i class="pi" :class="row.kind === 'quiz' ? 'pi-verified' : 'pi-check-square'" :title="row.kind === 'quiz' ? 'Evaluación' : 'Tarea'" /></span>
               <strong>{{ row.title }}</strong>
               <small v-if="row.dueAt">Entrega: {{ new Date(row.dueAt).toLocaleDateString("es-AR") }}</small>
+              <small v-if="row.weight !== 100">Peso {{ row.weight }}</small>
             </div>
             <template v-if="teacher">
               <div class="teacher-metric">

@@ -11,6 +11,13 @@ export interface Quiz {
   scheduled_at: string | null;
   available_until: string | null;
   created_at: string;
+  question_count: number;
+  weight: number;
+  visible_group_id: string | null;
+  unlock_after_type: "assignment" | "quiz" | null;
+  unlock_after_id: string | null;
+  locked: boolean;
+  locked_reason?: string;
 }
 
 /** Teacher-facing question shape — carries correct_answer. */

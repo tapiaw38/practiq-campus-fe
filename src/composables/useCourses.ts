@@ -94,6 +94,17 @@ export function useCourses() {
     }
   }
 
+  async function duplicateCourse(id: string) {
+    try {
+      const course = await store.duplicateCourse(id);
+      toast.add({ severity: "success", summary: "Curso duplicado", detail: course.title, life: 2500 });
+      return course;
+    } catch (error) {
+      toast.add({ severity: "error", summary: "Error", detail: "No se pudo duplicar el curso", life: 3000 });
+      throw error;
+    }
+  }
+
   async function deleteCourse(id: string) {
     try {
       await store.deleteCourse(id);
@@ -112,6 +123,7 @@ export function useCourses() {
     loadCourse,
     createCourse,
     updateCourse,
+    duplicateCourse,
     deleteCourse,
     syncFromPractiq,
   };

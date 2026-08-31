@@ -59,6 +59,12 @@ export const useCourseStore = (service: ICourseService) =>
       }
     };
 
+    const duplicateCourse = async (id: string) => {
+      const result = await service.duplicate(id);
+      courses.value = [result.data, ...courses.value];
+      return result.data;
+    };
+
     const deleteCourse = async (id: string) => {
       await service.delete(id);
       courses.value = courses.value.filter((course) => course.id !== id);
@@ -73,6 +79,7 @@ export const useCourseStore = (service: ICourseService) =>
       fetchCourse,
       createCourse,
       updateCourse,
+      duplicateCourse,
       deleteCourse,
       syncFromPractiq,
     };
