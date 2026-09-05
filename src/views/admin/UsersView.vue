@@ -5,8 +5,20 @@ import StateMessage from "@/components/ui/StateMessage.vue";
 import PageHeader from "@/components/ui/PageHeader.vue";
 import Pagination from "@/components/ui/Pagination.vue";
   import { useUsers } from "@/composables/useUsers";
+  import { useAuthStore } from "@/stores/authStore";
 
-  const { users, loading, pageMeta, loadUsers, createOrSyncUser, setBlocked } = useUsers();
+  const authStore = useAuthStore();
+
+  const {
+    users,
+    loading,
+    pageMeta,
+    pendingTeacherChange,
+    loadUsers,
+    createOrSyncUser,
+    setBlocked,
+    setTeacher,
+  } = useUsers();
 
   const email = ref("");
   const firstName = ref("");
@@ -17,6 +29,43 @@ import Pagination from "@/components/ui/Pagination.vue";
   const search = ref("");
   const userToChange = ref<(typeof users.value)[number] | null>(null);
   const changingBlock = ref(false);
+  const userToPromote = ref<(typeof users.value)[number] | null>(null);
+  const changingRole = ref(false);
+
+  // What the row should say: the pending value once the role was changed in
+  // this session, otherwise whatever campus derived on that person's last
+  // sign-in.
+  function isTeacher(user: (typeof users.value)[number]) {
+    return pendingTeacherChange.value[user.id] ?? user.profile_type === "teacher";
+  }
+
+  // auth-api-be refuses a role change on your own account, so offering the
+  // button on your own row would only ever produce an error.
+  function isSelf(user: (typeof users.value)[number]) {
+    return user.id === authStore.profile?.id;
+  }
+
+  function hasPendingChange(user: (typeof users.value)[number]) {
+    const pending = pendingTeacherChange.value[user.id];
+    return pending !== undefined && pending !== (user.profile_type === "teacher");
+  }
+
+  async function confirmRoleChange() {
+    if (!userToPromote.value || changingRole.value) return;
+    changingRole.value = true;
+    try {
+      await setTeacher(
+        userToPromote.value.email,
+        userToPromote.value.id,
+        !isTeacher(userToPromote.value),
+      );
+      userToPromote.value = null;
+    } catch {
+      // useUsers already surfaced the error via toast
+    } finally {
+      changingRole.value = false;
+    }
+  }
 
   onMounted(() => {
     loadUsers({ page: 1 });
@@ -130,10 +179,24 @@ import Pagination from "@/components/ui/Pagination.vue";
       <ul v-else class="user-list">
         <li v-for="user in users" :key="user.id" class="user-item" :class="{ 'user-item--blocked': user.is_blocked }">
           <div class="user-identity"><span class="user-name">{{ user.full_name || "(sin nombre)" }}</span><span class="user-email">{{ user.email }}</span></div>
-          <span class="user-type" :class="`user-type--${user.profile_type}`">
-            {{ user.profile_type === "teacher" ? "Docente" : "Alumno" }}
+          <span class="user-type" :class="`user-type--${isTeacher(user) ? 'teacher' : 'student'}`">
+            {{ isTeacher(user) ? "Docente" : "Alumno" }}
           </span>
-          <span v-if="user.is_blocked" class="blocked-badge"><i class="pi pi-ban" /> Bloqueado</span>
+          <span v-if="hasPendingChange(user)" class="pending-badge">
+            <i class="pi pi-clock" aria-hidden="true" /> desde su próximo ingreso
+          </span>
+          <span v-if="user.is_blocked" class="blocked-badge"><i class="pi pi-ban" aria-hidden="true" /> Bloqueado</span>
+          <Button
+            v-if="!isSelf(user)"
+            type="button"
+            :label="isTeacher(user) ? 'Quitar docente' : 'Hacer docente'"
+            :icon="isTeacher(user) ? 'pi pi-user-minus' : 'pi pi-user-plus'"
+            :aria-label="`${isTeacher(user) ? 'Quitar rol docente a' : 'Hacer docente a'} ${user.full_name || user.email}`"
+            severity="secondary"
+            text
+            size="small"
+            @click="userToPromote = user"
+          />
           <Button type="button" :label="user.is_blocked ? 'Desbloquear' : 'Bloquear'" :icon="user.is_blocked ? 'pi pi-lock-open' : 'pi pi-ban'" :severity="user.is_blocked ? 'success' : 'danger'" text size="small" @click="userToChange = user" />
         </li>
       </ul>
@@ -145,6 +208,34 @@ import Pagination from "@/components/ui/Pagination.vue";
         item-label="usuarios"
         @update:page="changePage"
       />
+      <Dialog
+        :visible="!!userToPromote"
+        modal
+        :header="userToPromote && isTeacher(userToPromote) ? 'Quitar rol docente' : 'Hacer docente'"
+        :style="{ width: 'min(460px, calc(100vw - 32px))' }"
+        @update:visible="(visible) => { if (!visible && !changingRole) userToPromote = null; }"
+      >
+        <p v-if="userToPromote && isTeacher(userToPromote)">
+          <strong>{{ userToPromote.full_name || userToPromote.email }}</strong> va a volver a ser alumno
+          y perderá el acceso a la gestión de cursos.
+        </p>
+        <p v-else-if="userToPromote">
+          <strong>{{ userToPromote.full_name || userToPromote.email }}</strong> va a poder crear y
+          gestionar cursos.
+        </p>
+        <small>
+          El rol se cambia en la cuenta compartida de Practiq. Se cierra su sesión y el cambio
+          aplica cuando vuelva a ingresar.
+        </small>
+        <div class="dialog-actions">
+          <Button label="Cancelar" severity="secondary" text :disabled="changingRole" @click="userToPromote = null" />
+          <Button
+            :label="userToPromote && isTeacher(userToPromote) ? 'Quitar docente' : 'Hacer docente'"
+            :loading="changingRole"
+            @click="confirmRoleChange"
+          />
+        </div>
+      </Dialog>
       <Dialog :visible="!!userToChange" modal :header="userToChange?.is_blocked ? 'Desbloquear usuario' : 'Bloquear usuario'" :style="{ width: 'min(420px, calc(100vw - 32px))' }" @update:visible="(visible) => { if (!visible && !changingBlock) userToChange = null; }"><p v-if="userToChange?.is_blocked">{{ userToChange.full_name || userToChange.email }} podrá volver a acceder a Campus.</p><p v-else><strong>{{ userToChange?.full_name || userToChange?.email }}</strong> no podrá acceder a Campus hasta que lo desbloquees.</p><div class="dialog-actions"><Button label="Cancelar" severity="secondary" text :disabled="changingBlock" @click="userToChange = null" /><Button :label="userToChange?.is_blocked ? 'Desbloquear' : 'Bloquear'" :severity="userToChange?.is_blocked ? 'success' : 'danger'" :loading="changingBlock" @click="confirmBlockChange" /></div></Dialog>
     </div>
   </TeacherLayout>
@@ -208,7 +299,7 @@ import Pagination from "@/components/ui/Pagination.vue";
     box-shadow: var(--shadow-card);
   }
 
-  .users-toolbar{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);margin-bottom:var(--space-3);color:var(--text-muted);font-size:var(--text-xs);font-weight:700}.search-form{display:flex;gap:var(--space-2);min-width:min(100%,420px)}.search-form :deep(.p-inputtext){flex:1}.user-identity{display:flex;flex:1;min-width:0;flex-direction:column;gap:2px}.user-item--blocked{opacity:.72;background:var(--surface-hover)}.blocked-badge{display:inline-flex;align-items:center;gap:4px;padding:2px var(--space-2);border-radius:var(--radius-pill);background:var(--color-error-bg);color:var(--color-error-dark);font-size:var(--text-xs);font-weight:700;white-space:nowrap}.dialog-actions{display:flex;justify-content:flex-end;gap:var(--space-2);margin-top:var(--space-5)}
+  .users-toolbar{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);margin-bottom:var(--space-3);color:var(--text-muted);font-size:var(--text-xs);font-weight:700}.search-form{display:flex;gap:var(--space-2);min-width:min(100%,420px)}.search-form :deep(.p-inputtext){flex:1}.user-identity{display:flex;flex:1;min-width:0;flex-direction:column;gap:2px}.user-item--blocked{opacity:.72;background:var(--surface-hover)}.pending-badge{display:inline-flex;align-items:center;gap:4px;padding:2px var(--space-2);border-radius:var(--radius-pill);background:var(--fill-warning-subtle);color:var(--color-warning-dark);font-size:10px;font-weight:700;white-space:nowrap}.blocked-badge{display:inline-flex;align-items:center;gap:4px;padding:2px var(--space-2);border-radius:var(--radius-pill);background:var(--color-error-bg);color:var(--color-error-dark);font-size:var(--text-xs);font-weight:700;white-space:nowrap}.dialog-actions{display:flex;justify-content:flex-end;gap:var(--space-2);margin-top:var(--space-5)}
 
   .user-name {
     font-weight: 600;
