@@ -182,7 +182,7 @@ async function save(s: Submission) {
 
         <article v-for="s in visible" :key="s.id" class="submission">
           <header class="submission-head">
-            <h2>{{ s.user_name || s.user_id }}</h2>
+            <h2>{{ s.user_name || "(sin nombre)" }}</h2>
             <span
               class="submission-flag"
               :class="s.status === 'graded' ? 'submission-flag--graded' : 'submission-flag--pending'"

@@ -85,7 +85,7 @@
         <ul v-else class="members">
           <li v-for="member in members" :key="member.user_id">
             <span class="avatar">{{ member.name?.[0]?.toUpperCase() || '?' }}</span>
-            <span class="person"><strong>{{ member.name }}</strong><small>{{ member.email || member.user_id }}</small></span>
+            <span class="person"><strong>{{ member.name }}</strong><small>{{ member.email || "(sin email)" }}</small></span>
             <span :class="['role', `role--${member.role}`]">{{ roleLabel[member.role] }}</span>
             <button type="button" class="remove" @click="remove(member)">Quitar</button>
           </li>

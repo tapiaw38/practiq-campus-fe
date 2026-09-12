@@ -57,7 +57,7 @@ async function academicNotifications(role: "student" | "teacher"): Promise<Campu
           id: `submission:${submission.id}:${submission.submitted_at}`,
           kind: "assignment" as const,
           title: `Nueva entrega: ${assignment.title}`,
-          detail: `${submission.user_name || submission.user_id} · ${course.title}`,
+          detail: `${submission.user_name || "(sin nombre)"} · ${course.title}`,
           createdAt: submission.submitted_at,
           to: `/teacher/courses/${course.id}/assignments/${assignment.id}/submissions`,
           read: false,

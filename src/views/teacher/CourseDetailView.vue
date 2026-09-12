@@ -52,7 +52,7 @@
     return courseEnrollments.value.filter((e) => group.member_ids.includes(e.user_id));
   });
   function enrollmentName(userId: string) {
-    return courseEnrollments.value.find((e) => e.user_id === userId)?.user_name || userId;
+    return courseEnrollments.value.find((e) => e.user_id === userId)?.user_name || "(sin nombre)";
   }
   function unassignedEnrollments(groupId: string) {
     const group = courseGroups.groups.value.find((g) => g.id === groupId);
@@ -570,7 +570,7 @@
               :key="enrollment.id"
               class="enrollment-item"
             >
-              <span class="enrollment-user">{{ enrollment.user_name || enrollment.user_id }}</span>
+              <span class="enrollment-user">{{ enrollment.user_name || "(sin nombre)" }}</span>
               <span class="enrollment-role">{{ enrollment.enrollment_role }}</span>
               <button
                 class="remove-btn"
@@ -840,7 +840,7 @@
                 <StateMessage v-if="!quizAttempts.attemptsByQuiz.value[quiz.id]?.length" dense icon="pi-inbox" title="Nadie rindió esta evaluación todavía" />
                 <ul v-else class="attempt-list">
                   <li v-for="attempt in quizAttempts.attemptsByQuiz.value[quiz.id]" :key="attempt.id">
-                    <span>{{ attempt.user_name || attempt.user_id }} · intento {{ attempt.attempt_number }}</span>
+                    <span>{{ attempt.user_name || "(sin nombre)" }} · intento {{ attempt.attempt_number }}</span>
                     <span v-if="attempt.submitted_at">{{ attempt.score }}/{{ attempt.max_score }}</span>
                     <span v-else class="attempt-pending">en curso</span>
                   </li>
