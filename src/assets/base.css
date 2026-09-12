@@ -84,13 +84,14 @@
   --text-brand-panel-muted: rgba(var(--surface-card-rgb), 0.8);
   --text-brand-panel-soft: rgba(var(--surface-card-rgb), 0.75);
 
-  /* Typography — sizes, tighter than the student app: this is read by
-     adults at a desk, not by a child on a tablet. */
+  /* Typography — matches Practiq's teacher theme, since Campus is entirely
+     that persona: an adult at a desk, never the student app's compact
+     secondary-grade scale. */
   --text-xs: 11px;
   --text-sm: 12px;
   --text-base: 13px;
-  --text-md: 13px;
-  --text-lg: 14px;
+  --text-md: 14px;
+  --text-lg: 15px;
 
   --font-hero: clamp(1.1rem, 2.5vw, 1.35rem);
   --font-section-title: 15px;

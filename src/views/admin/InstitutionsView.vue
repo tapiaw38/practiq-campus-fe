@@ -310,6 +310,7 @@
 
   .actions {
     display: flex;
+    flex-wrap: wrap;
     gap: 0.4rem;
   }
 
@@ -329,6 +330,10 @@
     .row {
       flex-direction: column;
       align-items: stretch;
+    }
+
+    .actions button {
+      flex: 1 1 auto;
     }
   }
 </style>
