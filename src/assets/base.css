@@ -1,31 +1,30 @@
 :root {
-  /* Accent — teal/slate, not the violet Practiq's student app uses. Same
-     token vocabulary as practiq-fe's base.css so the two design systems
-     stay comparable, but Campus ships this palette as its only default:
-     it has no runtime theme switcher, it just looks serious out of the box. */
-  --practiq-violet-50: #f0fdfa;
-  --practiq-violet-100: #ccfbf1;
-  --practiq-violet-200: #99f6e4;
-  --practiq-violet-300: #5eead4;
-  --practiq-violet-400: #2dd4bf;
-  --practiq-violet-500: #14b8a6;
-  --practiq-violet-600: #0d9488;
-  --practiq-violet-700: #0f766e;
-  --practiq-violet-800: #115e59;
-  --practiq-violet-900: #134e4a;
-  --practiq-violet-950: #042f2e;
-  --practiq-violet: #0d9488;
-  --practiq-violet-light: #14b8a6;
-  --practiq-violet-pale: #ccfbf1;
-  --practiq-violet-bg: #f0fdfa;
-  --practiq-violet-dark: #115e59;
-  --practiq-indigo: #1e293b;
-  --practiq-indigo-soft: #cbd5e1;
+  /* Primary Practiq palette. Campus shares this identity with student app;
+     components consume semantic tokens below, so this changes every surface
+     without scattered component-level colour overrides. */
+  --practiq-violet-50: #f5f3ff;
+  --practiq-violet-100: #ede9fe;
+  --practiq-violet-200: #ddd6fe;
+  --practiq-violet-300: #c4b5fd;
+  --practiq-violet-400: #a78bfa;
+  --practiq-violet-500: #8b5cf6;
+  --practiq-violet-600: #7c3aed;
+  --practiq-violet-700: #6d28d9;
+  --practiq-violet-800: #5b21b6;
+  --practiq-violet-900: #4c1d95;
+  --practiq-violet-950: #2e1065;
+  --practiq-violet: #7c3aed;
+  --practiq-violet-light: #8b5cf6;
+  --practiq-violet-pale: #ede9fe;
+  --practiq-violet-bg: #f5f3ff;
+  --practiq-violet-dark: #5b21b6;
+  --practiq-indigo: #6366f1;
+  --practiq-indigo-soft: #c7d2fe;
 
   /* RGB channels for alpha and gradients */
-  --practiq-violet-rgb: 13, 148, 136;
-  --practiq-violet-light-rgb: 20, 184, 166;
-  --practiq-indigo-rgb: 30, 41, 59;
+  --practiq-violet-rgb: 124, 58, 237;
+  --practiq-violet-light-rgb: 139, 92, 246;
+  --practiq-indigo-rgb: 99, 102, 241;
   --color-success-rgb: 16, 185, 129;
   --color-error-rgb: 239, 68, 68;
   --color-warning-rgb: 245, 158, 11;
@@ -54,9 +53,9 @@
 
   /* Surfaces */
   --surface-bg: #f8fafc;
-  --surface-bg-soft: #f7f8fa;
-  --surface-bg-cool: #f8fafc;
-  --surface-bg-muted: #f6f7f9;
+  --surface-bg-soft: #f7f8ff;
+  --surface-bg-cool: #f8fbff;
+  --surface-bg-muted: #f6f8fc;
   --surface-card: #ffffff;
   --surface-hover: #f1f5f9;
   --surface-border: #e2e8f0;
@@ -172,20 +171,18 @@
   --space-6: 20px;
   --space-8: 26px;
 
-  /* Teacher workspace — the docente shell reads slightly cooler and calmer
-     than the student one. Declared here as tokens so the shell overrides in
-     this file stop hardcoding hex values. */
-  --teacher-bg: #f5f8f9;
+  /* Teacher workspace. Kept semantic so Campus stays on primary palette. */
+  --teacher-bg: #f7f8ff;
   --teacher-surface: var(--surface-card);
-  --teacher-border: #dce5e8;
-  --teacher-border-card: #e0e7e9;
-  --teacher-border-dashed: #cbd8da;
-  --teacher-border-hover: #b6dcd7;
+  --teacher-border: #e2e4f3;
+  --teacher-border-card: #e8e9f5;
+  --teacher-border-dashed: #d3d5ec;
+  --teacher-border-hover: #c4c1f2;
   --teacher-label: #7b8794;
-  --teacher-active-bg: #e6f5f2;
-  --teacher-active-text: #0f5f59;
+  --teacher-active-bg: #f0edff;
+  --teacher-active-text: #5b21b6;
   --teacher-active-bar: var(--practiq-violet-700);
-  --teacher-active-icon-bg: #c8eee8;
+  --teacher-active-icon-bg: #ddd6fe;
   --teacher-shadow-sidebar: 6px 0 24px rgba(15, 23, 42, 0.04);
   --teacher-shadow-card: 0 2px 8px rgba(15, 23, 42, 0.045);
   --teacher-shadow-card-hover: 0 6px 16px rgba(var(--practiq-violet-rgb), 0.1);
