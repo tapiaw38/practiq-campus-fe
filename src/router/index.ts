@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { getToken } from "@/api/request/server";
+import { useTenantStore } from "@/stores/tenantStore";
 
 const APP_NAME = "Practiq Campus";
 
@@ -10,6 +11,12 @@ declare module "vue-router" {
     requiresGuest?: boolean;
     requiresSuperAdmin?: boolean;
     profileType?: "student" | "teacher";
+    /**
+     * Set on the few screens that work without an institution selected: the
+     * ones that let somebody sign in, discover which institutions they belong
+     * to, or be told they belong to none.
+     */
+    allowsNoTenant?: boolean;
   }
 }
 
@@ -43,6 +50,12 @@ const router = createRouter({
       name: "register",
       component: () => import("@/views/auth/RegisterView.vue"),
       meta: { title: "Crear cuenta", requiresGuest: true },
+    },
+    {
+      path: "/no-institution",
+      name: "no-institution",
+      component: () => import("@/views/NoInstitutionView.vue"),
+      meta: { title: "Sin institución", requiresAuth: true, allowsNoTenant: true },
     },
     {
       path: "/student/dashboard",
@@ -143,10 +156,23 @@ const router = createRouter({
       component: () => import("@/views/admin/UsersView.vue"),
       meta: { title: "Usuarios", requiresAuth: true, requiresSuperAdmin: true },
     },
+    {
+      // Enabling Campus for an institution is what creates a tenant, so this
+      // screen is reachable without one selected.
+      path: "/admin/institutions",
+      name: "admin-institutions",
+      component: () => import("@/views/admin/InstitutionsView.vue"),
+      meta: {
+        title: "Instituciones",
+        requiresAuth: true,
+        requiresSuperAdmin: true,
+        allowsNoTenant: true,
+      },
+    },
   ],
 });
 
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to, _from, next) => {
   const isAuthenticated = !!getToken();
 
   if (to.meta.requiresAuth && !isAuthenticated) {
@@ -192,6 +218,29 @@ router.beforeEach((to, _from, next) => {
       }
     } catch {
       // an unreadable profile is treated as "no profile yet" below
+    }
+  }
+
+  // Campus only exists inside an institution, so every product screen needs
+  // one selected. The check runs last: it costs a request on a cold load, and
+  // there is no reason to pay it for somebody who is being sent to the login
+  // screen anyway.
+  if (to.meta.requiresAuth && !to.meta.allowsNoTenant && !to.meta.requiresSuperAdmin) {
+    const tenants = useTenantStore();
+    if (!tenants.tenants.length) {
+      try {
+        await tenants.load();
+      } catch {
+        // Unreachable API is not "no institutions": sending somebody to the
+        // empty-state screen over a network blip would tell them they lost
+        // access they still have.
+        next();
+        return;
+      }
+    }
+    if (!tenants.selected) {
+      next("/no-institution");
+      return;
     }
   }
 

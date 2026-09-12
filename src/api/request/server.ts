@@ -29,6 +29,12 @@ function createAxiosInstance(baseURL: string) {
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+    // Auth API ignores this. Campus API validates it as a selector, never as
+    // authority; see RequireTenant in campus-be.
+    const tenantID = localStorage.getItem('campus_tenant_id')
+    if (tenantID && config.baseURL?.toString().includes('/api')) {
+      config.headers['X-Campus-Tenant-ID'] = tenantID
+    }
     return config
   })
 

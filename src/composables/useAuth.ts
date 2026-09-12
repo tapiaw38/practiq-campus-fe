@@ -3,6 +3,7 @@ import { authApi, campusApi } from "@/api/request/server";
 import { AuthService } from "@/services/auth/authService";
 import { ProfileService } from "@/services/profile/profileService";
 import { useAuthStore } from "@/stores/authStore";
+import { useTenantStore } from "@/stores/tenantStore";
 import type { LoginParams, RegisterParams } from "@/types";
 
 const authService = new AuthService(authApi);
@@ -11,6 +12,7 @@ const profileService = new ProfileService(campusApi);
 export function useAuth() {
   const toast = useToast();
   const store = useAuthStore();
+  const tenantStore = useTenantStore();
 
   async function login(params: LoginParams) {
     try {
@@ -21,6 +23,7 @@ export function useAuth() {
       const fullName = `${data.first_name} ${data.last_name}`.trim();
       const { data: profile } = await profileService.sync(fullName, data.email);
       store.setProfile(profile);
+      await tenantStore.load();
 
       return profile;
     } catch (error) {
@@ -56,6 +59,7 @@ export function useAuth() {
   }
 
   function logout() {
+    tenantStore.clear();
     store.clearAuth();
   }
 

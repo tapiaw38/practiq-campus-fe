@@ -1,4 +1,5 @@
 <script setup lang="ts">
+  import TenantSwitcher from "@/components/TenantSwitcher.vue";
   import { computed, onMounted, ref } from "vue";
   import { RouterLink, useRouter } from "vue-router";
   import { useAuthStore } from "@/stores/authStore";
@@ -91,6 +92,8 @@
           <i class="pi pi-times" aria-hidden="true"></i>
         </button>
       </div>
+
+      <TenantSwitcher />
 
       <nav class="sidebar-nav" aria-label="Navegación principal">
         <div class="nav-section-label">Estudiante</div>
