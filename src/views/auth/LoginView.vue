@@ -2,20 +2,40 @@
   import { ref } from "vue";
   import { useRouter } from "vue-router";
   import { useAuth } from "@/composables/useAuth";
+  import { useAuthStore } from "@/stores/authStore";
+  import { useTenantStore, type CampusTenant } from "@/stores/tenantStore";
   import GoogleButton from "@/components/auth/GoogleButton.vue";
   import PasswordField from "@/components/ui/PasswordField.vue";
 
   const router = useRouter();
   const { login } = useAuth();
+  const authStore = useAuthStore();
+  const tenantStore = useTenantStore();
 
   const email = ref("");
   const password = ref("");
   const submitting = ref(false);
 
+  function destination(profile: Awaited<ReturnType<typeof login>>, tenant?: CampusTenant) {
+    if (authStore.isSuperAdmin) return "/admin/institutions";
+    if (!tenant) return "/no-institution";
+    if (tenant.role === "admin") return "/school/dashboard";
+    // School membership is scoped truth for Campus. A shared Practiq account
+    // may be a teacher in one institution and a student in another.
+    if (tenant.role === "teacher") return "/teacher/dashboard";
+    return "/student/dashboard";
+  }
+
   async function goToDashboard(profile: Awaited<ReturnType<typeof login>>) {
-    router.push(
-      profile.profile_type === "teacher" ? "/teacher/dashboard" : "/student/dashboard",
-    );
+    if (authStore.isSuperAdmin) {
+      await router.push("/admin/institutions");
+      return;
+    }
+    if (tenantStore.tenants.length > 1 && !tenantStore.selected) {
+      await router.push("/choose-institution");
+      return;
+    }
+    await router.push(destination(profile, tenantStore.selected || undefined));
   }
 
   async function handleSubmit() {

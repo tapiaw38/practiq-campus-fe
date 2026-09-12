@@ -11,6 +11,7 @@ declare module "vue-router" {
     requiresGuest?: boolean;
     requiresSuperAdmin?: boolean;
     profileType?: "student" | "teacher";
+    requiresSchoolAdmin?: boolean;
     /**
      * Set on the few screens that work without an institution selected: the
      * ones that let somebody sign in, discover which institutions they belong
@@ -25,19 +26,7 @@ const router = createRouter({
   routes: [
     {
       path: "/",
-      redirect: () => {
-        if (!getToken()) return "/login";
-        try {
-          const profileStr = localStorage.getItem("campus_profile");
-          if (profileStr) {
-            const profile = JSON.parse(profileStr);
-            if (profile.profile_type === "teacher") return "/teacher/dashboard";
-          }
-        } catch {
-          // fall through to the student dashboard
-        }
-        return "/student/dashboard";
-      },
+      redirect: () => getToken() ? "/choose-institution" : "/login",
     },
     {
       path: "/login",
@@ -56,6 +45,18 @@ const router = createRouter({
       name: "no-institution",
       component: () => import("@/views/NoInstitutionView.vue"),
       meta: { title: "Sin institución", requiresAuth: true, allowsNoTenant: true },
+    },
+    {
+      path: "/choose-institution",
+      name: "choose-institution",
+      component: () => import("@/views/ChooseInstitutionView.vue"),
+      meta: { title: "Elegir institución", requiresAuth: true, allowsNoTenant: true },
+    },
+    {
+      path: "/school/dashboard",
+      name: "school-dashboard",
+      component: () => import("@/views/school/DashboardView.vue"),
+      meta: { title: "Administrar escuela", requiresAuth: true, requiresSchoolAdmin: true },
     },
     {
       path: "/student/dashboard",
@@ -202,19 +203,38 @@ router.beforeEach(async (to, _from, next) => {
     }
   }
 
+  if (to.meta.requiresAuth && to.meta.requiresSchoolAdmin) {
+    try {
+      const authUserStr = localStorage.getItem("campus_auth_user");
+      const authUser = authUserStr ? JSON.parse(authUserStr) : null;
+      const isSuperAdmin = !!authUser?.roles?.some(
+        (role: { name: string }) => role.name === "superadmin",
+      );
+      const tenants = useTenantStore();
+      if (!tenants.tenants.length) await tenants.load();
+      if (isSuperAdmin && !tenants.selected) {
+        next("/admin/institutions");
+        return;
+      }
+      if (!isSuperAdmin && tenants.selected?.role !== "admin") {
+        next("/choose-institution");
+        return;
+      }
+    } catch {
+      next("/choose-institution");
+      return;
+    }
+  }
+
   if (to.meta.requiresAuth && to.meta.profileType) {
     try {
-      const profileStr = localStorage.getItem("campus_profile");
-      if (profileStr) {
-        const profile = JSON.parse(profileStr);
-        if (profile.profile_type !== to.meta.profileType) {
-          next(
-            profile.profile_type === "teacher"
-              ? "/teacher/dashboard"
-              : "/student/dashboard",
-          );
-          return;
-        }
+      const tenants = useTenantStore();
+      if (!tenants.tenants.length) await tenants.load();
+      const role = tenants.selected?.role;
+      const profileType = role === "admin" || role === "teacher" ? "teacher" : "student";
+      if (role && profileType !== to.meta.profileType) {
+        next(profileType === "teacher" ? "/teacher/dashboard" : "/student/dashboard");
+        return;
       }
     } catch {
       // an unreadable profile is treated as "no profile yet" below

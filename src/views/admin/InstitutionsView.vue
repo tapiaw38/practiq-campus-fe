@@ -1,18 +1,27 @@
 <script setup lang="ts">
   import { onMounted, ref } from "vue";
+  import { useRouter } from "vue-router";
   import { campusApi } from "@/api/request/server";
   import {
     TenantAdminService,
     type CampusTenantAdmin,
+    type EligibleSchool,
   } from "@/services/tenants/tenantService";
+  import { useTenantStore } from "@/stores/tenantStore";
 
   const service = new TenantAdminService(campusApi);
+  const router = useRouter();
+  const tenantStore = useTenantStore();
 
   const tenants = ref<CampusTenantAdmin[]>([]);
   const loading = ref(true);
   const error = ref("");
   const schoolID = ref("");
   const activating = ref(false);
+  // Offered rather than typed: the server knows which schools qualify, and
+  // asking an operator to paste a uuid from another product turned a typo into
+  // "no such school".
+  const eligible = ref<EligibleSchool[]>([]);
 
   const statusLabel: Record<CampusTenantAdmin["status"], string> = {
     active: "Activa",
@@ -29,6 +38,14 @@
       error.value = "No se pudieron cargar las instituciones.";
     } finally {
       loading.value = false;
+    }
+    try {
+      eligible.value = await service.eligibleSchools();
+      // Nothing preselected: enabling Campus for the wrong institution is not
+      // something to do by pressing a button without reading it.
+      if (!eligible.value.some((s) => s.id === schoolID.value)) schoolID.value = "";
+    } catch {
+      eligible.value = [];
     }
   }
 
@@ -69,6 +86,11 @@
     }
   }
 
+  async function open(tenant: CampusTenantAdmin) {
+    tenantStore.select(tenant.id);
+    await router.push("/school/dashboard");
+  }
+
   onMounted(load);
 </script>
 
@@ -82,15 +104,25 @@
       </p>
     </header>
 
-    <form class="activate" @submit.prevent="activate">
+    <form v-if="eligible.length" class="activate" @submit.prevent="activate">
       <label>
-        <span>ID de escuela en Practiq</span>
-        <input v-model="schoolID" placeholder="UUID de la escuela" autocomplete="off" />
+        <span>Institución</span>
+        <select v-model="schoolID">
+          <option value="">Elegí una institución…</option>
+          <option v-for="school in eligible" :key="school.id" :value="school.id">
+            {{ school.name }}
+          </option>
+        </select>
       </label>
-      <button type="submit" :disabled="activating || !schoolID.trim()">
+      <button type="submit" :disabled="activating || !schoolID">
         Habilitar Campus
       </button>
     </form>
+    <p v-else class="muted empty-eligible">
+      No hay instituciones para habilitar. Campus sirve a las que en Practiq son
+      institución con facturación por contrato y están activas; creá una desde
+      Practiq y aparecerá acá.
+    </p>
 
     <p v-if="error" class="error" role="alert">{{ error }}</p>
 
@@ -114,6 +146,9 @@
         </span>
 
         <div class="actions">
+          <button v-if="tenant.status === 'active' && tenant.eligible" type="button" @click="open(tenant)">
+            Abrir Campus
+          </button>
           <button v-if="tenant.status !== 'active'" type="button" @click="setStatus(tenant, 'active')">
             Reactivar
           </button>
@@ -169,6 +204,7 @@
     color: var(--text-secondary);
   }
 
+  .activate select,
   .activate input {
     min-height: 40px;
     padding: 0.45rem 0.6rem;
@@ -275,6 +311,13 @@
   .actions {
     display: flex;
     gap: 0.4rem;
+  }
+
+  .empty-eligible {
+    margin: 1.5rem 0 1rem;
+    padding: 0.75rem;
+    border: 1px dashed var(--surface-border);
+    border-radius: 10px;
   }
 
   @media (max-width: 640px) {

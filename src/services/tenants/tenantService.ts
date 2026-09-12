@@ -27,8 +27,17 @@ export type PractiqSchool = {
   status: string;
 };
 
+/** A school Campus could be enabled for and has not been yet. */
+export type EligibleSchool = { id: string; name: string };
+
 export class TenantAdminService {
   constructor(private readonly api: AxiosInstance) {}
+
+  /** The ones that qualify and are not enabled yet, so the picker only offers
+   *  choices that work. */
+  async eligibleSchools(): Promise<EligibleSchool[]> {
+    return (await this.api.get<{ data: EligibleSchool[] }>("/tenants/eligible-schools")).data.data;
+  }
 
   async list(): Promise<CampusTenantAdmin[]> {
     return (await this.api.get<{ data: CampusTenantAdmin[] }>("/tenants")).data.data;

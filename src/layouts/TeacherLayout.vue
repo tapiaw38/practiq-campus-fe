@@ -3,6 +3,7 @@
   import { computed, onMounted, ref } from "vue";
   import { RouterLink, useRouter } from "vue-router";
   import { useAuthStore } from "@/stores/authStore";
+  import { useTenantStore } from "@/stores/tenantStore";
   import { useAuth } from "@/composables/useAuth";
   import { useNavDrawer } from "@/composables/useNavDrawer";
   import { useMessageNotifications } from "@/composables/useMessageNotifications";
@@ -10,6 +11,7 @@
 
   const router = useRouter();
   const authStore = useAuthStore();
+  const tenantStore = useTenantStore();
   const { logout } = useAuth();
   const { unreadCount, start: startMessageNotifications } = useMessageNotifications();
   const { start: startCalendarNotifications } = useCalendarNotifications();
@@ -27,6 +29,7 @@
   });
 
   const profile = computed(() => authStore.profile);
+  const canManageInstitution = computed(() => authStore.isSuperAdmin || tenantStore.selected?.role === "admin");
   const userInitial = computed(
     () => profile.value?.full_name?.[0]?.toUpperCase() || "D",
   );
@@ -134,6 +137,10 @@
         <RouterLink to="/teacher/activity" class="nav-item" active-class="nav-item-active"><span class="nav-icon"><i class="pi pi-bolt" aria-hidden="true"></i></span><span>Actividad</span></RouterLink>
         <template v-if="authStore.isSuperAdmin">
           <div class="nav-section-label">Administración</div>
+          <RouterLink to="/admin/institutions" class="nav-item" active-class="nav-item-active">
+            <span class="nav-icon"><i class="pi pi-building" aria-hidden="true"></i></span>
+            <span>Instituciones</span>
+          </RouterLink>
           <RouterLink
             to="/admin/users"
             class="nav-item"
@@ -141,6 +148,13 @@
           >
             <span class="nav-icon"><i class="pi pi-users" aria-hidden="true"></i></span>
             <span>Usuarios</span>
+          </RouterLink>
+        </template>
+        <template v-else-if="canManageInstitution">
+          <div class="nav-section-label">Institución</div>
+          <RouterLink to="/school/dashboard" class="nav-item" active-class="nav-item-active">
+            <span class="nav-icon"><i class="pi pi-building" aria-hidden="true"></i></span>
+            <span>Administrar escuela</span>
           </RouterLink>
         </template>
       </nav>

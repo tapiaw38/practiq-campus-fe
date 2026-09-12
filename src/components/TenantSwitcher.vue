@@ -23,6 +23,10 @@
     // blink.
     router.go(0);
   }
+
+  function chooseInstitution() {
+    router.push("/choose-institution");
+  }
 </script>
 
 <template>
@@ -41,9 +45,10 @@
       </option>
     </select>
 
-    <span v-else class="single" :title="tenants.selected.name">
-      {{ tenants.selected.name }}
-    </span>
+    <div v-else class="single-row">
+      <span class="single" :title="tenants.selected.name">{{ tenants.selected.name }}</span>
+      <button type="button" class="change" @click="chooseInstitution">Cambiar</button>
+    </div>
   </div>
 </template>
 
@@ -83,4 +88,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+
+  .single-row { display: flex; align-items: center; gap: .4rem; min-width: 0; }
+  .change { flex: 0 0 auto; border: 0; background: transparent; color: var(--practiq-violet); cursor: pointer; font: inherit; font-size: .76rem; font-weight: 700; padding: 0; }
 </style>
