@@ -29,6 +29,7 @@ const submissions = new SubmissionService(campusApi);
 const SCOPE = "notifications";
 
 function eventNotification(event: CalendarEvent, role: "student" | "teacher"): CampusNotification | null {
+  if (!event.title?.trim()) return null;
   const startsAt = new Date(event.starts_at);
   const now = new Date();
   const weekAhead = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -107,7 +108,10 @@ export function useNotifications(role: "student" | "teacher") {
         .map((event) => eventNotification(event, role))
         .filter((item): item is CampusNotification => item !== null);
       const persistedItems = persisted.data.data.map((item) => ({ id: item.id, kind: item.type, title: item.title, detail: item.body, createdAt: item.created_at, to: `/${role}/dashboard`, read: !!item.read_at, persistent: true } as CampusNotification));
+      // Different notification sources are merged here. Ignore malformed or
+      // legacy records rather than rendering empty cards in the activity feed.
       items.value = [...messageItems, ...eventItems, ...academicItems, ...persistedItems]
+        .filter((item) => (item.title || "").trim() || (item.detail || "").trim())
         .map((item) => ({ ...item, read: item.read || readIds.value.includes(item.id) }))
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     } finally {
