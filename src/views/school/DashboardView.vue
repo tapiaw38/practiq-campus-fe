@@ -151,5 +151,19 @@
   .suggestions button:hover { background: var(--surface-ground); }
   .suggestions span { overflow: hidden; color: var(--text-secondary); font-size: .72rem; text-overflow: ellipsis; white-space: nowrap; }
   .members { margin: 1rem 0 0; padding: 0; list-style:none; border-top:1px solid var(--surface-border); } .members li { display:flex; align-items:center; gap:.75rem; padding:.8rem 0; border-bottom:1px solid var(--surface-border); } .avatar { display:grid; place-items:center; width:2.15rem; height:2.15rem; border-radius:50%; color:var(--practiq-violet); background:var(--practiq-violet-100); font-weight:800; } .person { display:grid; gap:.1rem; min-width:0; flex:1; } .person strong,.person small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .person small { color:var(--text-secondary); } .role { font-size:.76rem; font-weight:700; padding:.3rem .5rem; border-radius:999px; background:var(--surface-ground); } .role--admin { color:var(--practiq-violet); background:var(--practiq-violet-100); } .role--teacher { color:var(--color-success-dark); background:var(--color-success-bg); } .remove { border:0; background:transparent; color:var(--color-error-dark); cursor:pointer; font:inherit; font-weight:700; }
-  @media (max-width: 680px) { .school-admin { padding:1.1rem; } .head { align-items:stretch; flex-direction:column; } .stats { grid-template-columns:1fr; gap:.45rem; } .stats div { padding:.75rem; } .add { grid-template-columns:1fr; } .add button { width:100%; } .members li { gap:.45rem; } .role { display:none; } }
+  @media (max-width: 680px) {
+    .school-admin { padding: 0; }
+    .head { align-items: stretch; flex-direction: column; gap: .7rem; }
+    h1 { font-size: 1.35rem; line-height: 1.25; }
+    .stats { grid-template-columns: 1fr; gap: .4rem; }
+    .stats div { padding: .6rem .7rem; }
+    .stats strong { font-size: 1.2rem; }
+    .panel { padding: .9rem; }
+    h2 { font-size: 1rem; }
+    .add { grid-template-columns: 1fr; gap: .5rem; }
+    .add button { width: 100%; }
+    input, select { min-height: 40px; }
+    .members li { gap: .45rem; padding: .65rem 0; }
+    .role { display: none; }
+  }
 </style>
