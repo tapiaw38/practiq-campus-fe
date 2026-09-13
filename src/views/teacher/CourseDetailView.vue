@@ -108,6 +108,13 @@
 
   const newStudentEmail = ref("");
   const enrolling = ref(false);
+  const studentMatches = computed(() => {
+    const query = newStudentEmail.value.trim().toLocaleLowerCase();
+    if (!query) return [];
+    return practiqStudents.value
+      .filter((student) => `${student.name} ${student.email}`.toLocaleLowerCase().includes(query))
+      .slice(0, 8);
+  });
 
   const newSectionTitle = ref("");
   const newSectionDescription = ref("");
@@ -318,8 +325,8 @@
     quizzes.loadQuizzes(courseId);
   });
 
-  function pickPractiqStudent(email: string) {
-    newStudentEmail.value = email;
+  function pickPractiqStudent(student: { email: string }) {
+    newStudentEmail.value = student.email;
   }
 
   async function handleCreateSection() {
@@ -533,28 +540,29 @@
               <form class="enroll-form" @submit.prevent="handleEnroll">
                 <InputText
                   v-model="newStudentEmail"
-                  type="email"
-                  placeholder="Email del alumno"
+                  type="text"
+                  autocomplete="off"
+                  placeholder="Buscar por nombre o email"
                   class="enroll-input"
                 />
                 <Button type="submit" label="Matricular" :loading="enrolling" size="small" />
               </form>
+              <div v-if="studentMatches.length" class="student-matches" role="listbox" aria-label="Coincidencias de alumnos">
+                <button
+                  v-for="student in studentMatches"
+                  :key="student.id"
+                  type="button"
+                  class="student-match"
+                  role="option"
+                  @click="pickPractiqStudent(student)"
+                >
+                  <span class="student-match-name">{{ student.name || "Sin nombre" }}</span>
+                  <span class="student-match-email">{{ student.email }}</span>
+                </button>
+              </div>
               <p class="enroll-hint">El alumno debe tener cuenta Campus creada por un superadmin.</p>
             </div>
           </details>
-
-          <div v-if="practiqStudents.length" class="practiq-students">
-            <span class="practiq-students-label">Tus alumnos en Practiq:</span>
-            <button
-              v-for="student in practiqStudents"
-              :key="student.id"
-              type="button"
-              class="practiq-student-chip"
-              @click="pickPractiqStudent(student.email)"
-            >
-              {{ student.name || student.email }}
-            </button>
-          </div>
 
           <StateMessage v-if="enrollmentsLoading" variant="loading" dense :rows="3" loading-label="Cargando alumnos" />
           <StateMessage
@@ -940,6 +948,38 @@
   .enroll-input {
     flex: 1;
   }
+
+  .student-matches {
+    display: grid;
+    gap: 2px;
+    max-height: 240px;
+    margin: 0 0 var(--space-2);
+    overflow-y: auto;
+    border: 1px solid var(--surface-border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-card);
+  }
+
+  .student-match {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: var(--space-2) var(--space-3);
+    border: 0;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .student-match:hover,
+  .student-match:focus-visible { background: var(--surface-hover); }
+  .student-match-name,
+  .student-match-email { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .student-match-name { color: var(--text-primary); font-size: var(--text-sm); font-weight: 700; }
+  .student-match-email { color: var(--text-secondary); font-size: var(--text-xs); }
 
   .enroll-hint {
     font-size: var(--text-xs);
