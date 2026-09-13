@@ -4,6 +4,9 @@ import axios from 'axios'
 // apps log in independently (no SSO), each against the same auth-api-be, so
 // each keeps its own token in its own localStorage.
 const TOKEN_KEY = 'campus_token'
+const REFRESH_TOKEN_KEY = 'campus_refresh_token'
+
+const AUTH_BASE_URL = import.meta.env.VITE_AUTH_API_URL || 'http://localhost:8082'
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY)
@@ -15,6 +18,48 @@ export function setToken(token: string): void {
 
 export function removeToken(): void {
   localStorage.removeItem(TOKEN_KEY)
+  localStorage.removeItem(REFRESH_TOKEN_KEY)
+}
+
+export function setRefreshToken(token: string): void {
+  localStorage.setItem(REFRESH_TOKEN_KEY, token)
+}
+
+/**
+ * Swaps the refresh token for a new pair. Sessions created before refresh
+ * tokens existed have none stored, so they simply end at the next 401 and
+ * the person signs in again.
+ *
+ * Concurrent 401s share one in-flight call: a screen that fires five
+ * requests at once would otherwise spend five refresh tokens, and rotation
+ * means four of them come back already used.
+ */
+let refreshing: Promise<string | null> | null = null
+
+async function refreshSession(): Promise<string | null> {
+  const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
+  if (!refreshToken) return null
+
+  try {
+    const { data } = await axios.post(`${AUTH_BASE_URL}/auth/refresh`, {
+      refresh_token: refreshToken
+    })
+    setToken(data.token)
+    setRefreshToken(data.refresh_token)
+    return data.token as string
+  } catch {
+    return null
+  }
+}
+
+function refreshOnce(): Promise<string | null> {
+  if (!refreshing) {
+    refreshing = refreshSession()
+    void refreshing.finally(() => {
+      refreshing = null
+    })
+  }
+  return refreshing
 }
 
 function createAxiosInstance(baseURL: string) {
@@ -40,11 +85,24 @@ function createAxiosInstance(baseURL: string) {
 
   instance.interceptors.response.use(
     (response) => response,
-    (error) => {
-      if (error.response?.status === 401) {
+    async (error) => {
+      const original = error.config
+      const isRefreshCall = original?.url?.includes('/auth/refresh')
+
+      if (error.response?.status === 401 && original && !original._retried && !isRefreshCall) {
+        original._retried = true
+
+        const token = await refreshOnce()
+        if (token) {
+          original.headers = original.headers ?? {}
+          original.headers.Authorization = `Bearer ${token}`
+          return instance(original)
+        }
+
         removeToken()
         window.location.href = '/login'
       }
+
       return Promise.reject(error)
     }
   )

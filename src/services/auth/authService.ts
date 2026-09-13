@@ -1,4 +1,5 @@
 import type { AxiosInstance } from "axios";
+import { setRefreshToken } from "@/api/request/server";
 import type { LoginParams, LoginResponse, RegisterParams, RegisterResponse } from "@/types";
 
 export interface IAuthService {
@@ -16,6 +17,10 @@ export class AuthService implements IAuthService {
       ? { sso_type: params.ssoType, code: params.ssoCode }
       : { email: params.email, password: params.password };
     const { data } = await this.api.post("/auth/login", payload);
+    // Stored here rather than at the call sites: every screen that signs
+    // somebody in goes through this method, and a session missing its
+    // refresh token only shows up much later, as a surprise logout.
+    if (data?.refresh_token) setRefreshToken(data.refresh_token);
     return data;
   }
 

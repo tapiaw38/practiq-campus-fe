@@ -31,6 +31,7 @@ export interface RegisterParams {
 
 export interface LoginResponse {
   token: string;
+  refresh_token?: string;
   data: AuthUser;
 }
 
