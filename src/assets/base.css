@@ -484,3 +484,76 @@ button, a, input, textarea, select {
     padding: 14px;
   }
 }
+
+/* Mobile content contract: keep Campus aligned with Practiq FE. View-level
+   styles can define their own layout, but the shell must always reclaim the
+   narrow viewport and avoid desktop-sized headings and panels. */
+@media (max-width: 860px) {
+  html,
+  body,
+  #app {
+    min-width: 0;
+    overflow-x: clip;
+  }
+
+  .main-content {
+    min-width: 0;
+    overflow-x: clip;
+  }
+}
+
+@media (max-width: 600px) {
+  .main-content {
+    padding: 12px 10px 24px !important;
+  }
+
+  .dashboard-head h1,
+  .head h1,
+  .messages-panel h1 {
+    font-size: 22px !important;
+    line-height: 1.2;
+  }
+
+  .dashboard-head,
+  .head,
+  .messages-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dashboard-head,
+  .head {
+    padding: 16px !important;
+  }
+
+  .school-admin,
+  .institutions {
+    padding: 0 !important;
+  }
+
+  .no-institution {
+    padding: 12px;
+  }
+
+  .no-institution .card {
+    padding: 24px 18px;
+  }
+
+  .no-institution .icon {
+    font-size: 2rem;
+  }
+
+  .chooser {
+    padding: 12px;
+  }
+
+  .chooser .card {
+    padding: 20px 16px;
+    border-radius: 14px;
+  }
+
+  .chooser h1 {
+    font-size: 1.4rem;
+    line-height: 1.25;
+  }
+}
