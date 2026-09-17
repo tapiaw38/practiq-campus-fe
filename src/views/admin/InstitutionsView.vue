@@ -8,6 +8,7 @@
     type EligibleSchool,
   } from "@/services/tenants/tenantService";
   import { useTenantStore } from "@/stores/tenantStore";
+  import TeacherLayout from "@/layouts/TeacherLayout.vue";
 
   const service = new TenantAdminService(campusApi);
   const router = useRouter();
@@ -22,6 +23,7 @@
   // asking an operator to paste a uuid from another product turned a typo into
   // "no such school".
   const eligible = ref<EligibleSchool[]>([]);
+  const eligibleError = ref(false);
 
   const statusLabel: Record<CampusTenantAdmin["status"], string> = {
     active: "Activa",
@@ -41,11 +43,13 @@
     }
     try {
       eligible.value = await service.eligibleSchools();
+      eligibleError.value = false;
       // Nothing preselected: enabling Campus for the wrong institution is not
       // something to do by pressing a button without reading it.
       if (!eligible.value.some((s) => s.id === schoolID.value)) schoolID.value = "";
     } catch {
       eligible.value = [];
+      eligibleError.value = true;
     }
   }
 
@@ -87,6 +91,7 @@
   }
 
   async function open(tenant: CampusTenantAdmin) {
+    await tenantStore.load();
     tenantStore.select(tenant.id);
     await router.push("/school/dashboard");
   }
@@ -95,6 +100,7 @@
 </script>
 
 <template>
+  <TeacherLayout>
   <main class="institutions">
     <header>
       <h1>Instituciones de Campus</h1>
@@ -118,6 +124,9 @@
         Habilitar Campus
       </button>
     </form>
+    <p v-else-if="eligibleError" class="error" role="alert">
+      No se pudo consultar instituciones elegibles. Reintentá en unos segundos.
+    </p>
     <p v-else class="muted empty-eligible">
       No hay instituciones para habilitar. Campus sirve a las que en Practiq son
       institución con facturación por contrato y están activas; creá una desde
@@ -167,6 +176,7 @@
       </li>
     </ul>
   </main>
+  </TeacherLayout>
 </template>
 
 <style scoped>

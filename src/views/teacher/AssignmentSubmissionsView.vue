@@ -110,21 +110,66 @@ function draft(s: Submission) {
   return drafts.value[s.id];
 }
 
+/**
+ * A score the teacher has not filled in.
+ *
+ * `Number("")` is 0, not NaN, so a blank field passed every check and was
+ * recorded as a zero — failing a student who had simply not been graded yet.
+ */
+function missingScore(raw: string | undefined) {
+  return raw === undefined || String(raw).trim() === "";
+}
+
+const saveError = ref<Record<string, string>>({});
+
 async function save(s: Submission) {
   const d = draft(s);
+  saveError.value = { ...saveError.value, [s.id]: "" };
+
+  let scores: { criterion_id: string; score: number; feedback: string }[] | undefined;
+  let score = 0;
+
   if (rubric.criteria.value.length) {
-    const scores = rubric.criteria.value.map((c) => ({
+    if (rubric.criteria.value.some((c) => missingScore(d.criteria[c.id || ""]?.score))) {
+      saveError.value = { ...saveError.value, [s.id]: "Completá el puntaje de cada criterio antes de guardar." };
+      return;
+    }
+    scores = rubric.criteria.value.map((c) => ({
       criterion_id: c.id || "",
       score: Number(d.criteria[c.id || ""]?.score),
       feedback: d.criteria[c.id || ""]?.feedback || "",
     }));
-    if (scores.some((x) => !Number.isInteger(x.score))) return;
-    // s.version is the submission this screen is showing; grading is
-    // refused if the student replaced it while the teacher was writing.
-    await grade(assignmentId, s.id, 0, d.feedback, scores, s.version);
-    return;
+    if (scores.some((x) => !Number.isInteger(x.score) || x.score < 0)) {
+      saveError.value = { ...saveError.value, [s.id]: "Los puntajes deben ser números enteros no negativos." };
+      return;
+    }
+  } else {
+    if (missingScore(d.score)) {
+      saveError.value = { ...saveError.value, [s.id]: "Escribí una nota antes de guardar." };
+      return;
+    }
+    score = Number(d.score);
+    if (!Number.isInteger(score) || score < 0) {
+      saveError.value = { ...saveError.value, [s.id]: "La nota debe ser un número entero no negativo." };
+      return;
+    }
   }
-  await grade(assignmentId, s.id, Number(d.score), d.feedback, undefined, s.version);
+
+  try {
+    // s.version is the submission this screen is showing; grading is refused
+    // if the student replaced it while the teacher was writing.
+    await grade(assignmentId, s.id, score, d.feedback, scores, s.version);
+  } catch (error) {
+    const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || "";
+    if (!message.includes("reenvió")) throw error;
+    // The work on screen is no longer the work the student has. Retrying with
+    // the same stale version would conflict forever, so the new version is
+    // fetched and the draft cleared — the teacher reads it again before
+    // grading.
+    saveError.value = { ...saveError.value, [s.id]: "El alumno reenvió la entrega. Abajo está la versión nueva: revisala y volvé a calificar." };
+    delete drafts.value[s.id];
+    await loadByAssignment(assignmentId).catch(() => undefined);
+  }
 }
 </script>
 
@@ -228,6 +273,7 @@ async function save(s: Submission) {
             placeholder="Comentario general"
             aria-label="Comentario general"
           />
+          <p v-if="saveError[s.id]" class="save-error">{{ saveError[s.id] }}</p>
           <Button label="Guardar corrección" size="small" class="save-btn" @click="save(s)" />
         </article>
 
@@ -334,4 +380,5 @@ async function save(s: Submission) {
     .submission-head { flex-wrap: wrap; }
     .submission-head time { width: 100%; margin-left: 0; }
   }
+  .save-error { margin: 0 0 var(--space-2); font-size: var(--text-xs); font-weight: 700; color: var(--color-error, #b91c1c); }
 </style>

@@ -19,7 +19,10 @@
   import CourseMaterials from "@/components/course/CourseMaterials.vue";
   import type { Assignment, CourseStatus } from "@/types";
   import type { Quiz, QuizQuestionType } from "@/types/quiz";
-  import type { QuestionParams } from "@/services/quizzes/quizService";
+  import { QuizService, type QuestionParams } from "@/services/quizzes/quizService";
+  import type { QuizAttempt, QuizAnswerResult } from "@/types/quiz";
+  import { useToast } from "primevue/usetoast";
+  import { campusApi } from "@/api/request/server";
 
   const route = useRoute();
   const router = useRouter();
@@ -142,9 +145,12 @@
   const rubric = useRubric();
   const rubricDrafts = ref<Record<string, { title: string; description: string; max_score: number }[]>>({});
   const rubricOpen = ref<string | null>(null);
+  const rubricError = ref("");
 
   const quizzes = useQuizzes();
   const quizAttempts = useQuizAttempts();
+  const quizService = new QuizService(campusApi);
+  const toast = useToast();
   const QUESTION_TYPES: { label: string; value: QuizQuestionType }[] = [
     { label: "Opción múltiple", value: "multiple_choice" },
     { label: "Verdadero/Falso", value: "true_false" },
@@ -165,7 +171,7 @@
   const newQuiz = ref({ title: "", description: "", maxAttempts: "1", timeLimitMin: "", sectionId: "", weight: "100", visibleGroupId: "", unlockAfter: "" });
   const creatingQuiz = ref(false);
   const editingQuizId = ref<string | null>(null);
-  const editingQuiz = ref({ title: "", description: "", maxAttempts: "1", timeLimitMin: "", sectionId: "", weight: "100", visibleGroupId: "", unlockAfter: "" });
+  const editingQuiz = ref({ title: "", description: "", maxAttempts: "1", timeLimitMin: "", sectionId: "", weight: "100", visibleGroupId: "", unlockAfter: "", scheduledAt: "", availableUntil: "" });
   const quizToDelete = ref<Quiz | null>(null);
   const questionsOpen = ref<string | null>(null);
   const questionDrafts = ref<Record<string, QuestionParams[]>>({});
@@ -195,7 +201,7 @@
 
   function beginEditQuiz(quiz: Quiz) {
     editingQuizId.value = quiz.id;
-    editingQuiz.value = { title: quiz.title, description: quiz.description, maxAttempts: String(quiz.max_attempts), timeLimitMin: quiz.time_limit_secs ? String(Math.round(quiz.time_limit_secs / 60)) : "", sectionId: quiz.section_id || "", weight: String(quiz.weight), visibleGroupId: quiz.visible_group_id || "", unlockAfter: unlockAfterValue(quiz.unlock_after_type, quiz.unlock_after_id) };
+    editingQuiz.value = { title: quiz.title, description: quiz.description, maxAttempts: String(quiz.max_attempts), timeLimitMin: quiz.time_limit_secs ? String(Math.round(quiz.time_limit_secs / 60)) : "", sectionId: quiz.section_id || "", weight: String(quiz.weight), visibleGroupId: quiz.visible_group_id || "", unlockAfter: unlockAfterValue(quiz.unlock_after_type, quiz.unlock_after_id), scheduledAt: quiz.scheduled_at ? quiz.scheduled_at.slice(0, 16) : "", availableUntil: quiz.available_until ? quiz.available_until.slice(0, 16) : "" };
   }
   async function saveQuiz() {
     if (!editingQuizId.value || !editingQuiz.value.title.trim()) return;
@@ -207,6 +213,10 @@
       section_id: editingQuiz.value.sectionId || null,
       weight: Number(editingQuiz.value.weight) || 100,
       visible_group_id: editingQuiz.value.visibleGroupId || null,
+      // Sent explicitly so editing a title cannot silently clear the
+      // schedule; an empty field means the teacher cleared it on purpose.
+      scheduled_at: editingQuiz.value.scheduledAt ? new Date(editingQuiz.value.scheduledAt).toISOString() : null,
+      available_until: editingQuiz.value.availableUntil ? new Date(editingQuiz.value.availableUntil).toISOString() : null,
       ...parseUnlockAfter(editingQuiz.value.unlockAfter),
     });
     editingQuizId.value = null;
@@ -221,10 +231,37 @@
     return [...new Set([...statement.matchAll(/\{\{\s*(\d+)\s*\}\}/g)].map((m) => m[1]))];
   }
   function insertBlank(question: QuestionParams) {
-    const next = blankIds(question.statement).length + 1;
+    // Highest existing id plus one, not the count plus one: a statement
+    // holding {{1}} and {{3}} has two blanks, so counting produced {{3}}
+    // again and quietly tied two gaps to one answer.
+    const existing = blankIds(question.statement).map(Number).filter(Number.isFinite);
+    const next = existing.length ? Math.max(...existing) + 1 : 1;
     const trimmed = question.statement.trimEnd();
     question.statement = (trimmed ? trimmed + " " : "") + `{{${next}}}`;
   }
+  const openingAttempt = ref<string | null>(null);
+  const reviewedAttempt = ref<{ attempt: QuizAttempt; results: QuizAnswerResult[] } | null>(null);
+
+  /**
+   * Opens what a student actually answered.
+   *
+   * The list showed the score and stopped there; the review endpoint already
+   * existed and nothing called it, so a teacher could see that someone got
+   * 4/10 and never which four.
+   */
+  async function openAttemptReview(attempt: QuizAttempt) {
+    if (openingAttempt.value) return;
+    openingAttempt.value = attempt.id;
+    try {
+      const { attempt: full, results } = await quizService.getAttempt(attempt.id);
+      reviewedAttempt.value = { attempt: { ...full, user_name: attempt.user_name }, results };
+    } catch {
+      toast.add({ severity: "error", summary: "No pudimos abrir las respuestas", life: 3000 });
+    } finally {
+      openingAttempt.value = null;
+    }
+  }
+
   async function openQuestions(quiz: Quiz) {
     const list = await quizzes.loadQuestions(quiz.id);
     questionDrafts.value[quiz.id] = list.length
@@ -313,7 +350,38 @@
   }
   async function editRubric(id: string) { await rubric.load(id); rubricDrafts.value[id] = rubric.criteria.value.map((x) => ({ title: x.title, description: x.description, max_score: x.max_score })); rubricOpen.value = id; }
   function addCriterion(id: string) { (rubricDrafts.value[id] ||= []).push({ title: "", description: "", max_score: 1 }); }
-  async function saveRubric(id: string, max: number) { const list = rubricDrafts.value[id] || []; if (list.reduce((s, x) => s + Number(x.max_score), 0) !== max) return; await rubric.save(id, list); rubricOpen.value = null; }
+  /**
+   * Saves the rubric. Its criteria define the assignment's maximum, so the
+   * total no longer has to match the maximum already stored — the server
+   * moves it to match, in the same transaction.
+   *
+   * The old guard returned silently when the totals differed, which left the
+   * teacher pressing a button that did nothing and no way to change the
+   * total at all.
+   */
+  async function saveRubric(id: string) {
+    const list = rubricDrafts.value[id] || [];
+    if (!list.length) { rubricError.value = "Agregá al menos un criterio."; return; }
+    if (list.some((x) => !x.title.trim() || !Number.isInteger(Number(x.max_score)) || Number(x.max_score) < 1)) {
+      rubricError.value = "Cada criterio necesita un título y un puntaje entero mayor a cero.";
+      return;
+    }
+    rubricError.value = "";
+    try {
+      await rubric.save(id, list);
+      // The maximum moved with the rubric, so the card showing it is stale.
+      await loadAssignments(courseId);
+      rubricOpen.value = null;
+    } catch (error) {
+      rubricError.value = (error as { response?: { data?: { message?: string } } })?.response?.data?.message
+        || "No pudimos guardar la rúbrica.";
+    }
+  }
+
+  /** Live total, shown so the teacher can see the maximum they are setting. */
+  function rubricTotal(id: string) {
+    return (rubricDrafts.value[id] || []).reduce((sum, x) => sum + (Number(x.max_score) || 0), 0);
+  }
   async function saveAssignment() {
     const item = assignments.value.find((a) => a.id === editingAssignmentId.value);
     if (!item || !editingAssignment.value.title.trim()) return;
@@ -758,7 +826,9 @@
               <div v-if="rubricOpen === assignment.id" class="rubric-editor">
                 <strong>Rúbrica · {{ assignment.max_score }} puntos</strong>
                 <div v-for="(criterion, index) in rubricDrafts[assignment.id] || []" :key="index" class="rubric-row"><InputText v-model="criterion.title" placeholder="Criterio" /><InputText v-model="criterion.description" placeholder="Descripción" /><InputText :model-value="String(criterion.max_score)" type="number" min="1" @update:model-value="criterion.max_score = Number($event)" /></div>
-                <Button type="button" label="Agregar criterio" text size="small" @click="addCriterion(assignment.id)" /><Button type="button" label="Guardar rúbrica" size="small" @click="saveRubric(assignment.id, assignment.max_score)" />
+                <small class="rubric-total">Puntaje máximo de la tarea: {{ rubricTotal(assignment.id) }}</small>
+                <p v-if="rubricError" class="rubric-error">{{ rubricError }}</p>
+                <Button type="button" label="Agregar criterio" text size="small" @click="addCriterion(assignment.id)" /><Button type="button" label="Guardar rúbrica" size="small" @click="saveRubric(assignment.id)" />
               </div>
 
               <CourseMaterials :course-id="courseId" :assignment-id="assignment.id" :can-manage="true" />
@@ -818,6 +888,7 @@
                     <InputText v-model="editingQuiz.title" size="small" placeholder="Título" />
                     <Textarea v-model="editingQuiz.description" rows="2" placeholder="Descripción" />
                     <div class="field-row"><InputText v-model="editingQuiz.maxAttempts" type="number" min="0" placeholder="Intentos" /><InputText v-model="editingQuiz.timeLimitMin" type="number" min="1" placeholder="Minutos" /></div>
+                    <div class="field-row"><label class="field-label">Desde<InputText v-model="editingQuiz.scheduledAt" type="datetime-local" /></label><label class="field-label">Hasta<InputText v-model="editingQuiz.availableUntil" type="datetime-local" /></label></div>
                     <Select v-model="editingQuiz.sectionId" :options="[{ id: '', title: 'Sin sección' }, ...sections]" option-label="title" option-value="id" placeholder="Sección (opcional)" />
                     <details class="advanced-disclosure">
                       <summary>Avanzado: peso, visibilidad, requisito</summary>
@@ -863,12 +934,45 @@
                     <span>{{ attempt.user_name || "(sin nombre)" }} · intento {{ attempt.attempt_number }}</span>
                     <span v-if="attempt.submitted_at">{{ attempt.score }}/{{ attempt.max_score }}</span>
                     <span v-else class="attempt-pending">en curso</span>
+                    <Button
+                      v-if="attempt.submitted_at"
+                      label="Ver respuestas"
+                      size="small"
+                      text
+                      :loading="openingAttempt === attempt.id"
+                      @click="openAttemptReview(attempt)"
+                    />
                   </li>
                 </ul>
               </div>
             </li>
           </ul>
         </section>
+
+        <Dialog
+          :visible="!!reviewedAttempt"
+          modal
+          closable
+          close-on-escape
+          :header="`Respuestas de ${reviewedAttempt?.attempt.user_name || 'el alumno'}`"
+          :style="{ width: 'min(640px, calc(100vw - 32px))' }"
+          @update:visible="(visible) => { if (!visible) reviewedAttempt = null; }"
+        >
+          <div v-if="reviewedAttempt" class="attempt-review">
+            <p class="attempt-review-score">Nota: {{ reviewedAttempt.attempt.score }}/{{ reviewedAttempt.attempt.max_score }}</p>
+            <StateMessage v-if="!reviewedAttempt.results.length" dense icon="pi-inbox" title="El intento no tiene respuestas guardadas" />
+            <div
+              v-for="result in reviewedAttempt.results"
+              :key="result.question_id"
+              class="attempt-review-row"
+              :class="result.is_correct ? 'attempt-review-row--ok' : 'attempt-review-row--bad'"
+            >
+              <p>{{ result.statement }}</p>
+              <span>Respondió: {{ result.answer_text || "(sin responder)" }}</span>
+              <span v-if="!result.is_correct">Correcta: {{ result.correct_answer }}</span>
+            </div>
+          </div>
+        </Dialog>
 
         <Dialog :visible="!!quizToDelete" modal header="Eliminar evaluación" :style="{ width: 'min(420px, calc(100vw - 32px))' }" @update:visible="(visible) => { if (!visible) quizToDelete = null; }">
           <p>Vas a eliminar <strong>{{ quizToDelete?.title }}</strong>, sus preguntas e intentos.</p>
@@ -1264,4 +1368,12 @@
     .course-label-form { width: 100%; }
     .course-label-form :deep(.p-inputtext) { flex: 1; width: auto; }
   }
+  .field-label { display: flex; flex-direction: column; gap: 2px; font-size: var(--text-xs); color: var(--text-muted); flex: 1; }
+  .rubric-total { font-size: var(--text-xs); color: var(--text-muted); }
+  .rubric-error { margin: 0; font-size: var(--text-xs); color: var(--color-error, #b91c1c); font-weight: 700; }
+  .attempt-review { display: flex; flex-direction: column; gap: var(--space-3); }
+  .attempt-review-score { margin: 0; font-weight: 700; color: var(--text-heading); }
+  .attempt-review-row { display: flex; flex-direction: column; gap: 2px; padding-bottom: var(--space-2); border-bottom: 1px solid var(--surface-border); font-size: var(--text-sm); }
+  .attempt-review-row--ok { color: var(--text-secondary); }
+  .attempt-review-row--bad { color: var(--color-error, #b91c1c); }
 </style>

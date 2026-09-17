@@ -29,8 +29,13 @@
     const query = userQuery.value.trim().toLowerCase();
     if (!authStore.isSuperAdmin || query.length < 2) { matches.value = []; return; }
     try {
-      const { data } = await authApi.get<{ data: AuthUser[] }>("/user/list", { params: { limit: 100 } });
-      matches.value = data.data.filter((user) =>
+      const all: AuthUser[] = [];
+      for (let offset = 0; offset < 10000; offset += 100) {
+        const { data } = await authApi.get<{ data: AuthUser[] }>("/user/list", { params: { limit: 100, offset } });
+        all.push(...data.data);
+        if (data.data.length < 100) break;
+      }
+      matches.value = all.filter((user) =>
         [user.username, user.first_name, user.last_name, user.email].join(" ").toLowerCase().includes(query),
       ).slice(0, 8);
     } catch { matches.value = []; }
