@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { computed, onMounted, ref } from "vue";
+  import { computed, onBeforeUnmount, onMounted, ref } from "vue";
   import { useRouter } from "vue-router";
   import TeacherLayout from "@/layouts/TeacherLayout.vue";
   import { authApi, campusApi } from "@/api/request/server";
@@ -19,29 +19,57 @@
   const userID = ref("");
   const userQuery = ref("");
   const matches = ref<AuthUser[]>([]);
+  const searchLoading = ref(false);
+  const searchError = ref("");
   const role = ref<SchoolMember["role"]>("student");
+  let searchTimer: ReturnType<typeof window.setTimeout> | null = null;
+  let searchRequest = 0;
 
   // Searching by email/name needs auth-api-be's user list, which it only
   // serves to a superadmin — same boundary practiq-fe runs into, so a
   // non-superadmin institution admin keeps the exact-username field below.
-  async function searchUsers() {
+  function scheduleUserSearch() {
     userID.value = "";
+    // Invalidate an in-flight response as soon as input changes, including
+    // when it becomes too short to search.
+    searchRequest++;
     const query = userQuery.value.trim().toLowerCase();
-    if (!authStore.isSuperAdmin || query.length < 2) { matches.value = []; return; }
+    searchError.value = "";
+    if (searchTimer) window.clearTimeout(searchTimer);
+    if (!authStore.isSuperAdmin || query.length < 2) {
+      matches.value = [];
+      searchLoading.value = false;
+      return;
+    }
+    searchTimer = window.setTimeout(() => { void searchUsers(query); }, 250);
+  }
+
+  async function searchUsers(query: string) {
+    const request = ++searchRequest;
+    searchLoading.value = true;
+    searchError.value = "";
     try {
-      const all: AuthUser[] = [];
-      for (let offset = 0; offset < 10000; offset += 100) {
-        const { data } = await authApi.get<{ data: AuthUser[] }>("/user/list", { params: { limit: 100, offset } });
-        all.push(...data.data);
-        if (data.data.length < 100) break;
+      const { data } = await authApi.get<{ data: AuthUser[] }>("/user/list", {
+        params: { search: query, limit: 8 },
+      });
+      // A slower request for an earlier keystroke must not replace current
+      // suggestions after the operator keeps typing.
+      if (request === searchRequest && userQuery.value.trim().toLowerCase() === query) {
+        matches.value = data.data;
       }
-      matches.value = all.filter((user) =>
-        [user.username, user.first_name, user.last_name, user.email].join(" ").toLowerCase().includes(query),
-      ).slice(0, 8);
-    } catch { matches.value = []; }
+    } catch {
+      if (request === searchRequest) {
+        matches.value = [];
+        searchError.value = "No se pudo buscar personas. Reintentá.";
+      }
+    } finally {
+      if (request === searchRequest) searchLoading.value = false;
+    }
   }
 
   function selectUser(user: AuthUser) {
+    searchRequest++;
+    if (searchTimer) window.clearTimeout(searchTimer);
     userID.value = user.username || user.id;
     userQuery.value = user.email || `${user.first_name} ${user.last_name}`.trim();
     matches.value = [];
@@ -84,6 +112,7 @@
   }
 
   onMounted(load);
+  onBeforeUnmount(() => { if (searchTimer) window.clearTimeout(searchTimer); });
 </script>
 
 <template>
@@ -109,13 +138,15 @@
         <form class="add" @submit.prevent="add">
           <label class="search-field">
             <span>{{ authStore.isSuperAdmin ? "Buscar persona" : "Usuario Practiq" }}</span>
-            <input v-if="authStore.isSuperAdmin" v-model="userQuery" type="search" placeholder="Email o nombre" autocomplete="off" @input="searchUsers" @blur="clearMatchesSoon" />
+            <input v-if="authStore.isSuperAdmin" v-model="userQuery" type="search" placeholder="Email o nombre" autocomplete="off" @input="scheduleUserSearch" @blur="clearMatchesSoon" />
             <input v-else v-model="userID" placeholder="Username de la persona" autocomplete="off" />
             <div v-if="matches.length" class="suggestions">
               <button v-for="user in matches" :key="user.id" type="button" @mousedown.prevent="selectUser(user)">
                 <strong>{{ user.first_name }} {{ user.last_name }}</strong><span>{{ user.email }}</span>
               </button>
             </div>
+			<p v-if="searchLoading" class="search-status">Buscando…</p>
+			<p v-else-if="searchError" class="search-status error" role="alert">{{ searchError }}</p>
           </label>
           <label><span>Rol</span><select v-model="role"><option value="student">Alumno</option><option value="teacher">Docente</option><option value="admin">Administrador</option></select></label>
           <button type="submit" :disabled="adding || !userID.trim()">{{ adding ? "Agregando…" : "Agregar" }}</button>
@@ -155,6 +186,7 @@
   .suggestions button { display: grid; width: 100%; min-height: 0; padding: .55rem .7rem; border: 0; border-radius: 0; color: var(--text-primary); background: transparent; text-align: left; font: inherit; cursor: pointer; }
   .suggestions button:hover { background: var(--surface-ground); }
   .suggestions span { overflow: hidden; color: var(--text-secondary); font-size: .72rem; text-overflow: ellipsis; white-space: nowrap; }
+  .search-status { margin: .35rem 0 0; color: var(--text-secondary); font-size: .76rem; font-weight: 500; }
   .members { margin: 1rem 0 0; padding: 0; list-style:none; border-top:1px solid var(--surface-border); } .members li { display:flex; align-items:center; gap:.75rem; padding:.8rem 0; border-bottom:1px solid var(--surface-border); } .avatar { display:grid; place-items:center; width:2.15rem; height:2.15rem; border-radius:50%; color:var(--practiq-violet); background:var(--practiq-violet-100); font-weight:800; } .person { display:grid; gap:.1rem; min-width:0; flex:1; } .person strong,.person small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .person small { color:var(--text-secondary); } .role { font-size:.76rem; font-weight:700; padding:.3rem .5rem; border-radius:999px; background:var(--surface-ground); } .role--admin { color:var(--practiq-violet); background:var(--practiq-violet-100); } .role--teacher { color:var(--color-success-dark); background:var(--color-success-bg); } .remove { border:0; background:transparent; color:var(--color-error-dark); cursor:pointer; font:inherit; font-weight:700; }
   @media (max-width: 680px) {
     .school-admin { padding: 0; }
