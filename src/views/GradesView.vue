@@ -4,7 +4,7 @@ import StudentLayout from "@/layouts/StudentLayout.vue";
 import TeacherLayout from "@/layouts/TeacherLayout.vue";
 import PageHeader from "@/components/ui/PageHeader.vue";
 import StateMessage from "@/components/ui/StateMessage.vue";
-import { useAuthStore } from "@/stores/authStore";
+import { useCampusRole } from "@/composables/useCampusRole";
 import { useCourses } from "@/composables/useCourses";
 import { AssignmentService } from "@/services/assignments/assignmentService";
 import { SubmissionService } from "@/services/submissions/submissionService";
@@ -29,8 +29,10 @@ interface GradeRow {
   feedback: string;
 }
 
-const auth = useAuthStore();
-const teacher = computed(() => auth.profile?.profile_type === "teacher");
+// Role here, not the account-wide one: a teacher at one school who studies at
+// another was shown the wrong grade book and then hit 403 on teacher-only
+// endpoints.
+const { isTeacher: teacher } = useCampusRole();
 const { loadCourses } = useCourses();
 const assignmentService = new AssignmentService(campusApi);
 const submissionService = new SubmissionService(campusApi);

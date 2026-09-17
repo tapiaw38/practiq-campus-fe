@@ -13,6 +13,8 @@
   import { useQuizzes } from "@/composables/useQuizzes";
   import { useQuizAttempts } from "@/composables/useQuizAttempts";
   import { campusApi } from "@/api/request/server";
+  import { useToast } from "primevue/usetoast";
+  import { QuizService } from "@/services/quizzes/quizService";
   import ForumSection from "@/components/forum/ForumSection.vue";
   import CourseMaterials from "@/components/course/CourseMaterials.vue";
   import type { Assignment } from "@/types";
@@ -20,7 +22,11 @@
 
   const route = useRoute();
   const router = useRouter();
-  const courseId = route.params.id as string;
+  const toast = useToast();
+  const quizService = new QuizService(campusApi);
+  // Reactive: navigating between two courses changes only this parameter,
+  // which does not remount the view.
+  const courseId = computed(() => route.params.id as string);
   const courseTabs = ["materials", "assignments", "quizzes", "forum"] as const;
   type CourseTab = (typeof courseTabs)[number];
   const requestedTab = route.query.tab as CourseTab;
@@ -29,7 +35,7 @@
   const { currentCourse, loading, loadCourse } = useCourses();
   const { sections, loadSections } = useCourseSections();
   const { assignments, loadAssignments } = useAssignments();
-  const { mySubmissions, loadMine, submit } = useSubmissions();
+  const { mySubmissions, mineStatus, loadMine, submit } = useSubmissions();
   const rubric = useRubric();
   const rubrics = ref<Record<string, typeof rubric.criteria.value>>({});
 
@@ -46,18 +52,59 @@
   const submittingQuiz = ref(false);
   const startingQuiz = ref(false);
   const showQuizResults = ref(false);
+  const reviewingAttempt = ref<string | null>(null);
 
-  onMounted(async () => {
-    await loadCourse(courseId);
-    await loadSections(courseId);
-    const list = await loadAssignments(courseId);
-    for (const a of list) {
-      loadMine(a.id);
-      await rubric.load(a.id); rubrics.value[a.id] = [...rubric.criteria.value];
-    }
-    const quizList = await quizzes.loadQuizzes(courseId);
-    for (const q of quizList) quizAttempts.loadMyAttempts(q.id);
-  });
+  /**
+   * Loads everything the course page shows.
+   *
+   * Each part is isolated: rubrics used to be awaited one by one in the same
+   * chain that later fetched the quizzes, so a single rubric request failing
+   * threw before the quizzes were ever requested and the tab said "no hay
+   * evaluaciones" for a course full of them. A rubric is decoration on one
+   * card; it cannot be allowed to decide whether the rest of the page exists.
+   */
+  async function loadCourseData(id: string) {
+    await loadCourse(id);
+    await loadSections(id).catch(() => undefined);
+
+    const [assignmentList, quizList] = await Promise.all([
+      loadAssignments(id).catch(() => [] as Assignment[]),
+      quizzes.loadQuizzes(id).catch(() => [] as Quiz[]),
+    ]);
+
+    await Promise.allSettled([
+      ...assignmentList.map((a) => loadMine(a.id)),
+      ...assignmentList.map(async (a) => {
+        await rubric.load(a.id);
+        rubrics.value[a.id] = [...rubric.criteria.value];
+      }),
+      ...quizList.map((q) => quizAttempts.loadMyAttempts(q.id)),
+    ]);
+  }
+
+  /**
+   * Re-reads the activity lists after something is handed in.
+   *
+   * Whether an item is locked is decided server-side from the prerequisite
+   * being met, and it was only ever asked once on mount — so completing the
+   * requirement left everything that depended on it looking locked until the
+   * student thought to reload the page.
+   */
+  async function refreshUnlocks() {
+    const [assignmentList, quizList] = await Promise.all([
+      loadAssignments(courseId.value).catch(() => [] as Assignment[]),
+      quizzes.loadQuizzes(courseId.value).catch(() => [] as Quiz[]),
+    ]);
+    await Promise.allSettled(quizList.map((q) => quizAttempts.loadMyAttempts(q.id)));
+    return { assignmentList, quizList };
+  }
+
+  onMounted(() => loadCourseData(courseId.value));
+
+  // The id comes from the URL, and Vue reuses this component when only the
+  // parameter changes — going straight from one course to another left every
+  // list showing the course just left.
+  watch(courseId, (id) => { if (id) void loadCourseData(id); });
 
   function blankIds(statement: string): string[] {
     return [...statement.matchAll(/\{\{\s*(\d+)\s*\}\}/g)].map((m) => m[1]);
@@ -181,14 +228,16 @@
   let draftTimer: ReturnType<typeof setTimeout> | null = null;
   function queueDraftSave() {
     const attemptId = quizAttempts.activeAttempt.value?.id;
-    if (!attemptId || showQuizResults.value || timeIsUp.value) return;
+    if (!attemptId || !takingQuiz.value || showQuizResults.value || timeIsUp.value) return;
+    const answers = currentAnswers();
+    quizAttempts.rememberLocally(attemptId, answers);
     if (draftTimer) clearTimeout(draftTimer);
     draftTimer = setTimeout(() => {
-      void quizAttempts.saveDraft(attemptId, currentAnswers());
+      void quizAttempts.saveDraft(attemptId, answers);
     }, 1200);
   }
 
-  watch([myAnswers, blankAnswers], queueDraftSave, { deep: true });
+  watch([myAnswers, blankAnswers], queueDraftSave, { deep: true, flush: "sync" });
 
   // The countdown runs against the server's expires_at, not against a
   // duration started on the client: the deadline survives a reload, and
@@ -270,9 +319,48 @@
       await quizAttempts.submit(quizAttempts.activeAttempt.value.id, currentAnswers());
       showQuizResults.value = true;
       if (takingQuiz.value) await quizAttempts.loadMyAttempts(takingQuiz.value.id);
+      // Handing this in may be the prerequisite something else was waiting on.
+      await refreshUnlocks();
     } finally {
       submittingQuiz.value = false;
     }
+  }
+
+  /**
+   * Reopens the review for an attempt already handed in.
+   *
+   * The results only ever existed in the response to the submission, so
+   * closing that dialog destroyed them: the score stayed on the card and
+   * which questions were wrong became unreachable. The server keeps them —
+   * this asks for them again.
+   */
+  async function reviewAttempt(quiz: Quiz, attemptId: string) {
+    if (reviewingAttempt.value) return;
+    reviewingAttempt.value = attemptId;
+    try {
+      const { attempt, results } = await quizService.getAttempt(attemptId);
+      quizAttempts.activeAttempt.value = attempt;
+      quizAttempts.lastResults.value = results;
+      quizAttempts.activeQuestions.value = [];
+      showQuizResults.value = true;
+      takingQuiz.value = quiz;
+    } catch {
+      toast.add({ severity: "error", summary: "No pudimos abrir la revisión", life: 3000 });
+    } finally {
+      reviewingAttempt.value = null;
+    }
+  }
+
+  /** Retries the lookup; the composable records the outcome in mineStatus. */
+  function retryLoadMine(assignmentId: string) {
+    void loadMine(assignmentId).catch(() => undefined);
+  }
+
+  /** The most recent submitted attempt, which is the one worth reviewing. */
+  function reviewableAttempt(quiz: Quiz) {
+    const submitted = (quizAttempts.myAttempts.value[quiz.id] || []).filter((a) => a.submitted_at);
+    if (!submitted.length) return null;
+    return submitted.reduce((latest, a) => (a.attempt_number > latest.attempt_number ? a : latest), submitted[0]);
   }
 
   function sectionTitle(sectionId: string | null) {
@@ -297,6 +385,8 @@
       submissionDrafts.value[assignmentId] = "";
       submissionFiles.value[assignmentId] = null;
       resubmitting.value[assignmentId] = false;
+      // Anything gated behind this assignment can be open now.
+      await refreshUnlocks();
     } catch {
       // useSubmissions already surfaced the error via toast
     } finally {
@@ -415,6 +505,14 @@
                 <small v-else class="submission-locked">{{ mySubmissions[assignment.id]?.graded_at ? "Entrega corregida: ya no se puede modificar" : "El plazo de entrega venció" }}</small>
               </div>
               <div v-else-if="assignment.locked" class="locked-state"><i class="pi pi-lock" /> {{ assignment.locked_reason }}</div>
+              <!-- An unknown state is not an empty one: offering the form here
+                   invited a second delivery from someone who had already
+                   handed in and whose submission simply failed to load. -->
+              <div v-else-if="mineStatus[assignment.id] === 'error'" class="locked-state">
+                <i class="pi pi-exclamation-triangle" /> No pudimos comprobar si ya entregaste.
+                <Button label="Reintentar" size="small" text @click="retryLoadMine(assignment.id)" />
+              </div>
+              <div v-else-if="mineStatus[assignment.id] !== 'loaded'" class="locked-state"><i class="pi pi-spin pi-spinner" /> Cargando tu entrega…</div>
               <form v-else class="submit-form" @submit.prevent="handleSubmit(assignment.id)">
                 <Textarea
                   v-model="submissionDrafts[assignment.id]"
@@ -451,7 +549,17 @@
                 <span class="quiz-meta"><template v-if="sectionTitle(quiz.section_id)">{{ sectionTitle(quiz.section_id) }} · </template>{{ attemptsLabel(quiz) }}<template v-if="quiz.time_limit_secs"> · {{ Math.round(quiz.time_limit_secs / 60) }} min</template><template v-if="bestScore(quiz)"> · mejor nota {{ bestScore(quiz) }}</template></span>
                 <span v-if="quiz.locked" class="quiz-locked-reason"><i class="pi pi-lock" /> {{ quiz.locked_reason }}</span>
               </div>
-              <Button :label="quizActionLabel(quiz)" size="small" :loading="startingQuiz" :disabled="!canAttempt(quiz) || startingQuiz" @click="openQuiz(quiz)" />
+              <div class="quiz-actions">
+                <Button
+                  v-if="reviewableAttempt(quiz)"
+                  label="Ver resultados"
+                  size="small"
+                  text
+                  :loading="reviewingAttempt === reviewableAttempt(quiz)?.id"
+                  @click="reviewAttempt(quiz, reviewableAttempt(quiz)!.id)"
+                />
+                <Button v-if="canAttempt(quiz)" :label="quizActionLabel(quiz)" size="small" :loading="startingQuiz" :disabled="startingQuiz" @click="openQuiz(quiz)" />
+              </div>
             </li>
           </ul>
         </section>
@@ -674,6 +782,7 @@
   .quiz-locked-reason { display: flex; align-items: center; gap: 4px; margin-top: 4px; color: var(--color-warning-dark); font-size: var(--text-xs); font-weight: 700; }
   .quiz-attempt { display: flex; flex-direction: column; gap: var(--space-4); }
   .quiz-timer { display: inline-flex; align-items: center; gap: var(--space-2); align-self: flex-start; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); background: var(--surface-hover); color: var(--text-secondary); font-size: var(--text-sm); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .quiz-actions { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
   .quiz-draft { margin: 0; font-size: var(--text-xs); color: var(--text-muted); }
   .quiz-draft--error { color: var(--color-error, #b91c1c); font-weight: 700; }
   .quiz-timer--out { background: var(--color-error-bg, #fee2e2); color: var(--color-error, #b91c1c); }

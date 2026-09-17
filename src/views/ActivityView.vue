@@ -5,7 +5,7 @@ import StudentLayout from "@/layouts/StudentLayout.vue";
 import TeacherLayout from "@/layouts/TeacherLayout.vue";
 import PageHeader from "@/components/ui/PageHeader.vue";
 import StateMessage from "@/components/ui/StateMessage.vue";
-import { useAuthStore } from "@/stores/authStore";
+import { useCampusRole } from "@/composables/useCampusRole";
 import { useCourses } from "@/composables/useCourses";
 import { AssignmentService } from "@/services/assignments/assignmentService";
 import { MaterialService } from "@/services/materials/materialService";
@@ -14,7 +14,9 @@ import { campusApi } from "@/api/request/server";
 import type { Course } from "@/types";
 
 type Activity = { id: string; course: Course; kind: "assignment" | "material" | "forum"; title: string; detail: string; at: string; to: string };
-const auth = useAuthStore(); const isTeacher = computed(() => auth.profile?.profile_type === "teacher"); const role = computed(() => isTeacher.value ? "teacher" : "student");
+// Role in the current institution; the account-wide profile type is wrong
+// for anyone who belongs to more than one school in different capacities.
+const { role, isTeacher } = useCampusRole();
 const { loadCourses } = useCourses(); const assignments = new AssignmentService(campusApi); const materials = new MaterialService(campusApi); const forums = new ForumService(campusApi);
 const items = ref<Activity[]>([]); const loading = ref(true); const selectedCourse = ref("all");
 const visible = computed(() => items.value.filter((item) => selectedCourse.value === "all" || item.course.id === selectedCourse.value));

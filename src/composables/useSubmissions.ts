@@ -10,6 +10,15 @@ export function useSubmissions() {
   const toast = useToast();
   const submissionsByAssignment = ref<Record<string, Submission[]>>({});
   const mySubmissions = ref<Record<string, Submission | null>>({});
+  /**
+   * How the lookup for each assignment went.
+   *
+   * A null submission used to mean three different things — not fetched yet,
+   * fetch failed, and genuinely nothing handed in — and the screen read all
+   * three as the third, offering a blank submission form to someone who had
+   * already handed in. Only "loaded" licenses that conclusion.
+   */
+  const mineStatus = ref<Record<string, "loading" | "loaded" | "error">>({});
   const loading = ref(false);
 
   async function loadByAssignment(assignmentId: string) {
@@ -24,15 +33,23 @@ export function useSubmissions() {
   }
 
   async function loadMine(assignmentId: string) {
-    const { data } = await submissionService.getMine(assignmentId);
-    mySubmissions.value = { ...mySubmissions.value, [assignmentId]: data };
-    return data;
+    mineStatus.value = { ...mineStatus.value, [assignmentId]: "loading" };
+    try {
+      const { data } = await submissionService.getMine(assignmentId);
+      mySubmissions.value = { ...mySubmissions.value, [assignmentId]: data };
+      mineStatus.value = { ...mineStatus.value, [assignmentId]: "loaded" };
+      return data;
+    } catch (error) {
+      mineStatus.value = { ...mineStatus.value, [assignmentId]: "error" };
+      throw error;
+    }
   }
 
   async function submit(assignmentId: string, content: string) {
     try {
       const { data } = await submissionService.create(assignmentId, content);
       mySubmissions.value = { ...mySubmissions.value, [assignmentId]: data };
+      mineStatus.value = { ...mineStatus.value, [assignmentId]: "loaded" };
       toast.add({ severity: "success", summary: "Entrega enviada", life: 2000 });
       return data;
     } catch (error) {
@@ -69,6 +86,7 @@ export function useSubmissions() {
   return {
     submissionsByAssignment,
     mySubmissions,
+    mineStatus,
     loading,
     loadByAssignment,
     loadMine,

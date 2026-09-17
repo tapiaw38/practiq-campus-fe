@@ -88,7 +88,7 @@ export function useQuizAttempts() {
         await quizService.saveDraft(next.attemptId, next.answers);
         // Only clear the local copy once the server has it, and only if
         // nothing newer arrived while this was in flight.
-        if (!queued) {
+        if (!queued && JSON.stringify(recallLocally(next.attemptId)) === JSON.stringify(next.answers)) {
           forgetLocally(next.attemptId);
           draftStatus.value = "saved";
         }
@@ -188,5 +188,5 @@ export function useQuizAttempts() {
     }
   }
 
-  return { myAttempts, attemptsByQuiz, activeAttempt, activeQuestions, timeLimitSecs, lastResults, savedAnswers, draftStatus, serverNowMs, loadMyAttempts, loadAttemptsByQuiz, start, saveDraft, submit };
+  return { myAttempts, attemptsByQuiz, activeAttempt, activeQuestions, timeLimitSecs, lastResults, savedAnswers, draftStatus, serverNowMs, rememberLocally, loadMyAttempts, loadAttemptsByQuiz, start, saveDraft, submit };
 }

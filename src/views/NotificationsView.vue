@@ -5,12 +5,12 @@ import StudentLayout from "@/layouts/StudentLayout.vue";
 import TeacherLayout from "@/layouts/TeacherLayout.vue";
 import PageHeader from "@/components/ui/PageHeader.vue";
 import StateMessage from "@/components/ui/StateMessage.vue";
-import { useAuthStore } from "@/stores/authStore";
 import { useNotifications } from "@/composables/useNotifications";
+import { useCampusRole } from "@/composables/useCampusRole";
 
-const auth = useAuthStore();
-const isTeacher = computed(() => auth.profile?.profile_type === "teacher");
-const role = computed(() => isTeacher.value ? "teacher" : "student");
+// The role held in this institution, not the account-wide profile type: the
+// same person can teach at one school and study at another.
+const { role, isTeacher } = useCampusRole();
 const { items, loading, load, markAllRead, markRead } = useNotifications(role.value);
 onMounted(load);
 const unreadCount = computed(() => items.value.filter((item) => !item.read).length);
