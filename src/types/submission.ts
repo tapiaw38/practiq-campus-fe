@@ -18,6 +18,9 @@ export interface SubmissionAttachment {
 export interface Submission {
   id: string;
   assignment_id: string;
+  /** Increments on every resubmission; sent back when grading so a grade
+   * cannot land on a version the teacher never read. */
+  version: number;
   user_id: string;
   user_name: string;
   content: string;

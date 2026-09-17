@@ -16,23 +16,102 @@ export function useQuizAttempts() {
   const lastResults = ref<QuizAnswerResult[]>([]);
   /** Answers already stored server-side for the attempt being resumed. */
   const savedAnswers = ref<Record<string, string>>({});
-  /** serverNow - clientNow, in ms. Zero until an attempt has been started. */
-  const clockOffsetMs = ref(0);
+  /** Whether the student's latest edits have reached the server. */
+  const draftStatus = ref<"idle" | "saving" | "saved" | "error">("idle");
+
+  // Time is anchored once against the server and then advanced with a
+  // monotonic clock. Recomputing from Date.now() each tick meant the student
+  // could still move the countdown by changing the device clock mid-exam;
+  // performance.now() cannot be set.
+  let serverAnchorMs = 0;
+  let perfAnchorMs = 0;
+
+  function anchorClock(serverNow: string) {
+    if (!serverNow) return;
+    serverAnchorMs = new Date(serverNow).getTime();
+    perfAnchorMs = performance.now();
+  }
+
+  /** The server's clock, as best this client can tell. */
+  function serverNowMs() {
+    if (!serverAnchorMs) return Date.now();
+    return serverAnchorMs + (performance.now() - perfAnchorMs);
+  }
+
+  function draftKey(attemptId: string) {
+    return `campus:quiz-draft:${attemptId}`;
+  }
+
+  /**
+   * The last answers known for an attempt, kept locally.
+   *
+   * Written synchronously on every keystroke-batch so that work survives even
+   * the gap before the debounced request goes out — closing the tab inside
+   * that window used to lose whatever had just been typed.
+   */
+  function rememberLocally(attemptId: string, answers: { question_id: string; answer_text: string }[]) {
+    try {
+      localStorage.setItem(draftKey(attemptId), JSON.stringify(answers));
+    } catch {
+      // A full or disabled store is not worth breaking the exam over; the
+      // server copy is still the primary one.
+    }
+  }
+
+  function recallLocally(attemptId: string): { question_id: string; answer_text: string }[] | null {
+    try {
+      const raw = localStorage.getItem(draftKey(attemptId));
+      return raw ? (JSON.parse(raw) as { question_id: string; answer_text: string }[]) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function forgetLocally(attemptId: string) {
+    try {
+      localStorage.removeItem(draftKey(attemptId));
+    } catch { /* nothing to clean up */ }
+  }
+
+  // One save in flight per attempt, with the newest answers queued behind it.
+  // Firing every debounce independently let a slow earlier request land after
+  // a later one and overwrite newer answers with older ones.
+  let inFlight: Promise<void> | null = null;
+  let queued: { attemptId: string; answers: { question_id: string; answer_text: string }[] } | null = null;
+
+  async function flushQueue(): Promise<void> {
+    while (queued) {
+      const next = queued;
+      queued = null;
+      draftStatus.value = "saving";
+      try {
+        await quizService.saveDraft(next.attemptId, next.answers);
+        // Only clear the local copy once the server has it, and only if
+        // nothing newer arrived while this was in flight.
+        if (!queued) {
+          forgetLocally(next.attemptId);
+          draftStatus.value = "saved";
+        }
+      } catch {
+        // Kept locally and reported, rather than swallowed: the student can
+        // see their work is not safe yet, and the next edit retries.
+        draftStatus.value = "error";
+      }
+    }
+    inFlight = null;
+  }
 
   /**
    * Stores work in progress without closing the attempt.
    *
-   * Silent by design: it runs while the student types, and a failed autosave
-   * is not something to interrupt them over — the submission still carries
-   * the full set of answers.
+   * Saves are serialised per attempt so the server always ends up with the
+   * latest answers, and the local copy is kept until the server confirms.
    */
-  async function saveDraft(attemptId: string, answers: { question_id: string; answer_text: string }[]) {
-    try {
-      await quizService.saveDraft(attemptId, answers);
-      return true;
-    } catch {
-      return false;
-    }
+  function saveDraft(attemptId: string, answers: { question_id: string; answer_text: string }[]) {
+    rememberLocally(attemptId, answers);
+    queued = { attemptId, answers };
+    if (!inFlight) inFlight = flushQueue();
+    return inFlight;
   }
 
   async function loadMyAttempts(quizId: string) {
@@ -59,17 +138,22 @@ export function useQuizAttempts() {
     timeLimitSecs.value = null;
     lastResults.value = [];
     savedAnswers.value = {};
-    clockOffsetMs.value = 0;
+    draftStatus.value = "idle";
     try {
       const { attempt, questions, time_limit_secs, resumed, saved_answers, server_now } = await quizService.startAttempt(quizId);
       activeAttempt.value = attempt;
       activeQuestions.value = questions;
       timeLimitSecs.value = time_limit_secs;
       savedAnswers.value = Object.fromEntries((saved_answers ?? []).map((a) => [a.question_id, a.answer_text]));
-      // How far this device's clock sits from the server's. Everything timed
-      // is measured through this, so a wrong — or deliberately altered —
-      // local clock neither shortens nor extends the exam.
-      if (server_now) clockOffsetMs.value = new Date(server_now).getTime() - Date.now();
+      // Anything typed but never confirmed by the server outranks the server
+      // copy: it is strictly newer, and it is exactly the work that used to
+      // disappear when a tab closed inside the save window.
+      const unsaved = recallLocally(attempt.id);
+      if (unsaved) {
+        for (const a of unsaved) savedAnswers.value[a.question_id] = a.answer_text;
+        draftStatus.value = "error";
+      }
+      anchorClock(server_now);
       if (resumed) {
         toast.add({ severity: "info", summary: "Continuás tu intento en curso", life: 3000 });
       }
@@ -86,6 +170,12 @@ export function useQuizAttempts() {
       const { attempt, results } = await quizService.submitAttempt(attemptId, answers);
       activeAttempt.value = attempt;
       lastResults.value = results;
+      // The submission carried these answers, so the local safety copy has
+      // done its job. Dropped only now — never before knowing the hand-in
+      // succeeded.
+      forgetLocally(attemptId);
+      queued = null;
+      draftStatus.value = "idle";
       toast.add({ severity: "success", summary: `Nota: ${attempt.score}/${attempt.max_score}`, life: 3000 });
       return { attempt, results };
     } catch (error) {
@@ -98,5 +188,5 @@ export function useQuizAttempts() {
     }
   }
 
-  return { myAttempts, attemptsByQuiz, activeAttempt, activeQuestions, timeLimitSecs, lastResults, savedAnswers, clockOffsetMs, loadMyAttempts, loadAttemptsByQuiz, start, saveDraft, submit };
+  return { myAttempts, attemptsByQuiz, activeAttempt, activeQuestions, timeLimitSecs, lastResults, savedAnswers, draftStatus, serverNowMs, loadMyAttempts, loadAttemptsByQuiz, start, saveDraft, submit };
 }

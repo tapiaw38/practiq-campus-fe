@@ -44,9 +44,9 @@ export function useSubmissions() {
     }
   }
 
-  async function grade(assignmentId: string, submissionId: string, score: number, feedback: string, rubricScores?: GradeRubricScore[]) {
+  async function grade(assignmentId: string, submissionId: string, score: number, feedback: string, rubricScores?: GradeRubricScore[], version?: number) {
     try {
-      const { data } = await submissionService.grade(submissionId, score, feedback, rubricScores);
+      const { data } = await submissionService.grade(submissionId, score, feedback, rubricScores, version);
       submissionsByAssignment.value = {
         ...submissionsByAssignment.value,
         [assignmentId]: (submissionsByAssignment.value[assignmentId] || []).map((s) =>

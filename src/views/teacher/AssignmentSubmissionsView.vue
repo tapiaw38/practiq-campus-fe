@@ -119,10 +119,12 @@ async function save(s: Submission) {
       feedback: d.criteria[c.id || ""]?.feedback || "",
     }));
     if (scores.some((x) => !Number.isInteger(x.score))) return;
-    await grade(assignmentId, s.id, 0, d.feedback, scores);
+    // s.version is the submission this screen is showing; grading is
+    // refused if the student replaced it while the teacher was writing.
+    await grade(assignmentId, s.id, 0, d.feedback, scores, s.version);
     return;
   }
-  await grade(assignmentId, s.id, Number(d.score), d.feedback);
+  await grade(assignmentId, s.id, Number(d.score), d.feedback, undefined, s.version);
 }
 </script>
 

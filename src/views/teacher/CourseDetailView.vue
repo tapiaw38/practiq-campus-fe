@@ -150,6 +150,18 @@
     { label: "Verdadero/Falso", value: "true_false" },
     { label: "Completar espacios", value: "fill_blanks" },
   ];
+  /**
+   * Reads the attempt limit, keeping zero.
+   *
+   * `Number(x) || 1` turned 0 into 1, so a quiz the teacher marked as
+   * unlimited — which the field itself labels "0 = ilimitado" — silently
+   * became one attempt.
+   */
+  function parseMaxAttempts(raw: string) {
+    const parsed = Number(raw);
+    return Number.isInteger(parsed) && parsed >= 0 ? parsed : 1;
+  }
+
   const newQuiz = ref({ title: "", description: "", maxAttempts: "1", timeLimitMin: "", sectionId: "", weight: "100", visibleGroupId: "", unlockAfter: "" });
   const creatingQuiz = ref(false);
   const editingQuizId = ref<string | null>(null);
@@ -166,7 +178,7 @@
       await quizzes.createQuiz(courseId, {
         title: newQuiz.value.title.trim(),
         description: newQuiz.value.description,
-        max_attempts: Number(newQuiz.value.maxAttempts) || 1,
+        max_attempts: parseMaxAttempts(newQuiz.value.maxAttempts),
         time_limit_secs: newQuiz.value.timeLimitMin ? Number(newQuiz.value.timeLimitMin) * 60 : null,
         section_id: newQuiz.value.sectionId || null,
         weight: Number(newQuiz.value.weight) || 100,
@@ -190,7 +202,7 @@
     await quizzes.updateQuiz(editingQuizId.value, {
       title: editingQuiz.value.title.trim(),
       description: editingQuiz.value.description,
-      max_attempts: Number(editingQuiz.value.maxAttempts) || 1,
+      max_attempts: parseMaxAttempts(editingQuiz.value.maxAttempts),
       time_limit_secs: editingQuiz.value.timeLimitMin ? Number(editingQuiz.value.timeLimitMin) * 60 : null,
       section_id: editingQuiz.value.sectionId || null,
       weight: Number(editingQuiz.value.weight) || 100,

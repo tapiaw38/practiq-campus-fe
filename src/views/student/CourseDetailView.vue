@@ -70,7 +70,7 @@
    * it is the one to continue rather than a reason to block the student.
    */
   function liveAttempt(quiz: Quiz) {
-    const now = Date.now();
+    const now = quizAttempts.serverNowMs();
     return (quizAttempts.myAttempts.value[quiz.id] || []).find(
       (a) => !a.submitted_at && (!a.expires_at || new Date(a.expires_at).getTime() > now),
     ) ?? null;
@@ -91,8 +91,8 @@
   function canAttempt(quiz: Quiz) {
     if (quiz.locked) return false;
     if (liveAttempt(quiz)) return true;
-    if (quiz.available_until && new Date(quiz.available_until).getTime() <= Date.now()) return false;
-    if (quiz.scheduled_at && new Date(quiz.scheduled_at).getTime() > Date.now()) return false;
+    if (quiz.available_until && new Date(quiz.available_until).getTime() <= quizAttempts.serverNowMs()) return false;
+    if (quiz.scheduled_at && new Date(quiz.scheduled_at).getTime() > quizAttempts.serverNowMs()) return false;
     return quiz.max_attempts === 0 || attemptsUsed(quiz) < quiz.max_attempts;
   }
   function bestScore(quiz: Quiz) {
@@ -132,7 +132,21 @@
     await quizAttempts.loadMyAttempts(quiz.id);
   }
   function closeQuiz() {
+    flushDraft();
     takingQuiz.value = null;
+  }
+
+  /**
+   * Sends whatever is pending right now instead of waiting out the debounce.
+   *
+   * Leaving the dialog used to cancel the pending timer, so the last thing
+   * typed never left the browser.
+   */
+  function flushDraft() {
+    const attemptId = quizAttempts.activeAttempt.value?.id;
+    if (!attemptId || showQuizResults.value) return;
+    if (draftTimer) { clearTimeout(draftTimer); draftTimer = null; }
+    void quizAttempts.saveDraft(attemptId, currentAnswers());
   }
 
   /** Puts the answers the server kept back into the form being resumed. */
@@ -193,10 +207,10 @@
   const secondsLeft = computed(() => {
     const expiresAt = quizAttempts.activeAttempt.value?.expires_at;
     if (!expiresAt) return null;
-    // Local time corrected onto the server's: the deadline is the server's,
-    // so it has to be compared against the server's clock, not the device's.
-    const serverNow = nowTick.value + quizAttempts.clockOffsetMs.value;
-    return Math.max(0, Math.floor((new Date(expiresAt).getTime() - serverNow) / 1000));
+    // nowTick only drives reactivity; the instant itself comes from the
+    // server-anchored monotonic clock, which the device clock cannot move.
+    void nowTick.value;
+    return Math.max(0, Math.floor((new Date(expiresAt).getTime() - quizAttempts.serverNowMs()) / 1000));
   });
 
   const remainingLabel = computed(() => {
@@ -240,13 +254,17 @@
 
   onUnmounted(() => {
     if (tickTimer) clearInterval(tickTimer);
+    // Fires the pending save rather than discarding it. The local copy
+    // already holds it either way, so nothing is lost if this never lands.
+    flushDraft();
     if (draftTimer) clearTimeout(draftTimer);
   });
   async function submitQuiz() {
     if (!quizAttempts.activeAttempt.value || submittingQuiz.value) return;
     submittingQuiz.value = true;
-    // A queued autosave would otherwise fire against an attempt this is
-    // about to close, which the server refuses as already submitted.
+    // The debounce is cancelled because this request carries the same
+    // answers, but the local copy is kept until the hand-in is confirmed —
+    // dropping it first meant a failed submit lost the work outright.
     if (draftTimer) { clearTimeout(draftTimer); draftTimer = null; }
     try {
       await quizAttempts.submit(quizAttempts.activeAttempt.value.id, currentAnswers());
@@ -443,6 +461,11 @@
              exam, so trapping the student in it bought nothing. -->
         <Dialog :visible="!!takingQuiz" modal closable close-on-escape :header="takingQuiz?.title" :style="{ width: 'min(640px, calc(100vw - 32px))' }" @update:visible="(visible) => { if (!visible) closeQuiz(); }">
           <div v-if="!showQuizResults" class="quiz-attempt">
+            <p v-if="quizAttempts.draftStatus.value === 'error'" class="quiz-draft quiz-draft--error">
+              No pudimos guardar tus últimas respuestas. Quedaron en este dispositivo y se reintenta al seguir escribiendo.
+            </p>
+            <p v-else-if="quizAttempts.draftStatus.value === 'saving'" class="quiz-draft">Guardando…</p>
+            <p v-else-if="quizAttempts.draftStatus.value === 'saved'" class="quiz-draft">Respuestas guardadas</p>
             <div v-if="remainingLabel" class="quiz-timer" :class="{ 'quiz-timer--out': timeIsUp }">
               <i class="pi pi-clock"></i>
               <span v-if="timeIsUp">Se acabó el tiempo</span>
@@ -651,6 +674,8 @@
   .quiz-locked-reason { display: flex; align-items: center; gap: 4px; margin-top: 4px; color: var(--color-warning-dark); font-size: var(--text-xs); font-weight: 700; }
   .quiz-attempt { display: flex; flex-direction: column; gap: var(--space-4); }
   .quiz-timer { display: inline-flex; align-items: center; gap: var(--space-2); align-self: flex-start; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); background: var(--surface-hover); color: var(--text-secondary); font-size: var(--text-sm); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .quiz-draft { margin: 0; font-size: var(--text-xs); color: var(--text-muted); }
+  .quiz-draft--error { color: var(--color-error, #b91c1c); font-weight: 700; }
   .quiz-timer--out { background: var(--color-error-bg, #fee2e2); color: var(--color-error, #b91c1c); }
   .quiz-question { display: flex; flex-direction: column; gap: var(--space-2); padding-bottom: var(--space-3); border-bottom: 1px solid var(--surface-border); }
   .quiz-statement { margin: 0; font-weight: 700; color: var(--text-heading); }
