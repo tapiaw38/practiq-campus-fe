@@ -1,5 +1,5 @@
 <script setup lang="ts">
-  import { onMounted, ref } from "vue";
+  import { computed, onMounted, onUnmounted, ref, watch } from "vue";
   import { useRoute, useRouter } from "vue-router";
   import StudentLayout from "@/layouts/StudentLayout.vue";
   import StateMessage from "@/components/ui/StateMessage.vue";
@@ -44,6 +44,7 @@
   const myAnswers = ref<Record<string, string>>({});
   const blankAnswers = ref<Record<string, Record<string, string>>>({});
   const submittingQuiz = ref(false);
+  const startingQuiz = ref(false);
   const showQuizResults = ref(false);
 
   onMounted(async () => {
@@ -64,11 +65,34 @@
   function attemptsUsed(quiz: Quiz) {
     return quizAttempts.myAttempts.value[quiz.id]?.length ?? 0;
   }
+  /**
+   * The attempt still open, if any. Reloading mid-exam leaves one behind, and
+   * it is the one to continue rather than a reason to block the student.
+   */
+  function liveAttempt(quiz: Quiz) {
+    const now = Date.now();
+    return (quizAttempts.myAttempts.value[quiz.id] || []).find(
+      (a) => !a.submitted_at && (!a.expires_at || new Date(a.expires_at).getTime() > now),
+    ) ?? null;
+  }
   function attemptsLabel(quiz: Quiz) {
     return quiz.max_attempts === 0 ? `${attemptsUsed(quiz)} intentos realizados` : `${attemptsUsed(quiz)}/${quiz.max_attempts} intentos`;
   }
+  function quizActionLabel(quiz: Quiz) {
+    return liveAttempt(quiz) ? "Continuar" : "Comenzar";
+  }
+  /**
+   * Counting every attempt row disabled the button for a student who merely
+   * reloaded the page: on a one-attempt quiz the reload created a second row,
+   * reaching the limit while the first attempt sat unfinished and
+   * unreachable. An attempt still open is one to continue, so it never
+   * counts against the limit here.
+   */
   function canAttempt(quiz: Quiz) {
     if (quiz.locked) return false;
+    if (liveAttempt(quiz)) return true;
+    if (quiz.available_until && new Date(quiz.available_until).getTime() <= Date.now()) return false;
+    if (quiz.scheduled_at && new Date(quiz.scheduled_at).getTime() > Date.now()) return false;
     return quiz.max_attempts === 0 || attemptsUsed(quiz) < quiz.max_attempts;
   }
   function bestScore(quiz: Quiz) {
@@ -78,16 +102,84 @@
     return `${best.score}/${best.max_score}`;
   }
 
+  /**
+   * Opens the dialog only once the attempt actually exists.
+   *
+   * It used to show first and start afterwards, so a start that failed — no
+   * questions loaded, outside the quiz's window, network down — left an empty
+   * dialog that could not be dismissed, since closing was only permitted once
+   * results were showing.
+   */
   async function openQuiz(quiz: Quiz) {
-    takingQuiz.value = quiz;
+    if (startingQuiz.value) return;
+    startingQuiz.value = true;
     myAnswers.value = {};
     blankAnswers.value = {};
     showQuizResults.value = false;
-    await quizAttempts.start(quiz.id);
+    autoSubmitted = false;
+    try {
+      await quizAttempts.start(quiz.id);
+      takingQuiz.value = quiz;
+    } catch {
+      // useQuizAttempts already reported it and cleared the stale attempt;
+      // leaving takingQuiz null keeps the student on the course page.
+      takingQuiz.value = null;
+    } finally {
+      startingQuiz.value = false;
+    }
+    await quizAttempts.loadMyAttempts(quiz.id);
   }
   function closeQuiz() {
     takingQuiz.value = null;
   }
+
+  // The countdown runs against the server's expires_at, not against a
+  // duration started on the client: the deadline survives a reload, and
+  // moving the device clock does not lengthen the exam.
+  const nowTick = ref(Date.now());
+  let tickTimer: ReturnType<typeof setInterval> | null = null;
+  // Auto-submit fires once per attempt. Without this a rejected hand-in (the
+  // deadline had already passed server-side) would be retried every tick,
+  // burying the student in identical error toasts.
+  let autoSubmitted = false;
+
+  const secondsLeft = computed(() => {
+    const expiresAt = quizAttempts.activeAttempt.value?.expires_at;
+    if (!expiresAt) return null;
+    return Math.max(0, Math.floor((new Date(expiresAt).getTime() - nowTick.value) / 1000));
+  });
+
+  const remainingLabel = computed(() => {
+    const left = secondsLeft.value;
+    if (left === null) return null;
+    const minutes = String(Math.floor(left / 60)).padStart(2, "0");
+    const seconds = String(left % 60).padStart(2, "0");
+    return `${minutes}:${seconds}`;
+  });
+
+  const timeIsUp = computed(() => secondsLeft.value === 0);
+
+  watch(
+    () => !!takingQuiz.value && !showQuizResults.value && secondsLeft.value !== null,
+    (needsTicking) => {
+      if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
+      if (!needsTicking) return;
+      tickTimer = setInterval(() => {
+        nowTick.value = Date.now();
+        // Hand the work in a moment early rather than exactly on the
+        // deadline: the request still has to reach a server that will refuse
+        // it once the deadline passes, and losing a student's answers to
+        // network latency is worse than ending a few seconds sooner.
+        if (!autoSubmitted && secondsLeft.value !== null && secondsLeft.value <= 2 && !submittingQuiz.value && !showQuizResults.value) {
+          autoSubmitted = true;
+          void submitQuiz();
+        }
+      }, 1000);
+    },
+    { immediate: true },
+  );
+
+  onUnmounted(() => { if (tickTimer) clearInterval(tickTimer); });
   async function submitQuiz() {
     if (!quizAttempts.activeAttempt.value || submittingQuiz.value) return;
     submittingQuiz.value = true;
@@ -280,13 +372,21 @@
                 <span class="quiz-meta"><template v-if="sectionTitle(quiz.section_id)">{{ sectionTitle(quiz.section_id) }} · </template>{{ attemptsLabel(quiz) }}<template v-if="quiz.time_limit_secs"> · {{ Math.round(quiz.time_limit_secs / 60) }} min</template><template v-if="bestScore(quiz)"> · mejor nota {{ bestScore(quiz) }}</template></span>
                 <span v-if="quiz.locked" class="quiz-locked-reason"><i class="pi pi-lock" /> {{ quiz.locked_reason }}</span>
               </div>
-              <Button label="Comenzar" size="small" :disabled="!canAttempt(quiz)" @click="openQuiz(quiz)" />
+              <Button :label="quizActionLabel(quiz)" size="small" :loading="startingQuiz" :disabled="!canAttempt(quiz) || startingQuiz" @click="openQuiz(quiz)" />
             </li>
           </ul>
         </section>
 
-        <Dialog :visible="!!takingQuiz" modal :closable="showQuizResults" :close-on-escape="showQuizResults" :header="takingQuiz?.title" :style="{ width: 'min(640px, calc(100vw - 32px))' }" @update:visible="(visible) => { if (!visible && showQuizResults) closeQuiz(); }">
+        <!-- Closable at any point now that an unfinished attempt is resumed
+             rather than replaced: leaving the dialog no longer strands the
+             exam, so trapping the student in it bought nothing. -->
+        <Dialog :visible="!!takingQuiz" modal closable close-on-escape :header="takingQuiz?.title" :style="{ width: 'min(640px, calc(100vw - 32px))' }" @update:visible="(visible) => { if (!visible) closeQuiz(); }">
           <div v-if="!showQuizResults" class="quiz-attempt">
+            <div v-if="remainingLabel" class="quiz-timer" :class="{ 'quiz-timer--out': timeIsUp }">
+              <i class="pi pi-clock"></i>
+              <span v-if="timeIsUp">Se acabó el tiempo</span>
+              <span v-else>Tiempo restante: {{ remainingLabel }}</span>
+            </div>
             <div v-for="question in quizAttempts.activeQuestions.value" :key="question.id" class="quiz-question">
               <p class="quiz-statement">{{ question.statement }}</p>
               <Select v-if="question.type === 'multiple_choice'" :model-value="myAnswers[question.id]" :options="question.options.map((o) => ({ label: o, value: o }))" option-label="label" option-value="value" placeholder="Elegí una opción" @update:model-value="myAnswers[question.id] = $event" />
@@ -296,7 +396,7 @@
               </div>
               <span class="quiz-points">{{ question.points }} pto(s)</span>
             </div>
-            <Button label="Entregar" :loading="submittingQuiz" @click="submitQuiz" />
+            <Button label="Entregar" :loading="submittingQuiz" :disabled="!quizAttempts.activeAttempt.value || timeIsUp" @click="submitQuiz" />
           </div>
           <div v-else class="quiz-results">
             <p class="quiz-score">Nota: {{ quizAttempts.activeAttempt.value?.score }}/{{ quizAttempts.activeAttempt.value?.max_score }}</p>
@@ -489,6 +589,8 @@
   .quiz-meta { color: var(--text-muted); font-size: var(--text-xs); }
   .quiz-locked-reason { display: flex; align-items: center; gap: 4px; margin-top: 4px; color: var(--color-warning-dark); font-size: var(--text-xs); font-weight: 700; }
   .quiz-attempt { display: flex; flex-direction: column; gap: var(--space-4); }
+  .quiz-timer { display: inline-flex; align-items: center; gap: var(--space-2); align-self: flex-start; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); background: var(--surface-hover); color: var(--text-secondary); font-size: var(--text-sm); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .quiz-timer--out { background: var(--color-error-bg, #fee2e2); color: var(--color-error, #b91c1c); }
   .quiz-question { display: flex; flex-direction: column; gap: var(--space-2); padding-bottom: var(--space-3); border-bottom: 1px solid var(--surface-border); }
   .quiz-statement { margin: 0; font-weight: 700; color: var(--text-heading); }
   .quiz-points { color: var(--text-muted); font-size: var(--text-xs); }

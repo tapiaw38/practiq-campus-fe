@@ -3,6 +3,7 @@
   import { useRouter } from "vue-router";
   import { useAuthStore } from "@/stores/authStore";
   import { useTenantStore, type CampusTenant } from "@/stores/tenantStore";
+  import { tenantDestination } from "@/utils/tenantDestination";
 
   const router = useRouter();
   const auth = useAuthStore();
@@ -18,14 +19,9 @@
 
   const title = computed(() => auth.isSuperAdmin ? "Administrá Campus" : "Elegí tu institución");
 
-  function destination(tenant: CampusTenant) {
-    if (auth.isSuperAdmin || tenant.role === "admin") return "/school/dashboard";
-    return tenant.role === "teacher" ? "/teacher/dashboard" : "/student/dashboard";
-  }
-
   async function open(tenant: CampusTenant) {
     tenants.select(tenant.id);
-    await router.push(destination(tenant));
+    await router.push(tenantDestination(tenant, auth.isSuperAdmin));
   }
 
   onMounted(async () => {

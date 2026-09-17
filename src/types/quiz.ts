@@ -46,6 +46,8 @@ export interface QuizAttempt {
   user_name?: string;
   attempt_number: number;
   started_at: string;
+  /** Server-fixed deadline; null when the quiz is untimed. */
+  expires_at: string | null;
   submitted_at: string | null;
   score: number;
   max_score: number;

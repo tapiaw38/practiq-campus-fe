@@ -25,13 +25,27 @@ export function useQuizAttempts() {
     return attemptsByQuiz.value[quizId];
   }
 
+  /**
+   * Starts a quiz, or rejoins the attempt already in progress.
+   *
+   * On failure it clears the active attempt rather than leaving the previous
+   * one in place: keeping it meant a failed start could show the questions
+   * and attempt id of whatever quiz was opened before, under the new quiz's
+   * title, with Entregar wired to the wrong attempt.
+   */
   async function start(quizId: string) {
+    activeAttempt.value = null;
+    activeQuestions.value = [];
+    timeLimitSecs.value = null;
+    lastResults.value = [];
     try {
-      const { attempt, questions, time_limit_secs } = await quizService.startAttempt(quizId);
+      const { attempt, questions, time_limit_secs, resumed } = await quizService.startAttempt(quizId);
       activeAttempt.value = attempt;
       activeQuestions.value = questions;
       timeLimitSecs.value = time_limit_secs;
-      lastResults.value = [];
+      if (resumed) {
+        toast.add({ severity: "info", summary: "Continuás tu intento en curso", life: 3000 });
+      }
       return attempt;
     } catch (error) {
       const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || "No se pudo iniciar la evaluación";
@@ -48,7 +62,11 @@ export function useQuizAttempts() {
       toast.add({ severity: "success", summary: `Nota: ${attempt.score}/${attempt.max_score}`, life: 3000 });
       return { attempt, results };
     } catch (error) {
-      toast.add({ severity: "error", summary: "Error", detail: "No se pudo enviar la evaluación", life: 3000 });
+      // Show what the server said — "se acabó el tiempo" and "ya entregaste
+      // este intento" are different problems and the student can act on the
+      // difference; a blanket message hid both.
+      const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || "No se pudo enviar la evaluación";
+      toast.add({ severity: "error", summary: "Error", detail: message, life: 4000 });
       throw error;
     }
   }

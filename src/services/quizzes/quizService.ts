@@ -27,6 +27,8 @@ export interface StartAttemptResult {
   attempt: QuizAttempt;
   questions: StudentQuizQuestion[];
   time_limit_secs: number | null;
+  /** True when rejoining an attempt already in progress rather than starting one. */
+  resumed: boolean;
 }
 
 export interface SubmitAttemptResult {

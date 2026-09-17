@@ -2,8 +2,11 @@
   import { computed } from "vue";
   import { useRouter } from "vue-router";
   import { useTenantStore } from "@/stores/tenantStore";
+  import { useAuthStore } from "@/stores/authStore";
+  import { tenantDestination } from "@/utils/tenantDestination";
 
   const tenants = useTenantStore();
+  const auth = useAuthStore();
   const router = useRouter();
 
   // With one institution there is nothing to choose, and a select holding a
@@ -13,14 +16,26 @@
   const canSwitch = computed(() => tenants.tenants.length > 1);
 
   async function change(event: Event) {
-    const id = (event.target as HTMLSelectElement).value;
+    const select = event.target as HTMLSelectElement;
+    const id = select.value;
     if (!id || id === tenants.selectedID) return;
 
+    const tenant = tenants.tenants.find((t) => t.id === id);
+    if (!tenant) {
+      select.value = tenants.selectedID;
+      return;
+    }
+
     tenants.select(id);
-    // Everything on screen belongs to the institution that was selected a
-    // moment ago, so the view is reloaded rather than patched: leaving one
-    // institution's courses on screen under another's name is worse than a
-    // blink.
+    // Go to the new institution's own entry point rather than reloading
+    // whatever is on screen. Reloading kept the old institution's path — a
+    // course id from the school being left, requested under the new school's
+    // header — which correctly resolved to nothing and dead-ended on a
+    // not-found. The destination also follows the role held *here*: the same
+    // person can administer one school and study at the next.
+    await router.replace(tenantDestination(tenant, auth.isSuperAdmin));
+    // A full reload clears every store still holding the previous
+    // institution's data; the URL is now the right one to land on.
     router.go(0);
   }
 

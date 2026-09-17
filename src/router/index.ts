@@ -259,6 +259,17 @@ router.beforeEach(async (to, _from, next) => {
       }
     }
     if (!tenants.selected) {
+      // Having no selection and having no institution are different
+      // situations, and sending both to /no-institution told somebody who
+      // belongs to two schools that they belong to none — with no way out of
+      // that screen. A stale id (a membership revoked, or one saved for
+      // another account) lands here too, so it is cleared before offering
+      // the choice.
+      if (tenants.tenants.length) {
+        tenants.select("");
+        next("/choose-institution");
+        return;
+      }
       next("/no-institution");
       return;
     }
