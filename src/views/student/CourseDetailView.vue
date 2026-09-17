@@ -116,9 +116,11 @@
     myAnswers.value = {};
     blankAnswers.value = {};
     showQuizResults.value = false;
-    autoSubmitted = false;
+    autoSubmitTries = 0;
+    autoSubmitDone = false;
     try {
       await quizAttempts.start(quiz.id);
+      restoreDraft();
       takingQuiz.value = quiz;
     } catch {
       // useQuizAttempts already reported it and cleared the stale attempt;
@@ -133,20 +135,68 @@
     takingQuiz.value = null;
   }
 
+  /** Puts the answers the server kept back into the form being resumed. */
+  function restoreDraft() {
+    for (const question of quizAttempts.activeQuestions.value) {
+      const stored = quizAttempts.savedAnswers.value[question.id];
+      if (!stored) continue;
+      if (question.type === "fill_blanks") {
+        try {
+          blankAnswers.value[question.id] = JSON.parse(stored) as Record<string, string>;
+        } catch {
+          // A stored value that will not parse is not worth losing the rest
+          // of the draft over; that one field starts empty.
+        }
+      } else {
+        myAnswers.value[question.id] = stored;
+      }
+    }
+  }
+
+  function currentAnswers() {
+    return quizAttempts.activeQuestions.value.map((q) => ({
+      question_id: q.id,
+      answer_text: q.type === "fill_blanks" ? JSON.stringify(blankAnswers.value[q.id] || {}) : myAnswers.value[q.id] || "",
+    }));
+  }
+
+  // Answers only ever lived in this component, so anything that ended the page
+  // — a reload, a closed tab, a dead battery — threw the exam away even though
+  // the attempt itself survived. They are now pushed to the server shortly
+  // after the student stops typing.
+  let draftTimer: ReturnType<typeof setTimeout> | null = null;
+  function queueDraftSave() {
+    const attemptId = quizAttempts.activeAttempt.value?.id;
+    if (!attemptId || showQuizResults.value || timeIsUp.value) return;
+    if (draftTimer) clearTimeout(draftTimer);
+    draftTimer = setTimeout(() => {
+      void quizAttempts.saveDraft(attemptId, currentAnswers());
+    }, 1200);
+  }
+
+  watch([myAnswers, blankAnswers], queueDraftSave, { deep: true });
+
   // The countdown runs against the server's expires_at, not against a
   // duration started on the client: the deadline survives a reload, and
   // moving the device clock does not lengthen the exam.
   const nowTick = ref(Date.now());
   let tickTimer: ReturnType<typeof setInterval> | null = null;
-  // Auto-submit fires once per attempt. Without this a rejected hand-in (the
-  // deadline had already passed server-side) would be retried every tick,
-  // burying the student in identical error toasts.
-  let autoSubmitted = false;
+  // Auto-submit gets a few tries, not unlimited ones: a network blip at the
+  // deadline deserves a retry, but a hand-in the server refuses outright
+  // would otherwise be repeated every tick, burying the student in identical
+  // error toasts. Work is saved as a draft regardless, so exhausting these
+  // loses nothing already typed.
+  const AUTO_SUBMIT_TRIES = 3;
+  let autoSubmitTries = 0;
+  let autoSubmitDone = false;
 
   const secondsLeft = computed(() => {
     const expiresAt = quizAttempts.activeAttempt.value?.expires_at;
     if (!expiresAt) return null;
-    return Math.max(0, Math.floor((new Date(expiresAt).getTime() - nowTick.value) / 1000));
+    // Local time corrected onto the server's: the deadline is the server's,
+    // so it has to be compared against the server's clock, not the device's.
+    const serverNow = nowTick.value + quizAttempts.clockOffsetMs.value;
+    return Math.max(0, Math.floor((new Date(expiresAt).getTime() - serverNow) / 1000));
   });
 
   const remainingLabel = computed(() => {
@@ -170,25 +220,36 @@
         // deadline: the request still has to reach a server that will refuse
         // it once the deadline passes, and losing a student's answers to
         // network latency is worse than ending a few seconds sooner.
-        if (!autoSubmitted && secondsLeft.value !== null && secondsLeft.value <= 2 && !submittingQuiz.value && !showQuizResults.value) {
-          autoSubmitted = true;
-          void submitQuiz();
+        if (
+          !autoSubmitDone
+          && autoSubmitTries < AUTO_SUBMIT_TRIES
+          && secondsLeft.value !== null
+          && secondsLeft.value <= 2
+          && !submittingQuiz.value
+          && !showQuizResults.value
+        ) {
+          autoSubmitTries += 1;
+          void submitQuiz()
+            .then(() => { autoSubmitDone = true; })
+            .catch(() => { /* a later tick retries while tries remain */ });
         }
       }, 1000);
     },
     { immediate: true },
   );
 
-  onUnmounted(() => { if (tickTimer) clearInterval(tickTimer); });
+  onUnmounted(() => {
+    if (tickTimer) clearInterval(tickTimer);
+    if (draftTimer) clearTimeout(draftTimer);
+  });
   async function submitQuiz() {
     if (!quizAttempts.activeAttempt.value || submittingQuiz.value) return;
     submittingQuiz.value = true;
+    // A queued autosave would otherwise fire against an attempt this is
+    // about to close, which the server refuses as already submitted.
+    if (draftTimer) { clearTimeout(draftTimer); draftTimer = null; }
     try {
-      const answers = quizAttempts.activeQuestions.value.map((q) => ({
-        question_id: q.id,
-        answer_text: q.type === "fill_blanks" ? JSON.stringify(blankAnswers.value[q.id] || {}) : myAnswers.value[q.id] || "",
-      }));
-      await quizAttempts.submit(quizAttempts.activeAttempt.value.id, answers);
+      await quizAttempts.submit(quizAttempts.activeAttempt.value.id, currentAnswers());
       showQuizResults.value = true;
       if (takingQuiz.value) await quizAttempts.loadMyAttempts(takingQuiz.value.id);
     } finally {

@@ -29,6 +29,10 @@ export interface StartAttemptResult {
   time_limit_secs: number | null;
   /** True when rejoining an attempt already in progress rather than starting one. */
   resumed: boolean;
+  /** Work already stored for this attempt; empty on a fresh one. */
+  saved_answers: { question_id: string; answer_text: string }[];
+  /** The server's clock at the moment it answered, to calibrate the countdown. */
+  server_now: string;
 }
 
 export interface SubmitAttemptResult {
@@ -51,6 +55,7 @@ export class QuizService {
   async startAttempt(quizId: string) { return (await this.api.post<StartAttemptResult>(`/quizzes/${quizId}/attempts`)).data; }
   async listMyAttempts(quizId: string) { return (await this.api.get<{ data: QuizAttempt[] }>(`/quizzes/${quizId}/attempts/mine`)).data.data; }
   async listAttemptsByQuiz(quizId: string) { return (await this.api.get<{ data: QuizAttempt[] }>(`/quizzes/${quizId}/attempts`)).data.data; }
+  async saveDraft(attemptId: string, answers: { question_id: string; answer_text: string }[]) { await this.api.put(`/attempts/${attemptId}/draft`, { answers }); }
   async submitAttempt(attemptId: string, answers: { question_id: string; answer_text: string }[]) { return (await this.api.post<SubmitAttemptResult>(`/attempts/${attemptId}/submit`, { answers })).data; }
   async getAttempt(attemptId: string) { return (await this.api.get<{ attempt: QuizAttempt; results: QuizAnswerResult[] }>(`/attempts/${attemptId}`)).data; }
 }

@@ -14,6 +14,26 @@ export function useQuizAttempts() {
   const activeQuestions = ref<StudentQuizQuestion[]>([]);
   const timeLimitSecs = ref<number | null>(null);
   const lastResults = ref<QuizAnswerResult[]>([]);
+  /** Answers already stored server-side for the attempt being resumed. */
+  const savedAnswers = ref<Record<string, string>>({});
+  /** serverNow - clientNow, in ms. Zero until an attempt has been started. */
+  const clockOffsetMs = ref(0);
+
+  /**
+   * Stores work in progress without closing the attempt.
+   *
+   * Silent by design: it runs while the student types, and a failed autosave
+   * is not something to interrupt them over — the submission still carries
+   * the full set of answers.
+   */
+  async function saveDraft(attemptId: string, answers: { question_id: string; answer_text: string }[]) {
+    try {
+      await quizService.saveDraft(attemptId, answers);
+      return true;
+    } catch {
+      return false;
+    }
+  }
 
   async function loadMyAttempts(quizId: string) {
     myAttempts.value = { ...myAttempts.value, [quizId]: await quizService.listMyAttempts(quizId) };
@@ -38,11 +58,18 @@ export function useQuizAttempts() {
     activeQuestions.value = [];
     timeLimitSecs.value = null;
     lastResults.value = [];
+    savedAnswers.value = {};
+    clockOffsetMs.value = 0;
     try {
-      const { attempt, questions, time_limit_secs, resumed } = await quizService.startAttempt(quizId);
+      const { attempt, questions, time_limit_secs, resumed, saved_answers, server_now } = await quizService.startAttempt(quizId);
       activeAttempt.value = attempt;
       activeQuestions.value = questions;
       timeLimitSecs.value = time_limit_secs;
+      savedAnswers.value = Object.fromEntries((saved_answers ?? []).map((a) => [a.question_id, a.answer_text]));
+      // How far this device's clock sits from the server's. Everything timed
+      // is measured through this, so a wrong — or deliberately altered —
+      // local clock neither shortens nor extends the exam.
+      if (server_now) clockOffsetMs.value = new Date(server_now).getTime() - Date.now();
       if (resumed) {
         toast.add({ severity: "info", summary: "Continuás tu intento en curso", life: 3000 });
       }
@@ -71,5 +98,5 @@ export function useQuizAttempts() {
     }
   }
 
-  return { myAttempts, attemptsByQuiz, activeAttempt, activeQuestions, timeLimitSecs, lastResults, loadMyAttempts, loadAttemptsByQuiz, start, submit };
+  return { myAttempts, attemptsByQuiz, activeAttempt, activeQuestions, timeLimitSecs, lastResults, savedAnswers, clockOffsetMs, loadMyAttempts, loadAttemptsByQuiz, start, saveDraft, submit };
 }
