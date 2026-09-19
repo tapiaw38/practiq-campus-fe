@@ -435,7 +435,13 @@
       visibility: hidden;
       transition: transform 0.2s ease, visibility 0s linear 0.2s;
       width: min(280px, calc(100vw - 40px));
-      overflow-y: auto;
+      /* 100vh can extend under mobile browser chrome. Keep account/logout in
+         the visible viewport; only the menu itself may scroll. */
+      height: 100vh;
+      height: 100dvh;
+      bottom: auto;
+      overflow: hidden;
+      padding-bottom: max(var(--space-4), env(safe-area-inset-bottom));
     }
 
     .sidebar--open {
@@ -463,6 +469,17 @@
 
     .nav-item {
       min-height: 44px;
+    }
+
+    .sidebar-nav {
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+
+    .sidebar-footer {
+      flex: 0 0 auto;
+      margin-top: auto;
     }
 
     .main-content {
