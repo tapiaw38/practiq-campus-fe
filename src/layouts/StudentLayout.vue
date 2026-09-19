@@ -458,13 +458,18 @@
       display: grid;
       place-items: center;
       width: 40px;
+      flex: 0 0 40px;
       height: 40px;
-      margin-right: calc(var(--space-2) * -1);
+      margin-right: 0;
       border: none;
       border-radius: var(--radius-md);
       background: transparent;
       color: var(--text-secondary);
       cursor: pointer;
+    }
+
+    .close-btn .pi {
+      line-height: 1;
     }
 
     .nav-item {
