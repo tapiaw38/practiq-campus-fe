@@ -9,6 +9,7 @@
   } from "@/services/tenants/tenantService";
   import { useTenantStore } from "@/stores/tenantStore";
   import TeacherLayout from "@/layouts/TeacherLayout.vue";
+  import PageHeader from "@/components/ui/PageHeader.vue";
 
   const service = new TenantAdminService(campusApi);
   const router = useRouter();
@@ -111,14 +112,12 @@
 
 <template>
   <TeacherLayout>
-  <main class="institutions">
-    <header>
-      <h1>Instituciones de Campus</h1>
-      <p>
-        Campus se habilita por institución. Solo entran las que Practiq tiene
-        como institución con facturación por contrato y en estado activo.
-      </p>
-    </header>
+  <div class="institutions">
+    <PageHeader
+      eyebrow="Administración de plataforma"
+      title="Instituciones"
+      subtitle="Habilitá Campus y administrá el acceso por institución."
+    />
 
     <form v-if="eligible.length" class="activate" @submit.prevent="activate">
       <label>
@@ -190,23 +189,15 @@
       <small>Las personas perderán acceso a Campus hasta que la reactives.</small>
       <div class="dialog-actions"><Button label="Cancelar" text severity="secondary" :disabled="changingStatus" @click="statusChange = null" /><Button :label="statusChange ? statusVerb(statusChange.status) : ''" severity="danger" :loading="changingStatus" @click="statusChange && setStatus(statusChange.tenant, statusChange.status)" /></div>
     </Dialog>
-  </main>
+  </div>
   </TeacherLayout>
 </template>
 
 <style scoped>
   .institutions {
-    max-width: 860px;
-    padding: 2rem;
+    max-width: 960px;
   }
 
-  header h1 {
-    margin: 0 0 0.4rem;
-    font-size: 1.5rem;
-    color: var(--text-heading);
-  }
-
-  header p,
   .muted {
     margin: 0;
     color: var(--text-secondary);
@@ -217,7 +208,12 @@
     display: flex;
     align-items: end;
     gap: 0.6rem;
-    margin: 1.5rem 0 1rem;
+    margin: 0 0 var(--space-5);
+    padding: var(--space-4);
+    border: 1px solid var(--surface-border);
+    border-radius: var(--radius-md);
+    background: var(--surface-card);
+    box-shadow: var(--shadow-card);
   }
 
   .activate label {
@@ -277,7 +273,7 @@
   .list {
     display: grid;
     gap: 0.5rem;
-    margin: 1rem 0 0;
+    margin: var(--space-4) 0 0;
     padding: 0;
     list-style: none;
   }
@@ -349,7 +345,7 @@
 
   @media (max-width: 640px) {
     .institutions {
-      padding: 1rem;
+      max-width: none;
     }
 
     .activate,

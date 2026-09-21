@@ -1,5 +1,6 @@
 <script setup lang="ts">
   import StateMessage from "@/components/ui/StateMessage.vue";
+  import PageHeader from "@/components/ui/PageHeader.vue";
   import { formatDateTime } from "@/utils/datetime";
   import { computed, nextTick, onMounted, ref, watch } from "vue";
   import { useAuthStore } from "@/stores/authStore";
@@ -169,14 +170,15 @@
 
 <template>
   <div class="messages-panel">
-    <header class="messages-header">
-      <div>
-        <p class="eyebrow">Comunicación</p>
-        <h1>Mensajes</h1>
-        <p class="messages-subtitle">Conversá con docentes y compañeros de tus cursos.</p>
-      </div>
-      <Button label="Nuevo mensaje" icon="pi pi-plus" @click="showCompose = true" />
-    </header>
+    <PageHeader
+      eyebrow="Comunicación"
+      title="Mensajes"
+      subtitle="Conversá con docentes y compañeros de tus cursos."
+    >
+      <template #actions>
+        <Button label="Nuevo mensaje" icon="pi pi-plus" @click="showCompose = true" />
+      </template>
+    </PageHeader>
 
     <section class="messages-layout" :class="{ 'messages-layout--conversation-selected': selectedConversationId }" aria-label="Conversaciones">
       <aside class="conversation-sidebar">
@@ -339,13 +341,6 @@
 <style scoped>
   .messages-panel {
     max-width: 960px;
-  }
-
-  .messages-panel h1 {
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--text-heading);
-    margin-bottom: var(--space-3);
   }
 
   .compose-card {
@@ -639,10 +634,7 @@
 
   /* Chat workspace: one clear area for inbox, one for current conversation. */
   .messages-panel { max-width: 1180px; }
-  .messages-header { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-4); }
-  .eyebrow { margin: 0 0 3px; color: var(--practiq-violet-dark); font-size: var(--text-xs); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-  .messages-panel h1 { margin: 0; font-size: 24px; }
-  .messages-subtitle, .dialog-lead { margin: var(--space-1) 0 0; color: var(--text-secondary); font-size: var(--text-sm); }
+  .dialog-lead { margin: var(--space-1) 0 0; color: var(--text-secondary); font-size: var(--text-sm); }
   .messages-layout { grid-template-columns: minmax(270px, 340px) minmax(0, 1fr); gap: 0; min-height: 610px; border: 1px solid var(--surface-border); border-radius: var(--radius-lg); overflow: hidden; background: var(--surface-card); box-shadow: var(--shadow-card); }
   .conversation-sidebar { display: flex; min-height: 0; flex-direction: column; padding: var(--space-3); border-right: 1px solid var(--surface-border); background: var(--surface-subtle, var(--surface-card)); }
   .conversation-sidebar__head { display: flex; align-items: center; justify-content: space-between; padding: var(--space-1) var(--space-1) var(--space-3); }
@@ -680,8 +672,7 @@
   .thread-back { display: none; }
 
   @media (max-width: 720px) {
-    .messages-header { align-items: stretch; flex-direction: column; }
-    .messages-header :deep(.p-button) { width: 100%; justify-content: center; }
+    .messages-panel :deep(.page-header__right .p-button) { width: 100%; justify-content: center; }
     .messages-layout { display: block; min-height: auto; overflow: hidden; box-shadow: var(--shadow-card); }
     .conversation-sidebar { min-height: min(560px, calc(100dvh - 290px)); padding: var(--space-3); border-right: none; border-bottom: 0; }
     .conversation-list { max-height: none; }

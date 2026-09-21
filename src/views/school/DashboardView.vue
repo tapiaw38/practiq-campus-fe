@@ -7,6 +7,7 @@
   import { useAuthStore } from "@/stores/authStore";
   import { useTenantStore } from "@/stores/tenantStore";
   import type { AuthUser } from "@/types";
+  import PageHeader from "@/components/ui/PageHeader.vue";
 
   const router = useRouter();
   const authStore = useAuthStore();
@@ -122,14 +123,15 @@
 <template>
   <TeacherLayout>
     <div class="school-admin">
-      <header class="head">
-        <div>
-          <span class="eyebrow">Administración de institución</span>
-          <h1>{{ tenantStore.selected?.name || "Institución" }}</h1>
-          <p>Organizá las personas y el trabajo de Campus en un solo espacio.</p>
-        </div>
-        <button type="button" class="course-button" @click="router.push('/teacher/dashboard')"><i class="pi pi-book"></i> Gestionar cursos</button>
-      </header>
+      <PageHeader
+        eyebrow="Administración de institución"
+        :title="tenantStore.selected?.name || 'Institución'"
+        subtitle="Organizá las personas y el trabajo de Campus en un solo espacio."
+      >
+        <template #actions>
+          <button type="button" class="course-button" @click="router.push('/teacher/dashboard')"><i class="pi pi-book"></i> Gestionar cursos</button>
+        </template>
+      </PageHeader>
 
       <section class="stats" aria-label="Resumen de personas">
         <div><strong>{{ activeMembers.length }}</strong><span>personas activas</span></div>
@@ -181,14 +183,12 @@
 </template>
 
 <style scoped>
-  .school-admin { max-width: 1120px; margin: 0 auto; padding: 2rem; }
-  .head { display: flex; justify-content: space-between; gap: 1rem; align-items: end; margin-bottom: 1.5rem; }
-  .eyebrow { color: var(--practiq-violet); font-weight: 800; font-size: .72rem; letter-spacing: .09em; text-transform: uppercase; }
-  h1 { margin: .25rem 0; color: var(--text-heading); font-size: 1.8rem; } .head p, .panel p, .muted { color: var(--text-secondary); margin: 0; }
-  .course-button, .add button { border: 0; border-radius: 9px; background: var(--practiq-violet); color: white; min-height: 42px; padding: 0 .9rem; font: inherit; font-weight: 700; cursor: pointer; }
-  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .8rem; margin-bottom: 1.25rem; } .stats div, .panel { background: var(--surface-card); border: 1px solid var(--surface-border); border-radius: 13px; }
+  .school-admin { max-width: 960px; }
+  .panel p, .muted { color: var(--text-secondary); margin: 0; }
+  .course-button, .add button { border: 0; border-radius: var(--radius-md); background: var(--gradient-brand); color: var(--color-on-primary); min-height: 42px; padding: 0 .9rem; font: inherit; font-weight: 800; cursor: pointer; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); margin-bottom: var(--space-5); } .stats div, .panel { background: var(--surface-card); border: 1px solid var(--surface-border); border-radius: var(--radius-md); box-shadow: var(--shadow-card); }
   .stats div { padding: 1rem; display: grid; gap: .2rem; } .stats strong { font-size: 1.45rem; color: var(--text-heading); } .stats span { color: var(--text-secondary); font-size: .85rem; }
-  .panel { padding: 1.2rem; } h2 { margin: 0 0 .25rem; color: var(--text-heading); font-size: 1.15rem; }
+  .panel { padding: var(--space-5); } h2 { margin: 0 0 .25rem; color: var(--text-heading); font-size: var(--text-lg); }
   .add { display: grid; grid-template-columns: 1fr 160px auto; gap: .65rem; align-items: end; margin: 1rem 0 .5rem; } label { display:grid; gap:.25rem; color: var(--text-secondary); font-size:.78rem; font-weight:700; } input,select { min-height:42px; border:1px solid var(--surface-border); border-radius:8px; padding:0 .65rem; font:inherit; background:var(--surface-ground); color:var(--text-primary); } .hint { font-size:.8rem; } .error { margin-top:.75rem !important; color:var(--color-error-dark) !important; }
   .search-field { position: relative; }
   .suggestions { position: absolute; z-index: 4; top: calc(100% + 4px); width: 100%; overflow: hidden; border: 1px solid var(--surface-border); border-radius: 8px; background: var(--surface-card); box-shadow: 0 4px 14px rgba(0,0,0,.08); }
@@ -199,9 +199,6 @@
   .dialog-actions { display: flex; justify-content: flex-end; gap: .5rem; margin-top: 1.2rem; }
   .members { margin: 1rem 0 0; padding: 0; list-style:none; border-top:1px solid var(--surface-border); } .members li { display:flex; align-items:center; gap:.75rem; padding:.8rem 0; border-bottom:1px solid var(--surface-border); } .avatar { display:grid; place-items:center; width:2.15rem; height:2.15rem; border-radius:50%; color:var(--practiq-violet); background:var(--practiq-violet-100); font-weight:800; } .person { display:grid; gap:.1rem; min-width:0; flex:1; } .person strong,.person small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .person small { color:var(--text-secondary); } .role { font-size:.76rem; font-weight:700; padding:.3rem .5rem; border-radius:999px; background:var(--surface-ground); } .role--admin { color:var(--practiq-violet); background:var(--practiq-violet-100); } .role--teacher { color:var(--color-success-dark); background:var(--color-success-bg); } .remove { border:0; background:transparent; color:var(--color-error-dark); cursor:pointer; font:inherit; font-weight:700; }
   @media (max-width: 680px) {
-    .school-admin { padding: 0; }
-    .head { align-items: stretch; flex-direction: column; gap: .7rem; }
-    h1 { font-size: 1.35rem; line-height: 1.25; }
     .stats { grid-template-columns: 1fr; gap: .4rem; }
     .stats div { padding: .6rem .7rem; }
     .stats strong { font-size: 1.2rem; }

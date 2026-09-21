@@ -6,6 +6,7 @@
   import { useCourses } from "@/composables/useCourses";
   import { useAuthStore } from "@/stores/authStore";
   import { usePreferences } from "@/composables/usePreferences";
+  import PageHeader from "@/components/ui/PageHeader.vue";
 
   const { courses, loading, loadCourses, deleteCourse, createCourse, duplicateCourse } = useCourses();
   const { loadPreference, savePreference } = usePreferences();
@@ -122,18 +123,17 @@
 <template>
   <TeacherLayout>
     <div class="dashboard">
-      <header class="dashboard-head">
-        <div>
-          <span class="eyebrow">Panel docente</span>
-          <h1>Hola, {{ authStore.profile?.full_name?.split(" ")[0] || "docente" }}</h1>
-          <p>Administrá tus cursos, actividades y comunicación en un solo lugar.</p>
-        </div>
-        <div class="dashboard-actions">
+      <PageHeader
+        eyebrow="Panel docente"
+        :title="`Hola, ${authStore.profile?.full_name?.split(' ')[0] || 'docente'}`"
+        subtitle="Administrá tus cursos, actividades y comunicación en un solo lugar."
+      >
+        <template #actions>
           <button type="button" class="new-course-btn" @click="openCreate">
             <i class="pi pi-plus"></i> Nuevo curso
           </button>
-        </div>
-      </header>
+        </template>
+      </PageHeader>
 
       <div class="summary-grid">
         <div class="summary-card"><span class="summary-icon"><i class="pi pi-book" aria-hidden="true"></i></span><div><span v-if="loading" class="skeleton summary-skeleton" aria-hidden="true"></span><strong v-else>{{ courses.length }}</strong><small>{{ courses.length === 1 ? "curso creado" : "cursos creados" }}</small></div></div>
@@ -213,24 +213,6 @@
 <style scoped>
   .dashboard {
     max-width: 960px;
-  }
-
-  .dashboard-head { display:flex;align-items:flex-end;justify-content:space-between;gap:var(--space-4);padding:var(--space-2) 0 var(--space-5);margin-bottom:var(--space-3); }
-
-  .dashboard-head h1 {
-    margin:var(--space-1) 0;
-    font-family: var(--font-ui-family);
-    font-size: clamp(28px,4vw,34px);
-    font-weight: 900;
-    letter-spacing: -.035em;
-    color: var(--text-heading);
-  }
-  .dashboard-head p{margin:0;color:var(--text-secondary);font-size:var(--text-sm)}.eyebrow{color:var(--practiq-violet-dark);font-family:var(--font-ui-family);font-size:var(--text-xs);font-weight:900;text-transform:uppercase;letter-spacing:.09em}
-
-  .dashboard-actions {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
   }
 
   .new-course-btn {
@@ -337,8 +319,6 @@
   }
   .course-labels{display:flex;gap:var(--space-1);flex-wrap:wrap;margin-top:var(--space-3)}.course-labels span{padding:2px 6px;border-radius:999px;background:var(--fill-primary-soft);color:var(--practiq-violet-dark);font-size:10px;font-weight:800}.course-actions{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);margin-top:auto;padding-top:var(--space-3)}.course-open{display:inline-flex;align-items:center;gap:var(--space-1);color:var(--practiq-violet-dark);font-size:var(--text-xs);font-weight:800}.course-actions-secondary{display:inline-flex;align-items:center;gap:var(--space-3)}.delete-course,.duplicate-course{display:inline-flex;align-items:center;gap:var(--space-1);padding:0;border:0;background:transparent;color:var(--text-muted);font-size:var(--text-xs);cursor:pointer}.delete-course:hover{color:var(--color-error-dark);text-decoration:underline}.duplicate-course:hover{color:var(--practiq-violet-dark);text-decoration:underline}.duplicate-course:disabled{opacity:.6;cursor:default;text-decoration:none}.empty-action{display:inline-flex;align-items:center;gap:var(--space-1);min-height:40px;padding:var(--space-2) var(--space-4);border:0;border-radius:var(--radius-md);background:var(--gradient-brand);color:var(--color-on-primary);font-size:var(--text-sm);font-weight:800;box-shadow:var(--shadow-violet);cursor:pointer}.delete-dialog{display:grid;grid-template-columns:auto 1fr;gap:var(--space-3);align-items:start}.delete-dialog p{margin:0;color:var(--text-primary)}.delete-dialog small{grid-column:2;color:var(--text-secondary);line-height:1.45}.delete-dialog-icon{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:var(--fill-warning-subtle);color:var(--color-warning-dark)}.dialog-actions{display:flex;justify-content:flex-end;gap:var(--space-2);margin-top:var(--space-5)}
   @media(max-width:700px){
-    .dashboard-head{align-items:stretch;flex-direction:column;padding:var(--space-2) 0 var(--space-4);margin-bottom:var(--space-3)}
-    .dashboard-head h1{font-size:26px}.dashboard-head p{font-size:13px;line-height:1.45}
     .new-course-btn{justify-content:center;min-height:44px}
     .summary-grid{display:flex;gap:var(--space-2);margin:0 calc(var(--space-4) * -1) var(--space-5);padding:0 var(--space-4) 4px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-x:contain}.summary-grid::-webkit-scrollbar{display:none}.summary-card{flex:0 0 min(78vw,260px);min-height:76px;padding:var(--space-3);scroll-snap-align:start}
     .courses-heading{align-items:flex-start;flex-direction:column;margin-bottom:var(--space-3)}.courses-heading p{line-height:1.45}.courses-tools{width:100%;justify-content:space-between;gap:var(--space-2)}.view-controls{min-height:36px}.view-controls button{height:30px}.view-controls em{display:none}.text-action{min-height:36px;padding:0 var(--space-2);border-radius:var(--radius-sm);background:var(--fill-primary-subtle)}

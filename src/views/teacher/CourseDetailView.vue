@@ -3,6 +3,7 @@
   import { useRoute, useRouter } from "vue-router";
   import TeacherLayout from "@/layouts/TeacherLayout.vue";
   import StateMessage from "@/components/ui/StateMessage.vue";
+  import PageHeader from "@/components/ui/PageHeader.vue";
   import { formatDateTime } from "@/utils/datetime";
   import { useCourses } from "@/composables/useCourses";
   import { useEnrollments } from "@/composables/useEnrollments";
@@ -540,17 +541,22 @@
         loading-label="Cargando curso"
       />
       <template v-else>
-        <header class="course-head">
-          <h1>{{ currentCourse.title }}</h1>
-          <Select
-            :model-value="currentCourse.status"
-            :options="COURSE_STATUS_OPTIONS"
-            option-label="label"
-            option-value="value"
-            aria-label="Estado del curso"
-            @update:model-value="handleStatusChange"
-          />
-        </header>
+        <PageHeader
+          eyebrow="Gestión de curso"
+          :title="currentCourse.title"
+          subtitle="Administrá alumnos, contenido, tareas y evaluaciones."
+        >
+          <template #actions>
+            <Select
+              :model-value="currentCourse.status"
+              :options="COURSE_STATUS_OPTIONS"
+              option-label="label"
+              option-value="value"
+              aria-label="Estado del curso"
+              @update:model-value="handleStatusChange"
+            />
+          </template>
+        </PageHeader>
         <p v-if="currentCourse.description" class="course-description">
           {{ currentCourse.description }}
         </p>
@@ -1006,19 +1012,7 @@
     margin-bottom: var(--space-4);
   }
 
-  .course-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-    margin-bottom: var(--space-3);
-  }
-
-  .course-head h1 {
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--text-heading);
-  }
+  :deep(.page-header__right .p-select) { min-width: 152px; }
 
   .course-description {
     color: var(--text-secondary);
@@ -1358,8 +1352,7 @@
 
   @media (max-width: 640px) {
     .course-detail { max-width: none; }
-    .course-head { align-items: flex-start; flex-direction: column; }
-    .course-head :deep(.p-select) { width: 100%; }
+    :deep(.page-header__right .p-select) { width: 100%; }
     .workspace-section { padding: var(--space-4); }
     .course-nav { margin-inline: calc(var(--space-1) * -1); border-inline: 0; border-radius: 0; }
     .enroll-form, .field-row { grid-template-columns: 1fr; flex-direction: column; }

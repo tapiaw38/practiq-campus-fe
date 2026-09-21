@@ -87,6 +87,10 @@
   function eventTime(event: CalendarEvent) { return event.all_day ? "Todo el día" : new Date(event.starts_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }); }
 
   const view = ref<"agenda" | "month">("agenda");
+  const calendarEyebrow = computed(() => authStore.isTeacher ? "Agenda docente" : "Tu agenda");
+  const calendarSubtitle = computed(() => authStore.isTeacher
+    ? "Organizá clases, entregas y evaluaciones de tus cursos."
+    : "Entregas, evaluaciones y clases de tus cursos.");
   const sourceFilter = ref("all");
   const SOURCE_LABELS: Record<string, string> = { assignment_due: "Entregas", quiz_due: "Evaluaciones", manual: "Clases y eventos" };
   function sourceLabel(source: string) { return SOURCE_LABELS[source] ?? "Otros"; }
@@ -139,7 +143,7 @@
 
 <template>
   <div class="calendar-agenda">
-    <PageHeader eyebrow="Tu agenda" title="Calendario" subtitle="Entregas, evaluaciones y clases de tus cursos.">
+    <PageHeader :eyebrow="calendarEyebrow" title="Calendario" :subtitle="calendarSubtitle">
       <template #actions>
         <div class="view-switch">
           <button type="button" :class="{ on: view === 'agenda' }" :aria-pressed="view === 'agenda'" @click="view = 'agenda'">Agenda</button>
