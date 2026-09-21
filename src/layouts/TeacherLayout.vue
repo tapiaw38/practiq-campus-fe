@@ -196,26 +196,25 @@
     </main>
 
     <nav class="tabbar" aria-label="Navegación principal">
-      <RouterLink to="/teacher/dashboard" class="tab" active-class="tab-active">
-        <span class="tab-icon"><i class="pi pi-home" aria-hidden="true"></i></span>
-        <span class="tab-label">Cursos</span>
-      </RouterLink>
-      <RouterLink to="/teacher/calendar" class="tab" active-class="tab-active">
-        <span class="tab-icon"><i class="pi pi-calendar" aria-hidden="true"></i></span>
-        <span class="tab-label">Agenda</span>
-      </RouterLink>
-      <RouterLink to="/teacher/messages" class="tab" active-class="tab-active">
-        <span class="tab-icon"><i class="pi pi-envelope" aria-hidden="true"></i><span v-if="unreadCount" class="tab-badge" aria-hidden="true">{{ unreadCount }}</span></span>
-        <span class="tab-label">Mensajes</span>
-      </RouterLink>
-      <RouterLink to="/teacher/grades" class="tab" active-class="tab-active">
-        <span class="tab-icon"><i class="pi pi-chart-bar" aria-hidden="true"></i></span>
-        <span class="tab-label">Revisar</span>
-      </RouterLink>
-      <button class="tab" type="button" aria-label="Abrir más opciones" @click="navOpen = true">
-        <span class="tab-icon"><i class="pi pi-ellipsis-h" aria-hidden="true"></i></span>
-        <span class="tab-label">Más</span>
-      </button>
+      <template v-if="authStore.isSuperAdmin">
+        <RouterLink to="/admin/institutions" class="tab" active-class="tab-active"><span class="tab-icon"><i class="pi pi-building" aria-hidden="true"></i></span><span class="tab-label">Escuelas</span></RouterLink>
+        <RouterLink to="/admin/users" class="tab" active-class="tab-active"><span class="tab-icon"><i class="pi pi-users" aria-hidden="true"></i></span><span class="tab-label">Usuarios</span></RouterLink>
+        <RouterLink to="/teacher/dashboard" class="tab" active-class="tab-active"><span class="tab-icon"><i class="pi pi-book" aria-hidden="true"></i></span><span class="tab-label">Cursos</span></RouterLink>
+        <RouterLink to="/teacher/messages" class="tab" active-class="tab-active"><span class="tab-icon"><i class="pi pi-envelope" aria-hidden="true"></i><span v-if="unreadCount" class="tab-badge" aria-hidden="true">{{ unreadCount }}</span></span><span class="tab-label">Mensajes</span></RouterLink>
+      </template>
+      <template v-else-if="canManageInstitution">
+        <RouterLink to="/school/dashboard" class="tab" active-class="tab-active"><span class="tab-icon"><i class="pi pi-building" aria-hidden="true"></i></span><span class="tab-label">Escuela</span></RouterLink>
+        <RouterLink to="/teacher/dashboard" class="tab" active-class="tab-active"><span class="tab-icon"><i class="pi pi-book" aria-hidden="true"></i></span><span class="tab-label">Cursos</span></RouterLink>
+        <RouterLink to="/teacher/calendar" class="tab" active-class="tab-active"><span class="tab-icon"><i class="pi pi-calendar" aria-hidden="true"></i></span><span class="tab-label">Agenda</span></RouterLink>
+        <RouterLink to="/teacher/messages" class="tab" active-class="tab-active"><span class="tab-icon"><i class="pi pi-envelope" aria-hidden="true"></i><span v-if="unreadCount" class="tab-badge" aria-hidden="true">{{ unreadCount }}</span></span><span class="tab-label">Mensajes</span></RouterLink>
+      </template>
+      <template v-else>
+        <RouterLink to="/teacher/dashboard" class="tab" active-class="tab-active"><span class="tab-icon"><i class="pi pi-home" aria-hidden="true"></i></span><span class="tab-label">Cursos</span></RouterLink>
+        <RouterLink to="/teacher/calendar" class="tab" active-class="tab-active"><span class="tab-icon"><i class="pi pi-calendar" aria-hidden="true"></i></span><span class="tab-label">Agenda</span></RouterLink>
+        <RouterLink to="/teacher/messages" class="tab" active-class="tab-active"><span class="tab-icon"><i class="pi pi-envelope" aria-hidden="true"></i><span v-if="unreadCount" class="tab-badge" aria-hidden="true">{{ unreadCount }}</span></span><span class="tab-label">Mensajes</span></RouterLink>
+        <RouterLink to="/teacher/grades" class="tab" active-class="tab-active"><span class="tab-icon"><i class="pi pi-chart-bar" aria-hidden="true"></i></span><span class="tab-label">Revisar</span></RouterLink>
+      </template>
+      <button class="tab" type="button" aria-label="Abrir más opciones" @click="navOpen = true"><span class="tab-icon"><i class="pi pi-ellipsis-h" aria-hidden="true"></i></span><span class="tab-label">Más</span></button>
     </nav>
   </div>
 </template>
