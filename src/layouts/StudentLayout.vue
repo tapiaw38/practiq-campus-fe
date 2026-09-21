@@ -14,7 +14,7 @@
   const { logout } = useAuth();
   const { unreadCount, start: startMessageNotifications } = useMessageNotifications();
   const { start: startCalendarNotifications } = useCalendarNotifications();
-  const { unreadCount: notificationCount, start: startNotificationBadge } = useNotificationBadge();
+  const { unreadCount: notificationCount, start: startNotificationBadge, acknowledge: acknowledgeNotifications } = useNotificationBadge();
 
   onMounted(() => {
     startMessageNotifications();
@@ -65,7 +65,7 @@
         <i class="pi pi-bars" aria-hidden="true"></i>
       </button>
       <div class="topbar-brand"><img src="/logo.png" alt="" class="brand-logo" /> <span class="brand-word">practiq <b>campus</b></span></div>
-      <RouterLink to="/student/notifications" class="topbar-btn topbar-btn--boxed" aria-label="Notificaciones">
+      <RouterLink to="/student/notifications" class="topbar-btn topbar-btn--boxed" aria-label="Notificaciones" @click="acknowledgeNotifications">
         <i class="pi pi-bell" aria-hidden="true"></i>
         <span v-if="notificationCount" class="topbar-notice" aria-hidden="true"></span>
       </RouterLink>
@@ -134,9 +134,11 @@
           <span v-if="unreadCount" class="sr-only">{{ unreadLabel }}</span>
         </RouterLink>
         <div class="nav-section-label nav-section-label--secondary">Más opciones</div>
-        <RouterLink to="/student/notifications" class="nav-item nav-item--secondary" active-class="nav-item-active">
+        <RouterLink to="/student/notifications" class="nav-item nav-item--secondary" active-class="nav-item-active" @click="acknowledgeNotifications">
           <span class="nav-icon"><i class="pi pi-bell" aria-hidden="true"></i></span>
           <span>Notificaciones</span>
+          <span v-if="notificationCount" class="nav-badge" aria-hidden="true">{{ notificationCount }}</span>
+          <span v-if="notificationCount" class="sr-only">{{ notificationCount === 1 ? "1 notificación sin leer" : `${notificationCount} notificaciones sin leer` }}</span>
         </RouterLink>
         <RouterLink to="/student/grades" class="nav-item" active-class="nav-item-active">
           <span class="nav-icon"><i class="pi pi-chart-bar" aria-hidden="true"></i></span>

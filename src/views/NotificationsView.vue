@@ -13,9 +13,14 @@ import { useNotificationBadge } from "@/composables/useNotificationBadge";
 // same person can teach at one school and study at another.
 const { role, isTeacher } = useCampusRole();
 const { items, loading, load, markAllRead, markRead } = useNotifications(role.value);
-const { refresh: refreshBadge } = useNotificationBadge();
+const { refresh: refreshBadge, acknowledge: acknowledgeBadge } = useNotificationBadge();
 onMounted(async () => {
-  await load();
+  try {
+    await load();
+  } finally {
+    // Direct links do not go through a layout bell click.
+    await acknowledgeBadge();
+  }
   // Opening the inbox is an explicit acknowledgement on mobile. Leaving the
   // drawer badge after the user already saw its rows was misleading.
   if (items.value.some((item) => !item.read)) {
