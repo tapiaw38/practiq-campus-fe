@@ -137,8 +137,6 @@
         <RouterLink to="/student/notifications" class="nav-item nav-item--secondary" active-class="nav-item-active">
           <span class="nav-icon"><i class="pi pi-bell" aria-hidden="true"></i></span>
           <span>Notificaciones</span>
-          <span v-if="notificationCount" class="nav-badge" aria-hidden="true">{{ notificationCount }}</span>
-          <span v-if="notificationCount" class="sr-only">{{ notificationCount === 1 ? "1 notificación sin leer" : `${notificationCount} notificaciones sin leer` }}</span>
         </RouterLink>
         <RouterLink to="/student/grades" class="nav-item" active-class="nav-item-active">
           <span class="nav-icon"><i class="pi pi-chart-bar" aria-hidden="true"></i></span>
