@@ -149,6 +149,11 @@ export function useNotifications(role: "student" | "teacher") {
 
   async function markAllRead() {
     const ids = [...new Set([...readIds.value, ...items.value.map((item) => item.id)])].slice(-300);
+    // Persisted notifications back the shell badge. Saving only the local
+    // preference made this screen look read while the badge stayed stuck.
+    await Promise.all(items.value
+      .filter((item) => item.persistent && !item.read)
+      .map((item) => campusApi.put(`/notifications/${item.id}/read`)));
     readIds.value = ids;
     items.value = items.value.map((item) => ({ ...item, read: true }));
     await preferences.update(SCOPE, { read_ids: ids });

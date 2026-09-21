@@ -7,16 +7,20 @@ import PageHeader from "@/components/ui/PageHeader.vue";
 import StateMessage from "@/components/ui/StateMessage.vue";
 import { useNotifications } from "@/composables/useNotifications";
 import { useCampusRole } from "@/composables/useCampusRole";
+import { useNotificationBadge } from "@/composables/useNotificationBadge";
 
 // The role held in this institution, not the account-wide profile type: the
 // same person can teach at one school and study at another.
 const { role, isTeacher } = useCampusRole();
 const { items, loading, load, markAllRead, markRead } = useNotifications(role.value);
+const { refresh: refreshBadge } = useNotificationBadge();
 onMounted(load);
 const unreadCount = computed(() => items.value.filter((item) => !item.read).length);
 const onlyUnread = ref(false);
 const visibleItems = computed(() => (onlyUnread.value ? items.value.filter((item) => !item.read) : items.value));
 function icon(kind: string) { return kind === "message" ? "pi-envelope" : kind === "assignment" ? "pi-file-edit" : kind === "grade" ? "pi-star-fill" : "pi-calendar"; }
+async function handleMarkAllRead() { await markAllRead(); await refreshBadge(); }
+async function handleMarkRead(id: string) { await markRead(id); await refreshBadge(); }
 
 // Today's notifications are read as "when today", older ones as "which day":
 // a bare time on a three-day-old row says nothing useful.
@@ -41,7 +45,7 @@ function when(createdAt: string) {
             icon="pi pi-check"
             outlined
             :disabled="!unreadCount"
-            @click="markAllRead"
+            @click="handleMarkAllRead"
           />
         </template>
       </PageHeader>
@@ -66,7 +70,7 @@ function when(createdAt: string) {
         <p v-if="!visibleItems.length" class="list-state">No te queda ninguna sin leer.</p>
         <ul v-else class="notification-list">
           <li v-for="item in visibleItems" :key="item.id" :class="{ unread: !item.read }">
-            <RouterLink :to="item.to" @click="markRead(item.id)">
+            <RouterLink :to="item.to" @click="handleMarkRead(item.id)">
               <span class="notice-icon" :class="`notice-icon--${item.kind}`"><i :class="`pi ${icon(item.kind)}`" aria-hidden="true"></i></span>
               <span class="notice-main">
                 <strong>{{ item.title }}</strong>
