@@ -30,6 +30,24 @@ const courseFilterOptions = computed(() => [
   ...Array.from(new Map(items.value.map((item) => [item.course.id, item.course])).values()),
 ]);
 function formatDateTime(value: string) { return new Date(value).toLocaleString("es-AR", { dateStyle: "medium", timeStyle: "short" }); }
+
+// A flat feed made a task published this morning look the same as one from
+// three weeks ago. Grouping answers "is this still news?" before you read.
+const groups = computed(() => {
+  const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+  const weekAgo = startOfToday.getTime() - 6 * 24 * 3600 * 1000;
+  const buckets: { label: string; items: Activity[] }[] = [
+    { label: "Hoy", items: [] },
+    { label: "Esta semana", items: [] },
+    { label: "Antes", items: [] },
+  ];
+  for (const item of visible.value) {
+    const at = new Date(item.at).getTime();
+    const bucket = at >= startOfToday.getTime() ? 0 : at >= weekAgo ? 1 : 2;
+    buckets[bucket].items.push(item);
+  }
+  return buckets.filter((bucket) => bucket.items.length);
+});
 function icon(kind: Activity["kind"]) { return kind === "assignment" ? "pi-file-edit" : kind === "material" ? "pi-folder-open" : "pi-comments"; }
 function label(kind: Activity["kind"]) { return kind === "assignment" ? "Tarea" : kind === "material" ? "Material" : "Foro"; }
 </script>
@@ -37,9 +55,9 @@ function label(kind: Activity["kind"]) { return kind === "assignment" ? "Tarea" 
   <component :is="isTeacher ? TeacherLayout : StudentLayout">
     <section class="activity-page">
       <PageHeader
-        eyebrow="Novedades"
+        eyebrow="Novedades de tus cursos"
         title="Actividad reciente"
-        subtitle="Últimas tareas, materiales y foros publicados en tus cursos."
+        subtitle="Últimas tareas, materiales y foros publicados."
       >
         <template #actions>
           <Select
@@ -60,18 +78,73 @@ function label(kind: Activity["kind"]) { return kind === "assignment" ? "Tarea" 
         title="Todavía no hay novedades"
         description="Cuando se publique una tarea, un material o un foro en tus cursos, aparecerá acá."
       />
-      <ol v-else class="feed">
-        <li v-for="item in visible" :key="item.id">
-          <span class="feed-icon"><i :class="`pi ${icon(item.kind)}`" aria-hidden="true"></i></span>
-          <RouterLink :to="item.to">
-            <small>{{ item.course.title }} · {{ label(item.kind) }}</small>
-            <strong>{{ item.title }}</strong>
-            <span>{{ item.detail }}</span>
-            <time :datetime="item.at">{{ formatDateTime(item.at) }}</time>
-          </RouterLink>
-        </li>
-      </ol>
+      <template v-else>
+      <section v-for="group in groups" :key="group.label" class="feed-group">
+        <h2>{{ group.label }}</h2>
+        <ol class="feed">
+          <li v-for="item in group.items" :key="item.id">
+            <span class="feed-rail">
+              <span class="feed-icon" :class="`feed-icon--${item.kind}`"><i :class="`pi ${icon(item.kind)}`" aria-hidden="true"></i></span>
+              <span class="feed-line" aria-hidden="true"></span>
+            </span>
+            <span class="feed-body">
+              <strong>{{ item.title }}</strong>
+              <small>{{ item.course.title }} · {{ label(item.kind) }} · {{ formatDateTime(item.at) }}</small>
+              <RouterLink :to="item.to" class="feed-action">Abrir →</RouterLink>
+            </span>
+          </li>
+        </ol>
+      </section>
+      </template>
     </section>
   </component>
 </template>
-<style scoped>.activity-page{max-width:900px}.course-filter{width:230px}@media(max-width:600px){.course-filter{width:100%}}.feed{position:relative;display:flex;flex-direction:column;gap:var(--space-2);padding:0;list-style:none}.feed:before{position:absolute;top:20px;bottom:20px;left:19px;width:1px;background:var(--surface-border);content:""}.feed li{position:relative;display:flex;gap:var(--space-3);align-items:flex-start}.feed-icon{z-index:1;display:grid;width:40px;height:40px;flex:0 0 40px;border:1px solid var(--surface-border);border-radius:50%;place-items:center;background:var(--surface-card);color:var(--practiq-violet-dark)}.feed a{display:flex;min-width:0;flex:1;flex-direction:column;gap:3px;padding:var(--space-3) var(--space-4);border:1px solid var(--surface-border);border-radius:var(--radius-md);background:var(--surface-card);box-shadow:var(--shadow-card);color:inherit}.feed a:hover{border-color:var(--practiq-violet-dark)}.feed small,time,.feed span{color:var(--text-secondary);font-size:var(--text-xs)}.feed small{color:var(--practiq-violet-dark);font-weight:700}.feed strong{color:var(--text-heading);font-size:var(--text-sm)}time{margin-top:var(--space-1);color:var(--text-muted)}</style>
+<style scoped>
+  .activity-page { max-width: 900px; }
+  .course-filter { width: 230px; }
+  @media (max-width: 600px) { .course-filter { width: 100%; } }
+
+  .feed-group {
+    padding: var(--space-5);
+    border: 1px solid var(--surface-border);
+    border-radius: var(--radius-lg);
+    background: var(--surface-card);
+  }
+
+  .feed-group + .feed-group { margin-top: var(--space-4); }
+
+  .feed-group h2 {
+    margin: 0 0 var(--space-4);
+    color: var(--text-secondary);
+    font-family: var(--font-ui-family);
+    font-size: var(--text-sm);
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .feed { display: grid; margin: 0; padding: 0; list-style: none; }
+  .feed li { display: flex; gap: var(--space-4); }
+
+  .feed-rail { display: flex; flex: 0 0 34px; flex-direction: column; align-items: center; }
+
+  .feed-icon {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    place-items: center;
+    border-radius: 11px;
+    background: var(--practiq-violet-pale);
+    color: var(--practiq-violet-dark);
+  }
+
+  .feed-icon--assignment { background: var(--color-warning-bg); color: var(--color-warning-dark); }
+  .feed-line { flex: 1; width: 2px; margin: var(--space-1) 0; background: var(--surface-border); }
+  .feed li:last-child .feed-line { display: none; }
+
+  .feed-body { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 3px; padding-bottom: var(--space-6); }
+  .feed li:last-child .feed-body { padding-bottom: 0; }
+  .feed-body strong { color: var(--text-heading); font-size: var(--text-md); }
+  .feed-body small { color: var(--text-secondary); font-size: var(--text-sm); }
+  .feed-action { margin-top: var(--space-2); color: var(--practiq-violet-dark); font-size: var(--text-sm); font-weight: 700; }
+</style>

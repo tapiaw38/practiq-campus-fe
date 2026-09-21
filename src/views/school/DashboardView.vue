@@ -22,6 +22,8 @@
   const searchLoading = ref(false);
   const searchError = ref("");
   const role = ref<SchoolMember["role"]>("student");
+  const memberToRemove = ref<SchoolMember | null>(null);
+  const removing = ref(false);
   let searchTimer: ReturnType<typeof window.setTimeout> | null = null;
   let searchRequest = 0;
 
@@ -104,11 +106,13 @@
     finally { adding.value = false; }
   }
 
-  async function remove(member: SchoolMember) {
-    if (!window.confirm(`¿Quitar a ${member.name} de ${tenantStore.selected?.name || "esta institución"}?`)) return;
+  async function remove() {
+    if (!memberToRemove.value || removing.value) return;
+    removing.value = true;
     error.value = "";
-    try { await service.removeMember(member.user_id); await load(); }
+    try { await service.removeMember(memberToRemove.value.user_id); memberToRemove.value = null; await load(); }
     catch (e) { error.value = reason(e, "No se pudo quitar esta persona."); }
+    finally { removing.value = false; }
   }
 
   onMounted(load);
@@ -163,10 +167,15 @@
             <span class="avatar">{{ member.name?.[0]?.toUpperCase() || '?' }}</span>
             <span class="person"><strong>{{ member.name }}</strong><small>{{ member.email || "(sin email)" }}</small></span>
             <span :class="['role', `role--${member.role}`]">{{ roleLabel[member.role] }}</span>
-            <button type="button" class="remove" @click="remove(member)">Quitar</button>
+            <button type="button" class="remove" @click="memberToRemove = member">Quitar</button>
           </li>
         </ul>
       </section>
+      <Dialog :visible="!!memberToRemove" modal header="Quitar persona" :style="{ width: 'min(420px, calc(100vw - 32px))' }" @update:visible="(visible) => { if (!visible && !removing) memberToRemove = null; }">
+        <p>Vas a quitar a <strong>{{ memberToRemove?.name }}</strong> de {{ tenantStore.selected?.name || "esta institución" }}.</p>
+        <small>Dejará de acceder a los cursos de esta institución.</small>
+        <div class="dialog-actions"><Button label="Cancelar" text severity="secondary" :disabled="removing" @click="memberToRemove = null" /><Button label="Quitar persona" severity="danger" :loading="removing" @click="remove" /></div>
+      </Dialog>
     </div>
   </TeacherLayout>
 </template>
@@ -187,6 +196,7 @@
   .suggestions button:hover { background: var(--surface-ground); }
   .suggestions span { overflow: hidden; color: var(--text-secondary); font-size: .72rem; text-overflow: ellipsis; white-space: nowrap; }
   .search-status { margin: .35rem 0 0; color: var(--text-secondary); font-size: .76rem; font-weight: 500; }
+  .dialog-actions { display: flex; justify-content: flex-end; gap: .5rem; margin-top: 1.2rem; }
   .members { margin: 1rem 0 0; padding: 0; list-style:none; border-top:1px solid var(--surface-border); } .members li { display:flex; align-items:center; gap:.75rem; padding:.8rem 0; border-bottom:1px solid var(--surface-border); } .avatar { display:grid; place-items:center; width:2.15rem; height:2.15rem; border-radius:50%; color:var(--practiq-violet); background:var(--practiq-violet-100); font-weight:800; } .person { display:grid; gap:.1rem; min-width:0; flex:1; } .person strong,.person small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .person small { color:var(--text-secondary); } .role { font-size:.76rem; font-weight:700; padding:.3rem .5rem; border-radius:999px; background:var(--surface-ground); } .role--admin { color:var(--practiq-violet); background:var(--practiq-violet-100); } .role--teacher { color:var(--color-success-dark); background:var(--color-success-bg); } .remove { border:0; background:transparent; color:var(--color-error-dark); cursor:pointer; font:inherit; font-weight:700; }
   @media (max-width: 680px) {
     .school-admin { padding: 0; }

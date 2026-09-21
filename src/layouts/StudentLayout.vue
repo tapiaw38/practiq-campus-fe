@@ -7,16 +7,19 @@
   import { useNavDrawer } from "@/composables/useNavDrawer";
   import { useMessageNotifications } from "@/composables/useMessageNotifications";
   import { useCalendarNotifications } from "@/composables/useCalendarNotifications";
+  import { useNotificationBadge } from "@/composables/useNotificationBadge";
 
   const router = useRouter();
   const authStore = useAuthStore();
   const { logout } = useAuth();
   const { unreadCount, start: startMessageNotifications } = useMessageNotifications();
   const { start: startCalendarNotifications } = useCalendarNotifications();
+  const { unreadCount: notificationCount, start: startNotificationBadge } = useNotificationBadge();
 
   onMounted(() => {
     startMessageNotifications();
     startCalendarNotifications();
+    startNotificationBadge();
   });
 
   const navToggle = ref<HTMLElement | null>(null);
@@ -61,8 +64,11 @@
       >
         <i class="pi pi-bars" aria-hidden="true"></i>
       </button>
-      <div class="topbar-brand"><img src="/logo.png" alt="" class="brand-logo" /> Practiq Campus</div>
-      <div class="topbar-avatar" aria-hidden="true">{{ userInitial }}</div>
+      <div class="topbar-brand"><img src="/logo.png" alt="" class="brand-logo" /> <span class="brand-word">practiq <b>campus</b></span></div>
+      <RouterLink to="/student/notifications" class="topbar-btn topbar-btn--boxed" aria-label="Notificaciones">
+        <i class="pi pi-bell" aria-hidden="true"></i>
+        <span v-if="notificationCount" class="topbar-notice" aria-hidden="true"></span>
+      </RouterLink>
     </header>
 
     <button
@@ -82,7 +88,7 @@
       tabindex="-1"
     >
       <div class="sidebar-brand">
-        <span class="brand-text"><img src="/logo.png" alt="" class="brand-logo" /> Practiq Campus</span>
+        <span class="brand-text"><img src="/logo.png" alt="" class="brand-logo" /> <span class="brand-word">practiq <b>campus</b></span></span>
         <button
           class="close-btn"
           type="button"
@@ -95,15 +101,15 @@
 
       <TenantSwitcher />
 
-      <nav class="sidebar-nav" aria-label="Navegación principal">
-        <div class="nav-section-label">Estudiante</div>
+      <nav class="sidebar-nav" aria-label="Más opciones">
+        <div class="nav-section-label nav-section-label--primary">Estudiante</div>
         <RouterLink
           to="/student/dashboard"
           class="nav-item"
           active-class="nav-item-active"
         >
           <span class="nav-icon"><i class="pi pi-home" aria-hidden="true"></i></span>
-          <span>Mis cursos</span>
+          <span>Inicio</span>
         </RouterLink>
         <RouterLink
           to="/student/calendar"
@@ -127,15 +133,18 @@
           <span v-if="unreadCount" class="nav-badge" aria-hidden="true">{{ unreadCount }}</span>
           <span v-if="unreadCount" class="sr-only">{{ unreadLabel }}</span>
         </RouterLink>
-        <RouterLink to="/student/notifications" class="nav-item" active-class="nav-item-active">
+        <div class="nav-section-label nav-section-label--secondary">Más opciones</div>
+        <RouterLink to="/student/notifications" class="nav-item nav-item--secondary" active-class="nav-item-active">
           <span class="nav-icon"><i class="pi pi-bell" aria-hidden="true"></i></span>
           <span>Notificaciones</span>
+          <span v-if="notificationCount" class="nav-badge" aria-hidden="true">{{ notificationCount }}</span>
+          <span v-if="notificationCount" class="sr-only">{{ notificationCount === 1 ? "1 notificación sin leer" : `${notificationCount} notificaciones sin leer` }}</span>
         </RouterLink>
         <RouterLink to="/student/grades" class="nav-item" active-class="nav-item-active">
           <span class="nav-icon"><i class="pi pi-chart-bar" aria-hidden="true"></i></span>
           <span>Calificaciones</span>
         </RouterLink>
-        <RouterLink to="/student/activity" class="nav-item" active-class="nav-item-active"><span class="nav-icon"><i class="pi pi-bolt" aria-hidden="true"></i></span><span>Actividad</span></RouterLink>
+        <RouterLink to="/student/activity" class="nav-item nav-item--secondary" active-class="nav-item-active"><span class="nav-icon"><i class="pi pi-bolt" aria-hidden="true"></i></span><span>Actividad</span></RouterLink>
       </nav>
 
       <div class="sidebar-footer">
@@ -161,6 +170,33 @@
     <main id="main-content" class="main-content" tabindex="-1">
       <slot />
     </main>
+
+    <nav class="tabbar" aria-label="Navegación principal">
+      <RouterLink to="/student/dashboard" class="tab" active-class="tab-active">
+        <span class="tab-icon"><i class="pi pi-home" aria-hidden="true"></i></span>
+        <span class="tab-label">Inicio</span>
+      </RouterLink>
+      <RouterLink to="/student/calendar" class="tab" active-class="tab-active">
+        <span class="tab-icon"><i class="pi pi-calendar" aria-hidden="true"></i></span>
+        <span class="tab-label">Agenda</span>
+      </RouterLink>
+      <RouterLink to="/student/explore" class="tab" active-class="tab-active">
+        <span class="tab-icon"><i class="pi pi-compass" aria-hidden="true"></i></span>
+        <span class="tab-label">Explorar</span>
+      </RouterLink>
+      <RouterLink to="/student/messages" class="tab" active-class="tab-active">
+        <span class="tab-icon">
+          <i class="pi pi-envelope" aria-hidden="true"></i>
+          <span v-if="unreadCount" class="tab-badge" aria-hidden="true">{{ unreadCount }}</span>
+          <span v-if="unreadCount" class="sr-only">{{ unreadLabel }}</span>
+        </span>
+        <span class="tab-label">Mensajes</span>
+      </RouterLink>
+      <RouterLink to="/student/grades" class="tab" active-class="tab-active">
+        <span class="tab-icon"><i class="pi pi-chart-bar" aria-hidden="true"></i></span>
+        <span class="tab-label">Notas</span>
+      </RouterLink>
+    </nav>
   </div>
 </template>
 
@@ -179,8 +215,12 @@
     display: none;
   }
 
+  .tabbar {
+    display: none;
+  }
+
   .sidebar {
-    width: 240px;
+    width: 250px;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
@@ -206,15 +246,21 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
-    font-weight: 700;
+    font-family: var(--font-ui-family);
+    font-weight: 900;
     font-size: var(--text-lg);
     color: var(--text-heading);
   }
+
+  .brand-word { letter-spacing: -.03em; text-transform: lowercase; }
+  .brand-word b { color: var(--practiq-violet); font-weight: 900; }
 
   .brand-logo {
     width: 24px;
     height: 24px;
   }
+
+  .topbar-notice { position:absolute;top:7px;right:7px;width:8px;height:8px;border:2px solid var(--surface-card);border-radius:50%;background:var(--color-error); }
 
   .close-btn {
     display: none;
@@ -228,20 +274,22 @@
   }
 
   .nav-section-label {
+    font-family: var(--font-ui-family);
     font-size: var(--text-xs);
-    font-weight: 700;
+    font-weight: 900;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.09em;
     color: var(--text-muted);
-    padding: var(--space-2) var(--space-2) var(--space-1);
+    padding: var(--space-2) var(--space-3) var(--space-1);
   }
 
   .nav-item {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--space-3);
+    min-height: 40px;
     padding: var(--space-2) var(--space-3);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-lg);
     color: var(--text-secondary);
     font-weight: 600;
     font-size: var(--text-sm);
@@ -268,8 +316,9 @@
   }
 
   .nav-item-active {
-    background: var(--fill-primary-soft);
+    background: var(--practiq-violet-pale);
     color: var(--practiq-violet-dark);
+    box-shadow: inset 2px 0 0 var(--practiq-violet);
   }
 
   .nav-icon {
@@ -295,10 +344,10 @@
   }
 
   .user-avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: var(--radius-md);
-    background: var(--gradient-brand);
+    width: 34px;
+    height: 34px;
+    border-radius: var(--radius-lg);
+    background: var(--practiq-violet);
     color: var(--color-on-primary);
     display: grid;
     place-items: center;
@@ -346,13 +395,15 @@
   .main-content {
     flex: 1;
     min-width: 0;
-    padding: var(--space-6);
+    max-width: 1120px;
+    padding: var(--space-8) 34px 64px;
   }
 
   @media (max-width: 860px) {
     .app-shell {
-      display: block;
+      flex-direction: column;
       min-height: 100vh;
+      min-height: 100dvh;
     }
 
     .mobile-topbar {
@@ -375,14 +426,18 @@
          about 18. */
       width: 44px;
       height: 44px;
-      margin-left: calc(var(--space-3) * -1);
-      border: none;
-      border-radius: var(--radius-md);
-      background: transparent;
-      color: var(--text-primary);
+      border: 1px solid var(--surface-border);
+      border-radius: var(--radius-lg);
+      background: var(--surface-card);
+      color: var(--text-heading);
       cursor: pointer;
-      font-size: 18px;
+      font-size: 16px;
       place-items: center;
+    }
+
+    .topbar-btn--boxed:hover {
+      background: var(--surface-hover);
+      color: var(--practiq-violet-dark);
     }
 
     .topbar-brand {
@@ -398,16 +453,62 @@
       height: 20px;
     }
 
-    .topbar-avatar {
-      width: 30px;
-      height: 30px;
-      border-radius: var(--radius-md);
-      background: var(--gradient-brand);
-      color: var(--color-on-primary);
+    .tabbar {
+      display: grid;
+      position: sticky;
+      bottom: 0;
+      z-index: var(--z-topbar);
+      grid-template-columns: repeat(5, 1fr);
+      gap: var(--space-1);
+      padding: var(--space-2) var(--space-2) max(var(--space-2), env(safe-area-inset-bottom));
+      background: var(--surface-card);
+      border-top: 1px solid var(--surface-border);
+    }
+
+    .tab {
+      display: grid;
+      justify-items: center;
+      gap: var(--space-1);
+      min-height: 52px;
+      padding: var(--space-2) var(--space-1);
+      border-radius: var(--radius-lg);
+      color: var(--text-secondary);
+      transition: var(--transition-fast);
+    }
+
+    .tab-active {
+      background: var(--practiq-violet-pale);
+      color: var(--practiq-violet-dark);
+    }
+
+    .tab-icon {
+      position: relative;
+      display: block;
+      font-size: 17px;
+      line-height: 1;
+    }
+
+    .tab-badge {
+      position: absolute;
+      top: -3px;
+      right: -9px;
+      min-width: 16px;
+      height: 16px;
+      padding: 0 4px;
       display: grid;
       place-items: center;
+      border-radius: var(--radius-pill);
+      background: var(--color-error);
+      color: var(--color-on-primary);
+      font-size: 10px;
       font-weight: 700;
-      font-size: var(--text-sm);
+      line-height: 1;
+    }
+
+    .tab-label {
+      font-size: var(--text-xs);
+      font-weight: 600;
+      letter-spacing: -0.01em;
     }
 
     .drawer-backdrop {
@@ -482,6 +583,18 @@
       overscroll-behavior: contain;
     }
 
+    /* Tabbar owns primary navigation on phones. Drawer stays for institution
+       context and the two destinations that do not fit in five tabs. */
+    .nav-section-label--primary,
+    .nav-item:not(.nav-item--secondary) {
+      display: none;
+    }
+
+    .nav-section-label--secondary {
+      display: block;
+      margin-top: var(--space-1);
+    }
+
     .sidebar-footer {
       flex: 0 0 auto;
       margin-top: auto;
@@ -489,8 +602,9 @@
 
     .main-content {
       width: 100%;
+      max-width: none;
       box-sizing: border-box;
-      padding: var(--space-4);
+      padding: var(--space-5) var(--space-4) var(--space-6);
     }
   }
 </style>

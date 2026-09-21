@@ -24,6 +24,8 @@
   // "no such school".
   const eligible = ref<EligibleSchool[]>([]);
   const eligibleError = ref(false);
+  const statusChange = ref<{ tenant: CampusTenantAdmin; status: CampusTenantAdmin["status"] } | null>(null);
+  const changingStatus = ref(false);
 
   const statusLabel: Record<CampusTenantAdmin["status"], string> = {
     active: "Activa",
@@ -74,20 +76,28 @@
   }
 
   async function setStatus(tenant: CampusTenantAdmin, status: CampusTenantAdmin["status"]) {
-    const verb = status === "closed" ? "cerrar" : status === "suspended" ? "suspender" : "reactivar";
-    // Suspending and closing cut off everyone in the institution at once, so
-    // they are confirmed rather than done on a single click.
-    if (status !== "active" && !window.confirm(`¿Seguro que querés ${verb} ${tenant.name || "esta institución"}?`)) {
-      return;
-    }
+    if (changingStatus.value) return;
+    changingStatus.value = true;
     error.value = "";
     try {
       await service.setStatus(tenant.id, status);
+      statusChange.value = null;
       await load();
     } catch (e: unknown) {
       const response = (e as { response?: { data?: { message?: string } } })?.response;
       error.value = response?.data?.message || "No se pudo cambiar el estado.";
+    } finally {
+      changingStatus.value = false;
     }
+  }
+
+  function requestStatus(tenant: CampusTenantAdmin, status: CampusTenantAdmin["status"]) {
+    if (status === "active") { void setStatus(tenant, status); return; }
+    statusChange.value = { tenant, status };
+  }
+
+  function statusVerb(status: CampusTenantAdmin["status"]) {
+    return status === "closed" ? "Cerrar" : "Suspender";
   }
 
   async function open(tenant: CampusTenantAdmin) {
@@ -158,23 +168,28 @@
           <button v-if="tenant.status === 'active' && tenant.eligible" type="button" @click="open(tenant)">
             Abrir Campus
           </button>
-          <button v-if="tenant.status !== 'active'" type="button" @click="setStatus(tenant, 'active')">
+          <button v-if="tenant.status !== 'active'" type="button" @click="requestStatus(tenant, 'active')">
             Reactivar
           </button>
-          <button v-if="tenant.status === 'active'" type="button" @click="setStatus(tenant, 'suspended')">
+          <button v-if="tenant.status === 'active'" type="button" @click="requestStatus(tenant, 'suspended')">
             Suspender
           </button>
           <button
             v-if="tenant.status !== 'closed'"
             type="button"
             class="danger"
-            @click="setStatus(tenant, 'closed')"
+            @click="requestStatus(tenant, 'closed')"
           >
             Cerrar
           </button>
         </div>
       </li>
     </ul>
+    <Dialog :visible="!!statusChange" modal :header="statusChange ? `${statusVerb(statusChange.status)} institución` : ''" :style="{ width: 'min(420px, calc(100vw - 32px))' }" @update:visible="(visible) => { if (!visible && !changingStatus) statusChange = null; }">
+      <p>Vas a {{ statusChange?.status === "closed" ? "cerrar" : "suspender" }} <strong>{{ statusChange?.tenant.name || "esta institución" }}</strong>.</p>
+      <small>Las personas perderán acceso a Campus hasta que la reactives.</small>
+      <div class="dialog-actions"><Button label="Cancelar" text severity="secondary" :disabled="changingStatus" @click="statusChange = null" /><Button :label="statusChange ? statusVerb(statusChange.status) : ''" severity="danger" :loading="changingStatus" @click="statusChange && setStatus(statusChange.tenant, statusChange.status)" /></div>
+    </Dialog>
   </main>
   </TeacherLayout>
 </template>
@@ -257,6 +272,7 @@
     color: var(--color-error-dark);
     font-size: 0.88rem;
   }
+  .dialog-actions { display: flex; justify-content: flex-end; gap: .5rem; margin-top: 1.2rem; }
 
   .list {
     display: grid;

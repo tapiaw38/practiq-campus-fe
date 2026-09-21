@@ -5,31 +5,31 @@
      components consume semantic tokens below, so this changes every surface
      without scattered component-level colour overrides. */
   --practiq-violet-50: #f5f3ff;
-  --practiq-violet-100: #ede9fe;
-  --practiq-violet-200: #ddd6fe;
-  --practiq-violet-300: #c4b5fd;
-  --practiq-violet-400: #a78bfa;
-  --practiq-violet-500: #8b5cf6;
-  --practiq-violet-600: #7c3aed;
-  --practiq-violet-700: #6d28d9;
-  --practiq-violet-800: #5b21b6;
-  --practiq-violet-900: #4c1d95;
-  --practiq-violet-950: #2e1065;
-  --practiq-violet: #7c3aed;
-  --practiq-violet-light: #8b5cf6;
-  --practiq-violet-pale: #ede9fe;
-  --practiq-violet-bg: #f5f3ff;
-  --practiq-violet-dark: #5b21b6;
-  --practiq-indigo: #6366f1;
-  --practiq-indigo-soft: #c7d2fe;
+  --practiq-violet-100: #ebe7ff;
+  --practiq-violet-200: #d9d2fb;
+  --practiq-violet-300: #b7a9f6;
+  --practiq-violet-400: #8d7bea;
+  --practiq-violet-500: #6557dc;
+  --practiq-violet-600: #5546c6;
+  --practiq-violet-700: #4535a4;
+  --practiq-violet-800: #342879;
+  --practiq-violet-900: #241c54;
+  --practiq-violet-950: #1d1745;
+  --practiq-violet: #6557dc;
+  --practiq-violet-light: #6557dc;
+  --practiq-violet-pale: #f3f1ff;
+  --practiq-violet-bg: #fafaff;
+  --practiq-violet-dark: #4535a4;
+  --practiq-indigo: #6557dc;
+  --practiq-indigo-soft: #d9d2fb;
 
   /* RGB channels for alpha and gradients */
-  --practiq-violet-rgb: 124, 58, 237;
-  --practiq-violet-light-rgb: 139, 92, 246;
-  --practiq-indigo-rgb: 99, 102, 241;
-  --color-success-rgb: 16, 185, 129;
-  --color-error-rgb: 239, 68, 68;
-  --color-warning-rgb: 245, 158, 11;
+  --practiq-violet-rgb: 101, 87, 220;
+  --practiq-violet-light-rgb: 101, 87, 220;
+  --practiq-indigo-rgb: 101, 87, 220;
+  --color-success-rgb: 24, 134, 107;
+  --color-error-rgb: 179, 69, 63;
+  --color-warning-rgb: 168, 107, 16;
   --color-info-rgb: 59, 130, 246;
   --surface-card-rgb: 255, 255, 255;
   --surface-bg-rgb: 248, 250, 252;
@@ -37,16 +37,16 @@
   --text-primary-rgb: 30, 41, 59;
 
   /* Semantic colors */
-  --color-success: #10b981;
-  --color-success-bg: #ecfdf5;
-  --color-success-dark: #047857;
-  --color-error: #ef4444;
-  --color-error-bg: #fef2f2;
-  --color-error-dark: #b91c1c;
-  --color-warning: #f59e0b;
-  --color-warning-bg: #fffbeb;
-  --color-warning-dark: #b45309;
-  --color-warning-strong: #d97706;
+  --color-success: #18866b;
+  --color-success-bg: #e3f4ee;
+  --color-success-dark: #0f7a5f;
+  --color-error: #b3453f;
+  --color-error-bg: #fbe4e2;
+  --color-error-dark: #b3453f;
+  --color-warning: #a86b10;
+  --color-warning-bg: #fdf3da;
+  --color-warning-dark: #8a5a0c;
+  --color-warning-strong: #8a5a0c;
   --color-info: #3b82f6;
   --color-info-bg: rgba(59, 130, 246, 0.1);
   --color-info-dark: #1d4ed8;
@@ -54,13 +54,13 @@
   --color-on-brand-panel: #ffffff;
 
   /* Surfaces */
-  --surface-bg: #f8fafc;
-  --surface-bg-soft: #f7f8ff;
-  --surface-bg-cool: #f8fbff;
-  --surface-bg-muted: #f6f8fc;
+  --surface-bg: #fafaff;
+  --surface-bg-soft: #fafaff;
+  --surface-bg-cool: #fafaff;
+  --surface-bg-muted: #f3f1ff;
   --surface-card: #ffffff;
-  --surface-hover: #f1f5f9;
-  --surface-border: #e2e8f0;
+  --surface-hover: #f3f1ff;
+  --surface-border: #e7e7ef;
   --surface-subtle: rgba(248, 250, 252, 0.9);
   --surface-elevated: rgba(var(--surface-card-rgb), 0.85);
   --surface-elevated-strong: rgba(var(--surface-card-rgb), 0.92);
@@ -68,7 +68,7 @@
   --surface-glass-border: rgba(var(--surface-card-rgb), 0.9);
   --surface-scrim: rgba(15, 23, 42, 0.34);
   --surface-overlay: rgba(0, 0, 0, 0.4);
-  --surface-card-border: #e8ecf1;
+  --surface-card-border: #e7e7ef;
 
   --border-color: var(--surface-border);
   --border-default: var(--surface-border);
@@ -79,10 +79,10 @@
   --fill-error-subtle: var(--color-error-bg);
 
   /* Text */
-  --text-heading: #0f172a;
-  --text-primary: #1e293b;
-  --text-secondary: #64748b;
-  --text-muted: #94a3b8;
+  --text-heading: #1b1e2e;
+  --text-primary: #3b4154;
+  --text-secondary: #5b6479;
+  --text-muted: #767f93;
   --text-brand-panel-muted: rgba(var(--surface-card-rgb), 0.8);
   --text-brand-panel-soft: rgba(var(--surface-card-rgb), 0.75);
 
@@ -93,7 +93,7 @@
   --text-sm: 12px;
   --text-base: 13px;
   --text-md: 14px;
-  --text-lg: 15px;
+  --text-lg: 16px;
 
   --font-hero: clamp(1.1rem, 2.5vw, 1.35rem);
   --font-section-title: 15px;
@@ -108,12 +108,12 @@
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
   --shadow-md: 0 2px 6px rgba(15, 23, 42, 0.06);
   --shadow-lg: 0 4px 12px rgba(15, 23, 42, 0.08);
-  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.06);
-  --shadow-card-lg: 0 2px 6px rgba(15, 23, 42, 0.08);
-  --shadow-panel: 0 12px 28px rgba(15, 23, 42, 0.1);
+  --shadow-card: none;
+  --shadow-card-lg: 0 12px 26px rgba(57, 49, 104, 0.1);
+  --shadow-panel: 0 12px 30px rgba(37, 35, 59, 0.08);
   --shadow-soft: 0 8px 20px rgba(15, 23, 42, 0.06);
-  --shadow-violet: 0 1px 3px rgba(var(--practiq-violet-rgb), 0.18);
-  --shadow-violet-lg: 0 2px 8px rgba(var(--practiq-violet-rgb), 0.2);
+  --shadow-violet: 0 6px 14px rgba(var(--practiq-violet-rgb), 0.2);
+  --shadow-violet-lg: 0 10px 20px rgba(var(--practiq-violet-rgb), 0.24);
   --shadow-indigo: 0 1px 3px rgba(var(--practiq-violet-rgb), 0.18);
   --shadow-auth-card: 0 1px 2px rgba(15, 23, 42, 0.05), 0 8px 24px rgba(15, 23, 42, 0.06);
   --shadow-illustration: 0 10px 24px rgba(15, 23, 42, 0.12);
@@ -126,18 +126,15 @@
   --elevation-panel-shadow: var(--shadow-panel);
 
   /* Gradients and transparent fills */
-  --gradient-app-bg:
-    radial-gradient(circle at top left, rgba(var(--practiq-violet-rgb), 0.06), transparent 16%),
-    radial-gradient(circle at bottom right, rgba(var(--color-info-rgb), 0.05), transparent 18%),
-    linear-gradient(180deg, var(--surface-bg-cool) 0%, var(--surface-bg-soft) 42%, var(--surface-bg-muted) 100%);
+  --gradient-app-bg: var(--surface-bg);
   --gradient-auth-bg:
     radial-gradient(ellipse at 90% 10%, rgba(var(--practiq-violet-rgb), 0.05), transparent 50%),
     radial-gradient(ellipse at 10% 90%, rgba(var(--color-info-rgb), 0.04), transparent 50%),
     var(--surface-bg);
-  --gradient-brand-panel: linear-gradient(155deg, var(--practiq-violet-900) 0%, var(--practiq-violet-700) 40%, var(--practiq-indigo) 100%);
+  --gradient-brand-panel: linear-gradient(155deg, #2b2550 0%, #4535a4 100%);
   /* Flat, not a two-hue sweep: a rainbow gradient reads as decoration here. */
-  --gradient-brand: linear-gradient(135deg, var(--practiq-violet-600), var(--practiq-violet-700));
-  --gradient-brand-soft: linear-gradient(135deg, rgba(var(--practiq-violet-rgb), 0.1), rgba(var(--color-info-rgb), 0.08));
+  --gradient-brand: var(--practiq-violet);
+  --gradient-brand-soft: var(--practiq-violet-pale);
   --gradient-brand-avatar: linear-gradient(135deg, rgba(var(--practiq-violet-rgb), 0.16), rgba(var(--color-info-rgb), 0.14));
   --gradient-mobile-topbar: linear-gradient(180deg, rgba(var(--surface-bg-rgb), 0.96), rgba(var(--surface-bg-rgb), 0.76) 75%, transparent);
   --gradient-card-accent:
@@ -155,15 +152,15 @@
 
   /* Border radius — tighter than the student app's, on purpose. */
   --radius-xs: 3px;
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 7px;
-  --radius-xl: 8px;
-  --radius-2xl: 10px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-2xl: 18px;
   --radius-pill: 999px;
 
-  --transition: all 0.15s ease;
-  --transition-fast: all 0.1s ease;
+  --transition: all 0.18s ease;
+  --transition-fast: all 0.18s ease;
 
   /* Spacing scale — tighter than the student app's. */
   --space-1: 3px;
@@ -175,17 +172,17 @@
   --space-8: 26px;
 
   /* Teacher workspace. Kept semantic so Campus stays on primary palette. */
-  --teacher-bg: #f7f8ff;
+  --teacher-bg: #fafaff;
   --teacher-surface: var(--surface-card);
-  --teacher-border: #e2e4f3;
-  --teacher-border-card: #e8e9f5;
+  --teacher-border: #e7e7ef;
+  --teacher-border-card: #e7e7ef;
   --teacher-border-dashed: #d3d5ec;
   --teacher-border-hover: #c4c1f2;
   --teacher-label: #7b8794;
-  --teacher-active-bg: #f0edff;
-  --teacher-active-text: #5b21b6;
-  --teacher-active-bar: var(--practiq-violet-700);
-  --teacher-active-icon-bg: #ddd6fe;
+  --teacher-active-bg: #f3f1ff;
+  --teacher-active-text: #4535a4;
+  --teacher-active-bar: var(--practiq-violet);
+  --teacher-active-icon-bg: #ebe7ff;
   --teacher-shadow-sidebar: 6px 0 24px rgba(15, 23, 42, 0.04);
   --teacher-shadow-card: 0 2px 8px rgba(15, 23, 42, 0.045);
   --teacher-shadow-card-hover: 0 6px 16px rgba(var(--practiq-violet-rgb), 0.1);

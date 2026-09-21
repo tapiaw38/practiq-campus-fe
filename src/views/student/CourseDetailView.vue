@@ -414,6 +414,30 @@
   function studentCourseStatus(status: string) {
     return status === "archived" ? "Finalizado" : "Activo";
   }
+
+  // The header answers "where do I stand in this course?" before the tabs are
+  // touched: how much is handed in, what it averaged, what is still open.
+  const courseProgress = computed(() => {
+    const total = assignments.value.length;
+    let handedIn = 0;
+    let gradedCount = 0;
+    let ratioSum = 0;
+    for (const assignment of assignments.value) {
+      const submission = mySubmissions.value[assignment.id];
+      if (!submission) continue;
+      handedIn++;
+      if (submission.status !== "graded" || submission.score == null || !assignment.max_score) continue;
+      gradedCount++;
+      ratioSum += submission.score / assignment.max_score;
+    }
+    return {
+      total,
+      handedIn,
+      percent: total ? Math.round(handedIn / total * 100) : 0,
+      average: gradedCount ? Math.round(ratioSum / gradedCount * 100) : null,
+      pending: total - handedIn,
+    };
+  });
 </script>
 
 <template>
@@ -426,18 +450,34 @@
       <StateMessage v-if="loading || !currentCourse" variant="loading" :rows="4" loading-label="Cargando curso" />
       <template v-else>
         <header class="course-head">
-          <h1>{{ currentCourse.title }}</h1>
-          <span class="course-status">{{ studentCourseStatus(currentCourse.status) }}</span>
+          <div class="course-head-main">
+            <div class="course-head-top">
+              <span class="course-icon"><i class="pi pi-book" aria-hidden="true"></i></span>
+              <span class="course-status">{{ studentCourseStatus(currentCourse.status) }}</span>
+            </div>
+            <h1>{{ currentCourse.title }}</h1>
+            <p v-if="currentCourse.description" class="course-description">
+              {{ currentCourse.description }}
+            </p>
+            <p v-else class="course-description course-description--empty">
+              El docente todavía no agregó una descripción.
+            </p>
+            <div v-if="currentCourse.labels?.length" class="course-labels">
+              <span v-for="label in currentCourse.labels" :key="label">{{ label }}</span>
+            </div>
+          </div>
+          <div v-if="courseProgress.total" class="course-progress">
+            <div class="course-progress-head">
+              <span>Tu avance</span>
+              <span>{{ courseProgress.percent }}%</span>
+            </div>
+            <div class="course-progress-bar"><span :style="{ width: `${courseProgress.percent}%` }"></span></div>
+            <div class="course-progress-stats">
+              <span><strong>{{ courseProgress.average == null ? "—" : `${courseProgress.average}%` }}</strong>promedio</span>
+              <span><strong :class="{ 'is-pending': courseProgress.pending }">{{ courseProgress.pending }}</strong>pendientes</span>
+            </div>
+          </div>
         </header>
-        <p v-if="currentCourse.description" class="course-description">
-          {{ currentCourse.description }}
-        </p>
-        <p v-else class="course-description course-description--empty">
-          El docente todavía no agregó una descripción.
-        </p>
-        <div v-if="currentCourse.labels?.length" class="course-labels">
-          <span v-for="label in currentCourse.labels" :key="label">{{ label }}</span>
-        </div>
 
         <nav class="course-nav" aria-label="Contenido del curso">
           <button type="button" :class="{ active: activeCourseTab === 'materials' }" :aria-pressed="activeCourseTab === 'materials'" @click="activeCourseTab = 'materials'"><i class="pi pi-folder-open" aria-hidden="true" /> Materiales</button>
@@ -615,43 +655,89 @@
   .back-btn {
     display: inline-flex;
     align-items: center;
-    gap: var(--space-1);
+    gap: var(--space-2);
+    min-height: 40px;
+    padding: 0 var(--space-3) 0 var(--space-2);
     border: none;
+    border-radius: var(--radius-lg);
     background: transparent;
     color: var(--text-secondary);
-    font-size: var(--text-sm);
+    font-size: var(--text-base);
     font-weight: 600;
     cursor: pointer;
     margin-bottom: var(--space-4);
   }
 
+  .back-btn:hover { background: var(--practiq-violet-pale); color: var(--practiq-violet-dark); }
 
   .course-head {
     display: flex;
-    align-items: center;
-    gap: var(--space-3);
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-5);
     margin-bottom: var(--space-3);
+    padding: var(--space-6);
+    border: 1px solid var(--surface-border);
+    border-radius: var(--radius-xl);
+    background: var(--surface-card);
+  }
+
+  .course-head-main { flex: 1; min-width: 220px; }
+  .course-head-top { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
+
+  .course-icon {
+    display: grid;
+    width: 32px;
+    height: 32px;
+    place-items: center;
+    border-radius: var(--radius-lg);
+    background: var(--practiq-violet-pale);
+    color: var(--practiq-violet-dark);
   }
 
   .course-head h1 {
-    font-size: 20px;
-    font-weight: 700;
+    margin: 0;
+    font-family: var(--font-ui-family);
+    font-size: 28px;
+    font-weight: 900;
+    letter-spacing: -0.035em;
+    line-height: 1.06;
     color: var(--text-heading);
   }
+
+  .course-progress {
+    min-width: 190px;
+    padding: var(--space-5);
+    border: 1px solid var(--surface-border);
+    border-radius: var(--radius-lg);
+    background: var(--surface-bg);
+  }
+
+  .course-progress-head { display: flex; justify-content: space-between; margin-bottom: var(--space-2); color: var(--text-secondary); font-size: var(--text-sm); font-weight: 600; }
+  .course-progress-head span:last-child { color: var(--text-heading); }
+  .course-progress-bar { height: 7px; margin-bottom: var(--space-3); border-radius: var(--radius-pill); background: var(--practiq-violet-100); }
+  .course-progress-bar span { display: block; height: 7px; border-radius: var(--radius-pill); background: var(--practiq-violet); }
+  .course-progress-stats { display: flex; gap: var(--space-5); color: var(--text-secondary); font-size: var(--text-sm); }
+  .course-progress-stats strong { display: block; color: var(--text-heading); font-family: var(--font-ui-family); font-size: var(--text-lg); font-weight: 900; }
+  .course-progress-stats .is-pending { color: var(--color-warning-dark); }
 
   .course-status {
     font-size: var(--text-xs);
     font-weight: 700;
     text-transform: uppercase;
-    padding: 2px var(--space-2);
+    padding: 3px var(--space-3);
     border-radius: var(--radius-pill);
-    background: var(--fill-primary-soft);
-    color: var(--practiq-violet-dark);
+    background: var(--color-success-bg);
+    color: var(--color-success-dark);
   }
 
   .course-description {
+    margin: var(--space-2) 0 0;
+    max-width: 60ch;
     color: var(--text-secondary);
-    font-size: var(--text-sm);
+    font-size: var(--text-md);
+    line-height: 1.6;
   }
 
   .course-description--empty {
@@ -661,7 +747,7 @@
 
   .course-labels{display:flex;gap:var(--space-1);flex-wrap:wrap;margin-top:var(--space-3)}.course-labels span{padding:2px 6px;border-radius:999px;background:var(--fill-primary-soft);color:var(--practiq-violet-dark);font-size:10px;font-weight:800}
 
-  .course-nav{display:flex;gap:var(--space-2);overflow-x:auto;padding:var(--space-3);margin-top:var(--space-5);border:1px solid var(--surface-border);border-radius:var(--radius-md);background:var(--surface-card);box-shadow:var(--shadow-card);mask-image:linear-gradient(to right,transparent,black var(--space-3),black calc(100% - var(--space-3)),transparent);-webkit-mask-image:linear-gradient(to right,transparent,black var(--space-3),black calc(100% - var(--space-3)),transparent)}.course-nav button{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:0 var(--space-3);border:0;border-radius:var(--radius-sm);background:transparent;color:var(--text-secondary);font-size:var(--text-xs);font-weight:700;white-space:nowrap;cursor:pointer}.course-nav button:hover{background:var(--surface-hover);color:var(--text-primary)}.course-nav button.active{background:var(--fill-primary-soft);color:var(--practiq-violet-dark)}.course-nav button.active span{background:var(--surface-card);color:var(--practiq-violet-dark)}.course-nav span{display:grid;min-width:20px;height:20px;padding:0 5px;place-items:center;border-radius:var(--radius-pill);background:var(--surface-hover);color:var(--text-secondary);font-size:var(--text-xs);font-weight:700}
+  .course-nav{position:sticky;top:0;z-index:2;display:flex;gap:var(--space-1);overflow-x:auto;padding:var(--space-1);margin-top:var(--space-5);border:1px solid var(--surface-border);border-radius:var(--radius-lg);background:var(--surface-card);mask-image:linear-gradient(to right,transparent,black var(--space-3),black calc(100% - var(--space-3)),transparent);-webkit-mask-image:linear-gradient(to right,transparent,black var(--space-3),black calc(100% - var(--space-3)),transparent)}.course-nav button{display:inline-flex;align-items:center;gap:7px;min-height:42px;padding:0 var(--space-4);border:0;border-radius:9px;background:transparent;color:var(--text-secondary);font-family:var(--font-ui-family);font-size:var(--text-base);font-weight:900;white-space:nowrap;cursor:pointer}.course-nav button:hover{background:var(--surface-hover);color:var(--text-primary)}.course-nav button.active{background:var(--practiq-violet-pale);color:var(--practiq-violet-dark)}.course-nav button.active span{background:var(--practiq-violet);color:var(--color-on-primary)}.course-nav span{display:grid;min-width:20px;height:20px;padding:0 5px;place-items:center;border-radius:var(--radius-pill);background:var(--surface-hover);color:var(--text-secondary);font-size:var(--text-xs);font-weight:700}
 
   .assignments-section {
     margin-top: var(--space-6);
@@ -682,28 +768,32 @@
   }
 
   .assignment-item {
-    padding: var(--space-4);
-    border-radius: var(--radius-lg);
+    padding: var(--space-5);
+    border: 1px solid var(--surface-border);
+    border-radius: var(--radius-xl);
     background: var(--surface-card);
-    box-shadow: var(--shadow-card);
   }
 
   .assignment-title {
-    font-size: var(--text-sm);
-    font-weight: 700;
-    color: var(--text-primary);
+    color: var(--text-heading);
+    font-family: var(--font-ui-family);
+    font-size: 19px;
+    font-weight: 900;
+    letter-spacing: -0.03em;
   }
 
   .assignment-meta {
-    font-size: var(--text-xs);
-    color: var(--text-muted);
-    margin-top: 2px;
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    margin-top: var(--space-1);
   }
 
   .assignment-description {
-    font-size: var(--text-sm);
-    color: var(--text-secondary);
-    margin-top: var(--space-2);
+    max-width: 68ch;
+    font-size: var(--text-md);
+    line-height: 1.6;
+    color: var(--text-primary);
+    margin-top: var(--space-3);
   }
 
   .my-submission {

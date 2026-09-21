@@ -85,6 +85,36 @@
   const visibleDayEvents = computed(() => showAllDayEvents.value ? selectedDayEvents.value : selectedDayEvents.value.slice(0, 5));
   const selectedDayLabel = computed(() => capitalizeFirst(selectedDay.value.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })));
   function eventTime(event: CalendarEvent) { return event.all_day ? "Todo el día" : new Date(event.starts_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }); }
+
+  const view = ref<"agenda" | "month">("agenda");
+  const sourceFilter = ref("all");
+  const SOURCE_LABELS: Record<string, string> = { assignment_due: "Entregas", quiz_due: "Evaluaciones", manual: "Clases y eventos" };
+  function sourceLabel(source: string) { return SOURCE_LABELS[source] ?? "Otros"; }
+
+  // Chips list only the sources actually present, so a filter can never lead
+  // to an empty agenda the student cannot explain.
+  const sourceFilters = computed(() => ["all", ...new Set(events.value.map((event) => event.source))]);
+  function matchesFilter(event: CalendarEvent) { return sourceFilter.value === "all" || event.source === sourceFilter.value; }
+
+  // Recurring events have no rows of their own, so the agenda is built by
+  // walking the days ahead and asking each one what falls on it — the same
+  // question the month grid asks per cell.
+  const AGENDA_DAYS = 60;
+  const agendaDays = computed(() => {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const result: { key: string; label: string; today: boolean; events: CalendarEvent[] }[] = [];
+    for (let offset = 0; offset < AGENDA_DAYS; offset++) {
+      const day = new Date(start.getFullYear(), start.getMonth(), start.getDate() + offset);
+      const dayEvents = eventsFor(day)
+        .filter(matchesFilter)
+        .sort((first, second) => new Date(first.starts_at).getTime() - new Date(second.starts_at).getTime());
+      if (!dayEvents.length) continue;
+      const label = capitalizeFirst(day.toLocaleDateString("es-AR", { weekday: "long", day: "numeric" }));
+      result.push({ key: formatDateInput(day), label: offset === 0 ? `Hoy · ${label.toLowerCase()}` : label, today: offset === 0, events: dayEvents });
+    }
+    return result;
+  });
   async function handleCreate() {
     if (!form.value.title.trim() || !form.value.courseId || !form.value.date || creating.value) return;
     const starts = new Date(`${form.value.date}T${form.value.time}`);
@@ -109,12 +139,55 @@
 
 <template>
   <div class="calendar-agenda">
-    <PageHeader eyebrow="Planificación" title="Calendario" subtitle="Eventos de tus cursos y fechas de entrega.">
-      <template v-if="authStore.isTeacher" #actions>
-        <Button icon="pi pi-plus" label="Agregar evento" @click="openEventModal()" />
+    <PageHeader eyebrow="Tu agenda" title="Calendario" subtitle="Entregas, evaluaciones y clases de tus cursos.">
+      <template #actions>
+        <div class="view-switch">
+          <button type="button" :class="{ on: view === 'agenda' }" :aria-pressed="view === 'agenda'" @click="view = 'agenda'">Agenda</button>
+          <button type="button" :class="{ on: view === 'month' }" :aria-pressed="view === 'month'" @click="view = 'month'">Mes</button>
+        </div>
+        <Button v-if="authStore.isTeacher" icon="pi pi-plus" label="Agregar evento" @click="openEventModal()" />
       </template>
     </PageHeader>
     <StateMessage v-if="loading" variant="loading" :rows="3" loading-label="Cargando calendario" />
+    <template v-else-if="view === 'agenda'">
+      <div v-if="sourceFilters.length > 2" class="source-chips">
+        <button
+          v-for="source in sourceFilters"
+          :key="source"
+          type="button"
+          :class="{ on: sourceFilter === source }"
+          :aria-pressed="sourceFilter === source"
+          @click="sourceFilter = source"
+        >
+          {{ source === "all" ? "Todo" : sourceLabel(source) }}
+        </button>
+      </div>
+      <p v-if="!agendaDays.length" class="agenda-none">No hay eventos programados en los próximos dos meses.</p>
+      <section v-for="day in agendaDays" :key="day.key" class="agenda-day" :class="{ 'agenda-day--today': day.today }">
+        <div class="agenda-day-head">
+          <h2>{{ day.label }}</h2>
+          <span>{{ day.events.length }} {{ day.events.length === 1 ? "evento" : "eventos" }}</span>
+        </div>
+        <article v-for="event in day.events" :key="`${event.id}-${day.key}`" class="agenda-row">
+          <span class="agenda-time">{{ eventTime(event) }}</span>
+          <span class="agenda-bar" :class="`agenda-bar--${event.source}`" aria-hidden="true"></span>
+          <span class="agenda-copy">
+            <strong>{{ event.title }}</strong>
+            <small>{{ sourceLabel(event.source) }}<template v-if="event.description"> · {{ event.description }}</template></small>
+          </span>
+          <Button
+            v-if="canManageEvent(event)"
+            type="button"
+            icon="pi pi-pencil"
+            text
+            rounded
+            size="small"
+            aria-label="Editar evento"
+            @click="openEventModal(event)"
+          />
+        </article>
+      </section>
+    </template>
     <div v-else class="calendar-layout">
       <section class="calendar-card" aria-label="Calendario mensual">
         <div class="calendar-toolbar"><Button icon="pi pi-chevron-left" text rounded aria-label="Mes anterior" @click="shiftMonth(-1)" /><h2>{{ monthLabel }}</h2><Button icon="pi pi-chevron-right" text rounded aria-label="Mes siguiente" @click="shiftMonth(1)" /></div>
@@ -150,6 +223,86 @@
 
 <style scoped>
   .calendar-agenda { max-width: 1100px; }
+
+  .view-switch { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--surface-border); border-radius: 11px; background: var(--surface-card); }
+
+  .view-switch button {
+    min-height: 40px;
+    padding: 0 var(--space-4);
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: var(--font-ui-family);
+    font-size: var(--text-base);
+    font-weight: 900;
+    cursor: pointer;
+  }
+
+  .view-switch button.on { background: var(--practiq-violet-pale); color: var(--practiq-violet-dark); }
+
+  .source-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-5); }
+
+  .source-chips button {
+    min-height: 38px;
+    padding: 0 var(--space-4);
+    border: 1px solid var(--surface-border);
+    border-radius: var(--radius-pill);
+    background: var(--surface-card);
+    color: var(--text-secondary);
+    font-family: var(--font-body-family);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .source-chips button:hover { background: var(--practiq-violet-pale); color: var(--practiq-violet-dark); }
+  .source-chips button.on { border-color: var(--practiq-violet); background: var(--practiq-violet); color: var(--color-on-primary); font-weight: 700; }
+
+  .agenda-none { margin: 0; padding: var(--space-5); border: 1px dashed var(--practiq-violet-200); border-radius: var(--radius-lg); background: var(--surface-card); color: var(--text-secondary); font-size: var(--text-base); text-align: center; }
+
+  .agenda-day + .agenda-day { margin-top: var(--space-5); }
+
+  .agenda-day--today {
+    padding: var(--space-5);
+    border: 1px solid var(--practiq-violet-200);
+    border-radius: var(--radius-xl);
+    background: var(--practiq-violet-pale);
+  }
+
+  .agenda-day-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-3); }
+
+  .agenda-day-head h2 {
+    margin: 0;
+    color: var(--text-secondary);
+    font-family: var(--font-ui-family);
+    font-size: var(--text-base);
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .agenda-day--today .agenda-day-head h2 { color: var(--practiq-violet-dark); }
+  .agenda-day-head span { color: var(--text-secondary); font-size: var(--text-sm); font-weight: 600; }
+
+  .agenda-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-4) var(--space-5);
+    border: 1px solid var(--surface-border);
+    border-radius: var(--radius-lg);
+    background: var(--surface-card);
+  }
+
+  .agenda-row + .agenda-row { margin-top: var(--space-3); }
+  .agenda-time { width: 52px; color: var(--text-heading); font-family: var(--font-ui-family); font-size: var(--text-md); font-weight: 900; }
+  .agenda-bar { width: 3px; align-self: stretch; border-radius: 3px; background: var(--practiq-violet); }
+  .agenda-bar--assignment_due { background: var(--color-warning); }
+  .agenda-copy { flex: 1; min-width: 170px; }
+  .agenda-copy strong { display: block; color: var(--text-heading); font-family: var(--font-ui-family); font-size: var(--text-md); font-weight: 900; letter-spacing: -0.02em; }
+  .agenda-copy small { display: block; margin-top: 3px; color: var(--text-secondary); font-size: var(--text-sm); }
   /* Month grid leads and takes the width it needs; the day agenda rides
      alongside as a sticky column so picking a day never scrolls it away. */
   .calendar-layout { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:var(--space-4); align-items:start; }

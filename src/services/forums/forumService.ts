@@ -7,6 +7,8 @@ export interface IForumService {
   listThreads(courseId: string): Promise<{ data: ForumThread[] }>;
   createPost(threadId: string, body: string, parentPostId?: string | null): Promise<{ data: ForumPost }>;
   listPosts(threadId: string, params?: { limit?: number; offset?: number }): Promise<{ data: ForumPost[]; has_more: boolean }>;
+  updatePost(id: string, body: string): Promise<{ data: ForumPost }>;
+  deletePost(id: string): Promise<void>;
 }
 
 export class ForumService implements IForumService {
@@ -35,5 +37,14 @@ export class ForumService implements IForumService {
   async listPosts(threadId: string, params?: { limit?: number; offset?: number }): Promise<{ data: ForumPost[]; has_more: boolean }> {
     const { data } = await this.api.get(`/forum-threads/${threadId}/posts`, { params });
     return data;
+  }
+
+  async updatePost(id: string, body: string): Promise<{ data: ForumPost }> {
+    const { data } = await this.api.put(`/forum-posts/${id}`, { body });
+    return data;
+  }
+
+  async deletePost(id: string): Promise<void> {
+    await this.api.delete(`/forum-posts/${id}`);
   }
 }

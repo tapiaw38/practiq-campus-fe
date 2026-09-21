@@ -8,6 +8,7 @@
   import { useNavDrawer } from "@/composables/useNavDrawer";
   import { useMessageNotifications } from "@/composables/useMessageNotifications";
   import { useCalendarNotifications } from "@/composables/useCalendarNotifications";
+  import { useNotificationBadge } from "@/composables/useNotificationBadge";
 
   const router = useRouter();
   const authStore = useAuthStore();
@@ -15,10 +16,12 @@
   const { logout } = useAuth();
   const { unreadCount, start: startMessageNotifications } = useMessageNotifications();
   const { start: startCalendarNotifications } = useCalendarNotifications();
+  const { unreadCount: notificationCount, start: startNotificationBadge } = useNotificationBadge();
 
   onMounted(() => {
     startMessageNotifications();
     startCalendarNotifications();
+    startNotificationBadge();
   });
 
   const navToggle = ref<HTMLElement | null>(null);
@@ -64,8 +67,11 @@
       >
         <i class="pi pi-bars" aria-hidden="true"></i>
       </button>
-      <div class="topbar-brand"><img src="/logo.png" alt="" class="brand-logo" /> Practiq Campus</div>
-      <div class="topbar-avatar" aria-hidden="true">{{ userInitial }}</div>
+      <div class="topbar-brand"><img src="/logo.png" alt="" class="brand-logo" /> <span class="brand-word">practiq <b>campus</b></span></div>
+      <RouterLink to="/teacher/notifications" class="topbar-btn topbar-btn--boxed" aria-label="Notificaciones">
+        <i class="pi pi-bell" aria-hidden="true"></i>
+        <span v-if="notificationCount" class="topbar-notice" aria-hidden="true"></span>
+      </RouterLink>
     </header>
 
     <button
@@ -85,7 +91,7 @@
       tabindex="-1"
     >
       <div class="sidebar-brand">
-        <span class="brand-text"><img src="/logo.png" alt="" class="brand-logo" /> Practiq Campus</span>
+        <span class="brand-text"><img src="/logo.png" alt="" class="brand-logo" /> <span class="brand-word">practiq <b>campus</b></span></span>
         <button
           class="close-btn"
           type="button"
@@ -129,6 +135,8 @@
         <RouterLink to="/teacher/notifications" class="nav-item" active-class="nav-item-active">
           <span class="nav-icon"><i class="pi pi-bell" aria-hidden="true"></i></span>
           <span>Notificaciones</span>
+          <span v-if="notificationCount" class="nav-badge" aria-hidden="true">{{ notificationCount }}</span>
+          <span v-if="notificationCount" class="sr-only">{{ notificationCount === 1 ? "1 notificación sin leer" : `${notificationCount} notificaciones sin leer` }}</span>
         </RouterLink>
         <RouterLink to="/teacher/grades" class="nav-item" active-class="nav-item-active">
           <span class="nav-icon"><i class="pi pi-chart-bar" aria-hidden="true"></i></span>
@@ -227,15 +235,21 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-2);
-    font-weight: 700;
+    font-family: var(--font-ui-family);
+    font-weight: 900;
     font-size: var(--text-lg);
     color: var(--text-heading);
   }
+
+  .brand-word { letter-spacing: -.03em; text-transform: lowercase; }
+  .brand-word b { color: var(--practiq-violet); font-weight: 900; }
 
   .brand-logo {
     width: 24px;
     height: 24px;
   }
+
+  .topbar-notice { position:absolute;top:7px;right:7px;width:8px;height:8px;border:2px solid var(--surface-card);border-radius:50%;background:var(--color-error); }
 
   .close-btn {
     display: none;

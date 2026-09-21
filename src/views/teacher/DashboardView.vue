@@ -215,15 +215,17 @@
     max-width: 960px;
   }
 
-  .dashboard-head { display:flex;align-items:flex-end;justify-content:space-between;gap:var(--space-4);padding:var(--space-6);margin-bottom:var(--space-4);border:1px solid var(--surface-border);border-radius:var(--radius-md);background:var(--gradient-brand-soft); }
+  .dashboard-head { display:flex;align-items:flex-end;justify-content:space-between;gap:var(--space-4);padding:var(--space-2) 0 var(--space-5);margin-bottom:var(--space-3); }
 
   .dashboard-head h1 {
     margin:var(--space-1) 0;
-    font-size: clamp(24px,4vw,32px);
-    font-weight: 700;
+    font-family: var(--font-ui-family);
+    font-size: clamp(28px,4vw,34px);
+    font-weight: 900;
+    letter-spacing: -.035em;
     color: var(--text-heading);
   }
-  .dashboard-head p{margin:0;color:var(--text-secondary);font-size:var(--text-sm)}.eyebrow{color:var(--practiq-violet-dark);font-size:var(--text-xs);font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+  .dashboard-head p{margin:0;color:var(--text-secondary);font-size:var(--text-sm)}.eyebrow{color:var(--practiq-violet-dark);font-family:var(--font-ui-family);font-size:var(--text-xs);font-weight:900;text-transform:uppercase;letter-spacing:.09em}
 
   .dashboard-actions {
     display: flex;
@@ -235,12 +237,14 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
-    padding: var(--space-2) var(--space-4);
+    min-height:44px;
+    padding:0 var(--space-4);
     border: 0;
-    border-radius: var(--radius-md);
+    border-radius: 11px;
     background: var(--gradient-brand);
     color: var(--color-on-primary);
-    font-weight: 700;
+    font-family:var(--font-ui-family);
+    font-weight: 900;
     font-size: var(--text-sm);
     cursor: pointer;
   }
@@ -333,7 +337,7 @@
   }
   .course-labels{display:flex;gap:var(--space-1);flex-wrap:wrap;margin-top:var(--space-3)}.course-labels span{padding:2px 6px;border-radius:999px;background:var(--fill-primary-soft);color:var(--practiq-violet-dark);font-size:10px;font-weight:800}.course-actions{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);margin-top:auto;padding-top:var(--space-3)}.course-open{display:inline-flex;align-items:center;gap:var(--space-1);color:var(--practiq-violet-dark);font-size:var(--text-xs);font-weight:800}.course-actions-secondary{display:inline-flex;align-items:center;gap:var(--space-3)}.delete-course,.duplicate-course{display:inline-flex;align-items:center;gap:var(--space-1);padding:0;border:0;background:transparent;color:var(--text-muted);font-size:var(--text-xs);cursor:pointer}.delete-course:hover{color:var(--color-error-dark);text-decoration:underline}.duplicate-course:hover{color:var(--practiq-violet-dark);text-decoration:underline}.duplicate-course:disabled{opacity:.6;cursor:default;text-decoration:none}.empty-action{display:inline-flex;align-items:center;gap:var(--space-1);min-height:40px;padding:var(--space-2) var(--space-4);border:0;border-radius:var(--radius-md);background:var(--gradient-brand);color:var(--color-on-primary);font-size:var(--text-sm);font-weight:800;box-shadow:var(--shadow-violet);cursor:pointer}.delete-dialog{display:grid;grid-template-columns:auto 1fr;gap:var(--space-3);align-items:start}.delete-dialog p{margin:0;color:var(--text-primary)}.delete-dialog small{grid-column:2;color:var(--text-secondary);line-height:1.45}.delete-dialog-icon{display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:var(--fill-warning-subtle);color:var(--color-warning-dark)}.dialog-actions{display:flex;justify-content:flex-end;gap:var(--space-2);margin-top:var(--space-5)}
   @media(max-width:700px){
-    .dashboard-head{align-items:stretch;flex-direction:column;padding:var(--space-4);margin-bottom:var(--space-3)}
+    .dashboard-head{align-items:stretch;flex-direction:column;padding:var(--space-2) 0 var(--space-4);margin-bottom:var(--space-3)}
     .dashboard-head h1{font-size:26px}.dashboard-head p{font-size:13px;line-height:1.45}
     .new-course-btn{justify-content:center;min-height:44px}
     .summary-grid{display:flex;gap:var(--space-2);margin:0 calc(var(--space-4) * -1) var(--space-5);padding:0 var(--space-4) 4px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-x:contain}.summary-grid::-webkit-scrollbar{display:none}.summary-card{flex:0 0 min(78vw,260px);min-height:76px;padding:var(--space-3);scroll-snap-align:start}

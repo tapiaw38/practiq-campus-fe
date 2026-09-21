@@ -2,6 +2,7 @@ export interface ForumThread {
   id: string;
   course_id: string;
   author_id: string;
+  author_name?: string;
   title: string;
   description: string;
   created_at: string;
@@ -15,4 +16,5 @@ export interface ForumPost {
   author_name?: string;
   body: string;
   created_at: string;
+  deleted: boolean;
 }

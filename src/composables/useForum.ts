@@ -79,5 +79,26 @@ export function useForum() {
     }
   }
 
-  return { threads, postsByThread, loading, loadThreads, createThread, updateThread, loadPosts, createPost };
+  async function updatePost(id: string, body: string) {
+    try {
+      const { data } = await forumService.updatePost(id, body);
+      toast.add({ severity: "success", summary: "Mensaje actualizado", life: 2000 });
+      return data;
+    } catch (error) {
+      toast.add({ severity: "error", summary: "Error", detail: "No se pudo actualizar el mensaje", life: 3000 });
+      throw error;
+    }
+  }
+
+  async function deletePost(id: string) {
+    try {
+      await forumService.deletePost(id);
+      toast.add({ severity: "success", summary: "Mensaje eliminado", life: 2000 });
+    } catch (error) {
+      toast.add({ severity: "error", summary: "No se pudo eliminar", detail: "No podés eliminar un mensaje con respuestas.", life: 3500 });
+      throw error;
+    }
+  }
+
+  return { threads, postsByThread, loading, loadThreads, createThread, updateThread, loadPosts, createPost, updatePost, deletePost };
 }

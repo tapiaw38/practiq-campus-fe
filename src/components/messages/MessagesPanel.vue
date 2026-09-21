@@ -178,7 +178,7 @@
       <Button label="Nuevo mensaje" icon="pi pi-plus" @click="showCompose = true" />
     </header>
 
-    <section class="messages-layout" aria-label="Conversaciones">
+    <section class="messages-layout" :class="{ 'messages-layout--conversation-selected': selectedConversationId }" aria-label="Conversaciones">
       <aside class="conversation-sidebar">
         <div class="conversation-sidebar__head">
           <div>
@@ -231,6 +231,10 @@
         </div>
         <template v-else>
           <header class="thread-header">
+            <button class="thread-back" type="button" aria-label="Volver a conversaciones" @click="selectedConversationId = null">
+              <i class="pi pi-arrow-left" aria-hidden="true"></i>
+              <span>Conversaciones</span>
+            </button>
             <span class="thread-avatar">{{ initial(selectedConversation?.other_user_name || selectedConversation?.other_user_email || "?") }}</span>
             <div>
               <h2>{{ selectedConversation?.other_user_name || selectedConversation?.other_user_email }}</h2>
@@ -648,34 +652,47 @@
   .conversation-search { position: relative; margin-bottom: var(--space-3); }
   .conversation-search > i { position: absolute; z-index: 1; top: 50%; left: 11px; color: var(--text-muted); font-size: 13px; transform: translateY(-50%); }
   .conversation-search :deep(input) { width: 100%; padding-left: 32px; }
-  .conversation-list { min-height: 0; flex: 1; gap: 4px; overflow-y: auto; }
+  .conversation-list { min-height: 0; flex: 1; gap: 0; overflow-y: auto; }
   .state-message { text-align: center; }
   .state-message--compact { padding: var(--space-4) var(--space-2); background: transparent; }
-  .conversation-item { padding: var(--space-2); background: transparent; box-shadow: none; }
-  .conversation-item:hover:not(.conversation-item--active) { background: var(--surface-hover); }
+  .conversation-item { gap: 11px; padding: var(--space-3) var(--space-4); border-left: 3px solid transparent; border-radius: 0; background: transparent; box-shadow: none; }
+  .conversation-item:hover:not(.conversation-item--active) { background: var(--surface-bg); }
+  .conversation-item--active { border-left-color: var(--practiq-violet); background: var(--practiq-violet-pale); }
+  .conversation-avatar { width: 38px; height: 38px; border-radius: 11px; background: var(--practiq-violet-pale); font-family: var(--font-ui-family); font-size: var(--text-md); font-weight: 900; }
+  .conversation-item--active .conversation-avatar { background: var(--practiq-violet-900); color: var(--color-on-primary); }
   .thread-panel { min-width: 0; gap: 0; background: var(--surface-card); }
   .thread-header { display: flex; align-items: center; gap: var(--space-3); min-height: 76px; padding: var(--space-3) var(--space-5); border-bottom: 1px solid var(--surface-border); }
   .thread-header h2 { margin: 0; color: var(--text-heading); font-size: var(--text-base); }
   .thread-header p { margin: 2px 0 0; color: var(--text-muted); font-size: var(--text-xs); }
-  .thread-avatar { display: grid; width: 38px; height: 38px; flex: 0 0 auto; border-radius: 50%; place-items: center; background: var(--fill-primary-soft); color: var(--practiq-violet-dark); font-size: var(--text-sm); font-weight: 800; }
-  .message-list { flex: 1; padding: var(--space-5); min-height: 380px; max-height: none; }
-  .message-item { max-width: min(75%, 580px); border: 1px solid var(--surface-border); border-radius: var(--radius-md) var(--radius-md) var(--radius-md) 3px; }
-  .message-item--mine { border-color: transparent; border-radius: var(--radius-md) var(--radius-md) 3px var(--radius-md); }
+  .thread-avatar { display: grid; width: 38px; height: 38px; flex: 0 0 auto; border-radius: 11px; place-items: center; background: var(--practiq-violet-900); color: var(--color-on-primary); font-family: var(--font-ui-family); font-size: var(--text-md); font-weight: 900; }
+  .message-list { flex: 1; padding: var(--space-5); min-height: 380px; max-height: none; background: var(--surface-bg); }
+  .message-item { max-width: min(78%, 580px); padding: 11px var(--space-4); border: 1px solid var(--surface-border); border-radius: 14px 14px 14px 4px; background: var(--surface-card); }
+  .message-item--mine { border-color: transparent; border-radius: 14px 14px 4px 14px; background: var(--practiq-violet); }
+  .message-item--mine .message-body { color: var(--color-on-primary); }
+  .message-item--mine .message-time { color: var(--practiq-violet-200); }
+  .message-body { font-size: var(--text-base); line-height: 1.55; }
+  .message-time { display: block; margin-top: 5px; }
   .reply-form { align-items: flex-end; padding: var(--space-3) var(--space-5) var(--space-4); border-top: 1px solid var(--surface-border); background: var(--surface-card); }
   .empty-thread { display: grid; flex: 1; place-content: center; padding: var(--space-6); text-align: center; }
   .empty-thread__icon { display: grid; width: 52px; height: 52px; margin: 0 auto var(--space-3); border-radius: 50%; place-items: center; background: var(--fill-primary-soft); color: var(--practiq-violet-dark); font-size: 21px; }
   .empty-thread h2 { margin: 0; color: var(--text-heading); font-size: 18px; }
   .empty-thread p { margin: var(--space-2) 0 var(--space-4); color: var(--text-secondary); font-size: var(--text-sm); }
+  .thread-back { display: none; }
 
   @media (max-width: 720px) {
     .messages-header { align-items: stretch; flex-direction: column; }
     .messages-header :deep(.p-button) { width: 100%; justify-content: center; }
-    .messages-layout { min-height: auto; gap: 0; overflow: visible; box-shadow: none; }
-    .conversation-sidebar { border-right: none; border-bottom: 1px solid var(--surface-border); }
-    .conversation-list { max-height: 250px; }
-    .thread-panel { min-height: 500px; }
+    .messages-layout { display: block; min-height: auto; overflow: hidden; box-shadow: var(--shadow-card); }
+    .conversation-sidebar { min-height: min(560px, calc(100dvh - 290px)); padding: var(--space-3); border-right: none; border-bottom: 0; }
+    .conversation-list { max-height: none; }
+    .messages-layout--conversation-selected .conversation-sidebar { display: none; }
+    .thread-panel { display: none; min-height: min(560px, calc(100dvh - 250px)); }
+    .messages-layout--conversation-selected .thread-panel { display: flex; }
     .thread-header, .reply-form { padding-left: var(--space-3); padding-right: var(--space-3); }
+    .thread-header { flex-wrap: wrap; min-height: auto; padding-top: var(--space-2); }
+    .thread-back { display: inline-flex; width: 100%; align-items: center; gap: 6px; padding: 0 0 var(--space-2); border: 0; border-bottom: 1px solid var(--surface-border); background: transparent; color: var(--practiq-violet-dark); font-size: var(--text-xs); font-weight: 700; text-align: left; cursor: pointer; }
     .message-list { padding: var(--space-3); }
     .message-item { max-width: 88%; }
+    .reply-form { position: sticky; bottom: 0; background: var(--surface-card); }
   }
 </style>

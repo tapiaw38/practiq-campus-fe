@@ -56,6 +56,9 @@ function percent(score: number | null, max: number) {
   return score == null || !max ? null : Math.round(score / max * 100);
 }
 
+const submittedRows = computed(() => visibleRows.value.filter((row) => row.submitted));
+const missingRows = computed(() => visibleRows.value.filter((row) => !row.submitted));
+
 async function assignmentRows(course: Course): Promise<GradeRow[]> {
   const { data } = await assignmentService.listByCourse(course.id);
   return Promise.all(data.map(async (assignment): Promise<GradeRow> => {
@@ -121,9 +124,9 @@ function exportCsv() {
   <component :is="teacher ? TeacherLayout : StudentLayout">
     <section class="grades-page">
       <PageHeader
-        eyebrow="Seguimiento académico"
+        :eyebrow="teacher ? 'Seguimiento académico' : 'Tu rendimiento'"
         :title="teacher ? 'Calificaciones' : 'Mis calificaciones'"
-        :subtitle="teacher ? 'Revisá entregas y promedio de cada actividad, tareas y evaluaciones.' : 'Consultá notas, devoluciones y avance por actividad.'"
+        :subtitle="teacher ? 'Revisá entregas y promedio de cada actividad, tareas y evaluaciones.' : 'Notas, devoluciones y avance por actividad.'"
       >
         <template #actions>
           <Select
@@ -140,13 +143,22 @@ function exportCsv() {
 
       <StateMessage v-if="loading" variant="loading" loading-label="Cargando calificaciones" :rows="4" />
       <template v-else>
-        <div v-if="!teacher && visibleRows.length" class="summary">
-          <span class="summary-icon"><i class="pi pi-chart-line" aria-hidden="true"></i></span>
-          <div>
-            <small>Promedio actual</small>
-            <strong>{{ average == null ? "Sin notas" : `${average}%` }}</strong>
+        <div v-if="!teacher && visibleRows.length" class="stat-grid">
+          <div class="stat-card stat-card--average">
+            <span class="stat-label">Promedio general</span>
+            <strong>{{ average == null ? "—" : `${average}%` }}</strong>
+            <span class="stat-note">{{ gradedRows.length }} {{ gradedRows.length === 1 ? "actividad calificada" : "actividades calificadas" }}</span>
           </div>
-          <span>{{ gradedRows.length }} de {{ visibleRows.length }} actividades calificadas</span>
+          <div class="stat-card">
+            <span class="stat-label">Actividades corregidas</span>
+            <strong>{{ gradedRows.length }}</strong>
+            <span class="stat-note">de {{ submittedRows.length }} entregadas</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">Sin entregar</span>
+            <strong :class="{ 'stat-warning': missingRows.length }">{{ missingRows.length }}</strong>
+            <span class="stat-note">de {{ visibleRows.length }} actividades</span>
+          </div>
         </div>
         <StateMessage
           v-if="!visibleRows.length"
@@ -155,12 +167,17 @@ function exportCsv() {
           :description="teacher ? 'Cuando publiques una tarea o evaluación, su promedio aparecerá acá.' : 'Cuando tus cursos publiquen actividades, vas a ver acá tus notas y devoluciones.'"
         />
         <ul v-else class="grade-list">
-          <li v-for="row in visibleRows" :key="`${row.kind}:${row.id}`">
+          <li v-for="row in visibleRows" :key="`${row.kind}:${row.id}`" :class="{ 'grade-row--missing': !teacher && !row.submitted }">
+            <span class="grade-icon" :class="{ 'grade-icon--missing': !teacher && !row.submitted }">
+              <i class="pi" :class="!teacher && !row.submitted ? 'pi-clock' : row.kind === 'quiz' ? 'pi-verified' : 'pi-check-square'" aria-hidden="true"></i>
+            </span>
             <div class="grade-title">
-              <span class="course-name">{{ row.course.title }} <i class="pi" :class="row.kind === 'quiz' ? 'pi-verified' : 'pi-check-square'" :title="row.kind === 'quiz' ? 'Evaluación' : 'Tarea'" /></span>
               <strong>{{ row.title }}</strong>
-              <small v-if="row.dueAt">Entrega: {{ new Date(row.dueAt).toLocaleDateString("es-AR") }}</small>
-              <small v-if="row.weight !== 100">Peso {{ row.weight }}</small>
+              <small>
+                {{ row.course.title }} · {{ row.kind === "quiz" ? "Evaluación" : "Tarea" }}
+                <template v-if="row.dueAt"> · entrega {{ new Date(row.dueAt).toLocaleDateString("es-AR") }}</template>
+                <template v-if="row.weight !== 100"> · peso {{ row.weight }}</template>
+              </small>
             </div>
             <template v-if="teacher">
               <div class="teacher-metric">
@@ -196,5 +213,95 @@ function exportCsv() {
 </template>
 
 <style scoped>
-.grades-page{max-width:1000px}.course-select{width:230px}.summary{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-4);margin-bottom:var(--space-4);border:1px solid var(--surface-border);border-radius:var(--radius-md);background:var(--surface-card);box-shadow:var(--shadow-card)}.summary-icon{display:grid;width:38px;height:38px;border-radius:var(--radius-md);place-items:center;background:var(--fill-primary-soft);color:var(--practiq-violet-dark)}.summary small,.summary span:last-child{color:var(--text-secondary);font-size:var(--text-xs)}.summary strong{display:block;color:var(--text-heading);font-size:var(--text-lg)}.summary span:last-child{margin-left:auto}.grade-list{display:flex;flex-direction:column;gap:var(--space-2);padding:0;list-style:none}.grade-list li{display:flex;align-items:center;gap:var(--space-4);padding:var(--space-4);border:1px solid var(--surface-border);border-radius:var(--radius-md);background:var(--surface-card);box-shadow:var(--shadow-card)}.grade-title{display:flex;min-width:0;flex:1;flex-direction:column;gap:3px}.grade-title strong{color:var(--text-heading);font-size:var(--text-sm)}.grade-title small,.course-name,.grade-feedback{color:var(--text-secondary);font-size:var(--text-xs)}.course-name{display:inline-flex;align-items:center;gap:4px;color:var(--practiq-violet-dark);font-weight:700}.grade-feedback{max-width:260px}.grade-pending-flag{color:var(--color-warning-dark);font-weight:700}.teacher-metric{display:flex;min-width:62px;flex-direction:column;text-align:center}.teacher-metric strong{color:var(--text-heading)}.teacher-metric span{color:var(--text-muted);font-size:10px}.grade-value{display:flex;min-width:70px;flex-direction:column;align-items:flex-end;color:var(--color-success-dark);font-size:var(--text-lg);font-weight:800}.grade-value small{font-size:var(--text-xs)}.grade-value.pending{color:var(--text-muted);font-size:var(--text-sm)}@media(max-width:650px){.course-select{width:100%}.grade-list li{align-items:flex-start;flex-wrap:wrap;gap:var(--space-2)}.grade-feedback{order:3;max-width:none;width:calc(100% - 80px)}.summary span:last-child{display:none}}
+  .grades-page { max-width: 1000px; }
+  .course-select { width: 230px; }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: var(--space-3);
+    margin-bottom: var(--space-5);
+  }
+
+  .stat-card {
+    padding: var(--space-5);
+    border: 1px solid var(--surface-border);
+    border-radius: var(--radius-lg);
+    background: var(--surface-card);
+  }
+
+  .stat-card--average { border-color: var(--practiq-violet-200); background: var(--practiq-violet-pale); }
+  .stat-card--average .stat-label { color: var(--practiq-violet-dark); }
+
+  .stat-label { display: block; color: var(--text-secondary); font-size: var(--text-sm); font-weight: 600; }
+
+  .stat-card strong {
+    display: block;
+    margin-top: var(--space-1);
+    color: var(--text-heading);
+    font-family: var(--font-ui-family);
+    font-size: 32px;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+  }
+
+  .stat-warning { color: var(--color-warning-dark); }
+  .stat-note { font-size: var(--text-sm); color: var(--text-secondary); }
+
+  .grade-list { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+
+  .grade-list li {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-4) var(--space-5);
+    border: 1px solid var(--surface-border);
+    border-radius: var(--radius-lg);
+    background: var(--surface-card);
+  }
+
+  .grade-row--missing { background: var(--color-warning-bg); border-color: var(--color-warning-bg); }
+
+  .grade-icon {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    flex: 0 0 34px;
+    place-items: center;
+    border-radius: var(--radius-lg);
+    background: var(--practiq-violet-pale);
+    color: var(--practiq-violet-dark);
+  }
+
+  .grade-icon--missing { background: var(--surface-card); color: var(--color-warning-dark); }
+
+  .grade-title { display: flex; min-width: 180px; flex: 1; flex-direction: column; gap: 2px; }
+  .grade-title strong { color: var(--text-heading); font-size: var(--text-md); }
+  .grade-title small, .grade-feedback { color: var(--text-secondary); font-size: var(--text-sm); }
+  .grade-feedback { flex: 1; min-width: 150px; }
+  .grade-pending-flag { color: var(--color-warning-dark); font-weight: 700; }
+
+  .teacher-metric { display: flex; min-width: 62px; flex-direction: column; text-align: center; }
+  .teacher-metric strong { color: var(--text-heading); }
+  .teacher-metric span { color: var(--text-muted); font-size: 10px; }
+
+  .grade-value {
+    display: flex;
+    min-width: 70px;
+    flex-direction: column;
+    align-items: flex-end;
+    color: var(--color-success-dark);
+    font-family: var(--font-ui-family);
+    font-size: 19px;
+    font-weight: 900;
+  }
+
+  .grade-value small { color: var(--text-secondary); font-family: var(--font-body-family); font-size: var(--text-sm); font-weight: 400; }
+  .grade-value.pending { color: var(--text-muted); font-size: var(--text-md); }
+
+  @media (max-width: 650px) {
+    .course-select { width: 100%; }
+    .grade-list li { align-items: flex-start; flex-wrap: wrap; gap: var(--space-2); }
+    .grade-feedback { order: 3; width: 100%; }
+  }
 </style>
