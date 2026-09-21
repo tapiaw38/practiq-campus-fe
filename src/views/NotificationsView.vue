@@ -14,7 +14,15 @@ import { useNotificationBadge } from "@/composables/useNotificationBadge";
 const { role, isTeacher } = useCampusRole();
 const { items, loading, load, markAllRead, markRead } = useNotifications(role.value);
 const { refresh: refreshBadge } = useNotificationBadge();
-onMounted(load);
+onMounted(async () => {
+  await load();
+  // Opening the inbox is an explicit acknowledgement on mobile. Leaving the
+  // drawer badge after the user already saw its rows was misleading.
+  if (items.value.some((item) => !item.read)) {
+    await markAllRead();
+    await refreshBadge();
+  }
+});
 const unreadCount = computed(() => items.value.filter((item) => !item.read).length);
 const onlyUnread = ref(false);
 const visibleItems = computed(() => (onlyUnread.value ? items.value.filter((item) => !item.read) : items.value));
