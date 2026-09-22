@@ -108,7 +108,7 @@
 
       <TenantSwitcher />
 
-      <nav class="sidebar-nav" aria-label="Navegación principal">
+      <nav class="sidebar-nav" aria-label="Más opciones">
         <div class="nav-section-label nav-section-label--primary">Docente</div>
         <RouterLink
           to="/teacher/dashboard"
@@ -136,13 +136,19 @@
           <span v-if="unreadCount" class="nav-badge" aria-hidden="true">{{ unreadCount }}</span>
           <span v-if="unreadCount" class="sr-only">{{ unreadLabel }}</span>
         </RouterLink>
+        <div class="nav-section-label nav-section-label--secondary">Más opciones</div>
         <RouterLink to="/teacher/notifications" class="nav-item nav-item--secondary" active-class="nav-item-active" @click="acknowledgeNotifications">
           <span class="nav-icon"><i class="pi pi-bell" aria-hidden="true"></i></span>
           <span>Notificaciones</span>
           <span v-if="notificationCount" class="nav-badge" aria-hidden="true">{{ notificationCount }}</span>
           <span v-if="notificationCount" class="sr-only">{{ notificationCount === 1 ? "1 notificación sin leer" : `${notificationCount} notificaciones sin leer` }}</span>
         </RouterLink>
-        <RouterLink to="/teacher/grades" class="nav-item nav-item--primary" active-class="nav-item-active">
+        <RouterLink
+          to="/teacher/grades"
+          class="nav-item"
+          :class="canManageInstitution ? 'nav-item--secondary' : 'nav-item--primary'"
+          active-class="nav-item-active"
+        >
           <span class="nav-icon"><i class="pi pi-chart-bar" aria-hidden="true"></i></span>
           <span>Calificaciones</span>
         </RouterLink>
@@ -198,8 +204,8 @@
     <nav class="tabbar" aria-label="Navegación principal">
       <template v-if="authStore.isSuperAdmin">
         <RouterLink to="/admin/institutions" class="tab" active-class="tab-active"><span class="tab-icon"><i class="pi pi-building" aria-hidden="true"></i></span><span class="tab-label">Escuelas</span></RouterLink>
-        <RouterLink to="/admin/users" class="tab" active-class="tab-active"><span class="tab-icon"><i class="pi pi-users" aria-hidden="true"></i></span><span class="tab-label">Usuarios</span></RouterLink>
         <RouterLink to="/teacher/dashboard" class="tab" active-class="tab-active"><span class="tab-icon"><i class="pi pi-book" aria-hidden="true"></i></span><span class="tab-label">Cursos</span></RouterLink>
+        <RouterLink to="/teacher/calendar" class="tab" active-class="tab-active"><span class="tab-icon"><i class="pi pi-calendar" aria-hidden="true"></i></span><span class="tab-label">Agenda</span></RouterLink>
         <RouterLink to="/teacher/messages" class="tab" active-class="tab-active"><span class="tab-icon"><i class="pi pi-envelope" aria-hidden="true"></i><span v-if="unreadCount" class="tab-badge" aria-hidden="true">{{ unreadCount }}</span></span><span class="tab-label">Mensajes</span></RouterLink>
       </template>
       <template v-else-if="canManageInstitution">
@@ -414,8 +420,9 @@
 
   @media (max-width: 860px) {
     .app-shell {
-      display: block;
+      flex-direction: column;
       min-height: 100vh;
+      min-height: 100dvh;
     }
 
     .mobile-topbar {
@@ -441,18 +448,23 @@
 
     .topbar-btn {
       display: grid;
+      position: relative;
       /* 44px is the smallest target a thumb hits reliably; the icon alone was
          about 18. */
       width: 44px;
       height: 44px;
-      margin-left: calc(var(--space-3) * -1);
-      border: none;
-      border-radius: var(--radius-md);
-      background: transparent;
-      color: var(--text-primary);
+      border: 1px solid var(--surface-border);
+      border-radius: var(--radius-lg);
+      background: var(--surface-card);
+      color: var(--text-heading);
       cursor: pointer;
-      font-size: 18px;
+      font-size: 16px;
       place-items: center;
+    }
+
+    .topbar-btn--boxed:hover {
+      background: var(--surface-hover);
+      color: var(--practiq-violet-dark);
     }
 
     .topbar-brand {
@@ -466,18 +478,6 @@
     .topbar-brand .brand-logo {
       width: 20px;
       height: 20px;
-    }
-
-    .topbar-avatar {
-      width: 30px;
-      height: 30px;
-      border-radius: var(--radius-md);
-      background: var(--gradient-brand);
-      color: var(--color-on-primary);
-      display: grid;
-      place-items: center;
-      font-weight: 700;
-      font-size: var(--text-sm);
     }
 
     .drawer-backdrop {

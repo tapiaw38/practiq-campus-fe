@@ -422,6 +422,7 @@
 
     .topbar-btn {
       display: grid;
+      position: relative;
       /* 44px is the smallest target a thumb hits reliably; the icon alone was
          about 18. */
       width: 44px;
