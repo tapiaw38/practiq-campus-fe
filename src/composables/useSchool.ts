@@ -19,6 +19,8 @@ export function useSchool() {
     try {
       members.value = await schoolService.members();
       return members.value;
+    } catch (e) {
+      throw new Error(reason(e, "No se pudieron cargar las personas de esta institución."));
     } finally {
       loading.value = false;
     }
@@ -27,7 +29,6 @@ export function useSchool() {
   async function addMember(userID: string, role: SchoolMember["role"]) {
     try {
       await schoolService.addMember(userID, role);
-      await loadMembers();
     } catch (e) {
       throw new Error(reason(e, "No se pudo agregar. Verificá que esta persona ya tenga perfil en Practiq."));
     }
@@ -36,7 +37,6 @@ export function useSchool() {
   async function removeMember(userID: string) {
     try {
       await schoolService.removeMember(userID);
-      await loadMembers();
     } catch (e) {
       throw new Error(reason(e, "No se pudo quitar esta persona."));
     }

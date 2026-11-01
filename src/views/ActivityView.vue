@@ -17,7 +17,7 @@ const { role, isTeacher } = useCampusRole();
 const { loadCourses } = useCourses(); const { loadAssignments } = useAssignments(); const { loadMaterials } = useCourseMaterials(); const { loadThreads } = useForum();
 const items = ref<Activity[]>([]); const loading = ref(true); const selectedCourse = ref("all");
 const visible = computed(() => items.value.filter((item) => selectedCourse.value === "all" || item.course.id === selectedCourse.value));
-onMounted(async () => { try { const courses = await loadCourses(); const data = await Promise.all(courses.map(async (course) => { const [as, ms, fs] = await Promise.all([loadAssignments(course.id), loadMaterials(course.id), loadThreads(course.id)]); return [
+onMounted(async () => { try { const courses = await loadCourses(); const data = await Promise.all(courses.map(async (course) => { const [as, ms, fs] = await Promise.all([loadAssignments(course.id), loadMaterials(course.id, { silent: true }), loadThreads(course.id)]); return [
   ...as.map((x) => ({ id:`a:${x.id}`,course,kind:"assignment" as const,title:`Nueva tarea: ${x.title}`,detail:x.due_at ? `Entrega: ${new Date(x.due_at).toLocaleDateString("es-AR")}` : "Sin fecha de entrega",at:x.created_at,to:`/${role.value}/courses/${course.id}` })),
   ...ms.map((x) => ({ id:`m:${x.id}`,course,kind:"material" as const,title:`Nuevo material: ${x.title}`,detail:x.description || (x.kind === "file" ? "Archivo compartido" : "Enlace compartido"),at:x.created_at,to:`/${role.value}/courses/${course.id}` })),
   ...fs.map((x) => ({ id:`f:${x.id}`,course,kind:"forum" as const,title:`Nuevo foro: ${x.title}`,detail:x.description || "Nueva discusión",at:x.created_at,to:`/${role.value}/courses/${course.id}/forum/${x.id}` }))

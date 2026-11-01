@@ -11,10 +11,13 @@ export function useCourseMaterials() {
   const materials = ref<CourseMaterial[]>([]);
   const loading = ref(false);
 
-  async function loadMaterials(courseId: string) {
+  async function loadMaterials(courseId: string, options?: { silent?: boolean }) {
     loading.value = true;
     try { materials.value = await materialService.list(courseId); return materials.value; }
-    catch (error) { toast.add({ severity: "error", summary: "Error", detail: "No se pudieron cargar los materiales", life: 3000 }); throw error; }
+    catch (error) {
+      if (!options?.silent) toast.add({ severity: "error", summary: "Error", detail: "No se pudieron cargar los materiales", life: 3000 });
+      throw error;
+    }
     finally { loading.value = false; }
   }
 

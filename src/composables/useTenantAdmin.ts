@@ -21,8 +21,13 @@ export function useTenantAdmin() {
   }
 
   async function loadEligibleSchools() {
-    eligible.value = await tenantAdminService.eligibleSchools();
-    return eligible.value;
+    try {
+      eligible.value = await tenantAdminService.eligibleSchools();
+      return eligible.value;
+    } catch (error) {
+      eligible.value = [];
+      throw error;
+    }
   }
 
   async function activate(schoolID: string) {

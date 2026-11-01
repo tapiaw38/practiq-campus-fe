@@ -80,7 +80,7 @@
     loading.value = true;
     error.value = "";
     try { await loadMembers(); }
-    catch { error.value = "No se pudieron cargar las personas de esta institución."; }
+    catch (e) { error.value = (e as Error).message; }
     finally { loading.value = false; }
   }
 
@@ -89,7 +89,7 @@
     if (!id || adding.value) return;
     adding.value = true;
     error.value = "";
-    try { await addMember(id, role.value); userID.value = ""; userQuery.value = ""; }
+    try { await addMember(id, role.value); userID.value = ""; userQuery.value = ""; await load(); }
     catch (e) { error.value = (e as Error).message; }
     finally { adding.value = false; }
   }
@@ -98,7 +98,7 @@
     if (!memberToRemove.value || removing.value) return;
     removing.value = true;
     error.value = "";
-    try { await removeMember(memberToRemove.value.user_id); memberToRemove.value = null; }
+    try { await removeMember(memberToRemove.value.user_id); memberToRemove.value = null; await load(); }
     catch (e) { error.value = (e as Error).message; }
     finally { removing.value = false; }
   }
