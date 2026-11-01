@@ -1,8 +1,5 @@
 import axios from 'axios'
 
-// Own key, deliberately distinct from practiq-fe's "practiq_token": the two
-// apps log in independently (no SSO), each against the same auth-api-be, so
-// each keeps its own token in its own localStorage.
 const TOKEN_KEY = 'campus_token'
 const REFRESH_TOKEN_KEY = 'campus_refresh_token'
 
@@ -25,15 +22,6 @@ export function setRefreshToken(token: string): void {
   localStorage.setItem(REFRESH_TOKEN_KEY, token)
 }
 
-/**
- * Swaps the refresh token for a new pair. Sessions created before refresh
- * tokens existed have none stored, so they simply end at the next 401 and
- * the person signs in again.
- *
- * Concurrent 401s share one in-flight call: a screen that fires five
- * requests at once would otherwise spend five refresh tokens, and rotation
- * means four of them come back already used.
- */
 let refreshing: Promise<string | null> | null = null
 
 async function refreshSession(): Promise<string | null> {
@@ -74,8 +62,6 @@ function createAxiosInstance(baseURL: string) {
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
-    // Auth API ignores this. Campus API validates it as a selector, never as
-    // authority; see RequireTenant in campus-be.
     const tenantID = localStorage.getItem('campus_tenant_id')
     if (tenantID && config.baseURL?.toString().includes('/api')) {
       config.headers['X-Campus-Tenant-ID'] = tenantID
@@ -110,12 +96,10 @@ function createAxiosInstance(baseURL: string) {
   return instance
 }
 
-// Shared identity service — login/register only, no other endpoint.
 export const authApi = createAxiosInstance(
   import.meta.env.VITE_AUTH_API_URL || 'http://localhost:8082'
 )
 
-// Campus's own backend — everything else.
 export const campusApi = createAxiosInstance(
   (import.meta.env.VITE_CAMPUS_API_URL || 'http://localhost:8084') + '/api'
 )

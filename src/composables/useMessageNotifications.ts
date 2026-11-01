@@ -6,9 +6,6 @@ import { useAuthStore } from "@/stores/authStore";
 
 const messageService = new MessageService(campusApi);
 
-// Read state ("unread") is authoritative in the backend (conversation
-// last_read_at) — this map only dedupes toasts, so the same arrival doesn't
-// notify twice across polls.
 const NOTIFIED_KEY = "campus_messages_notified";
 const POLL_INTERVAL_MS = 20000;
 
@@ -24,8 +21,6 @@ function saveMap(map: Record<string, string>) {
   localStorage.setItem(NOTIFIED_KEY, JSON.stringify(map));
 }
 
-// Module-level so every layout instance shares one poller — mounting the
-// composable twice (hot-reload) must not double-fire toasts.
 const unreadCount = ref(0);
 let notified = loadMap();
 let intervalId: ReturnType<typeof setInterval> | null = null;
@@ -54,8 +49,6 @@ export function useMessageNotifications() {
           });
         }
       } else {
-        // Seed silently on first load so pre-existing unread messages don't
-        // all toast at once.
         for (const conv of data) {
           if (conv.last_message_at && !notified[conv.id]) {
             notified = { ...notified, [conv.id]: conv.last_message_at };
@@ -64,7 +57,6 @@ export function useMessageNotifications() {
         saveMap(notified);
       }
     } catch {
-      // polling failures should stay invisible — no error toast spam
     }
   }
 

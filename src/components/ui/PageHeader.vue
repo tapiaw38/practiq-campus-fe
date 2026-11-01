@@ -1,15 +1,7 @@
 <script setup lang="ts">
-  /**
-   * The eyebrow + title + subtitle + action block that every campus page
-   * opened with, re-declared with its own copy of the same CSS in each view.
-   * One component keeps the type scale, spacing and the mobile stacking
-   * identical everywhere, and gives every page exactly one `h1`.
-   */
-  defineProps<{
-    eyebrow?: string;
-    title: string;
-    subtitle?: string;
-  }>();
+  import type { Props } from "./PageHeader.types";
+
+  defineProps<Props>();
 </script>
 
 <template>

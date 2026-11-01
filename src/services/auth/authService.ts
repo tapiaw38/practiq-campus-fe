@@ -1,25 +1,28 @@
 import type { AxiosInstance } from "axios";
 import { setRefreshToken } from "@/api/request/server";
-import type { LoginParams, LoginResponse, RegisterParams, RegisterResponse } from "@/types";
+import type { AuthUser, LoginParams, LoginResponse, RegisterParams, RegisterResponse } from "@/types";
 
 export interface IAuthService {
   login(params: LoginParams): Promise<LoginResponse>;
   register(params: RegisterParams): Promise<RegisterResponse>;
+  searchUsers(query: string, limit?: number): Promise<AuthUser[]>;
 }
 
-// Hits auth-api-be directly — the identity microservice shared with
-// practiq-fe. Campus never stores a password itself.
 export class AuthService implements IAuthService {
   constructor(private readonly api: AxiosInstance) {}
+
+  async searchUsers(query: string, limit = 8): Promise<AuthUser[]> {
+    const { data } = await this.api.get<{ data: AuthUser[] }>("/user/list", {
+      params: { search: query, limit },
+    });
+    return data.data;
+  }
 
   async login(params: LoginParams): Promise<LoginResponse> {
     const payload = params.ssoType
       ? { sso_type: params.ssoType, code: params.ssoCode }
       : { email: params.email, password: params.password };
     const { data } = await this.api.post("/auth/login", payload);
-    // Stored here rather than at the call sites: every screen that signs
-    // somebody in goes through this method, and a session missing its
-    // refresh token only shows up much later, as a surprise logout.
     if (data?.refresh_token) setRefreshToken(data.refresh_token);
     return data;
   }

@@ -1,18 +1,14 @@
 <script setup lang="ts">
   import { computed } from "vue";
   import { useRouter } from "vue-router";
-  import { useTenantStore } from "@/stores/tenantStore";
+  import { useTenant } from "@/composables/useTenant";
   import { useAuthStore } from "@/stores/authStore";
   import { tenantDestination } from "@/utils/tenantDestination";
 
-  const tenants = useTenantStore();
+  const tenants = useTenant();
   const auth = useAuthStore();
   const router = useRouter();
 
-  // With one institution there is nothing to choose, and a select holding a
-  // single option is just a control that does nothing. The name still shows,
-  // because knowing which institution you are in matters even when it cannot
-  // change.
   const canSwitch = computed(() => tenants.tenants.length > 1);
 
   async function change(event: Event) {
@@ -27,15 +23,7 @@
     }
 
     tenants.select(id);
-    // Go to the new institution's own entry point rather than reloading
-    // whatever is on screen. Reloading kept the old institution's path — a
-    // course id from the school being left, requested under the new school's
-    // header — which correctly resolved to nothing and dead-ended on a
-    // not-found. The destination also follows the role held *here*: the same
-    // person can administer one school and study at the next.
     await router.replace(tenantDestination(tenant, auth.isSuperAdmin));
-    // A full reload clears every store still holding the previous
-    // institution's data; the URL is now the right one to land on.
     router.go(0);
   }
 

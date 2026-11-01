@@ -1,34 +1,13 @@
 <script setup lang="ts">
   import { computed } from "vue";
-  import type { SubmissionAttachment } from "@/types";
+  import type { Props } from "./SubmissionBody.types";
 
-  /**
-   * A submission's body plus the files that came with it.
-   *
-   * Attached files are not a field of their own: the submit form uploads the
-   * file and appends its bucket URL to the free-text body. That URL points at a
-   * private bucket, so on its own it is unopenable, and both this screen and
-   * the grading screen used to print it as plain text — the teacher saw a dead
-   * URL they could not even click. The API now returns the same files as
-   * `attachments`, each with a short-lived signed `view_url`, and this renders
-   * them as real links.
-   */
-  const props = defineProps<{
-    content: string;
-    attachments?: SubmissionAttachment[];
-  }>();
+  const props = defineProps<Props>();
 
   const attachments = computed(() => props.attachments ?? []);
 
   const MARKER = "Archivo adjunto:";
 
-  /**
-   * The body with the lines that produced an attachment removed, so the file
-   * is not shown twice — once as a chip and once as the raw URL that put it
-   * there. Only lines matching a resolved attachment are dropped: when the API
-   * returns none (storage unconfigured, or a link the student typed), the text
-   * is left exactly as written rather than silently swallowing it.
-   */
   const bodyText = computed(() => {
     const urls = new Set(attachments.value.map((attachment) => attachment.url));
     if (!urls.size) return props.content.trim();
@@ -51,12 +30,6 @@
 
   type Segment = { text: string; href?: string };
 
-  /**
-   * The submit form invites a "link de entrega", and a pasted link was dead
-   * text too. Segments are built by hand rather than with v-html: the body is
-   * whatever the student typed, and only http(s) becomes a link, so no
-   * javascript: URL can ride in on it.
-   */
   const segments = computed<Segment[]>(() =>
     bodyText.value.split(/(\s+)/).map((token) => {
       const trimmed = token.replace(/[.,;:)\]]+$/, "");

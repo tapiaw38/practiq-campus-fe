@@ -38,7 +38,7 @@ export function useCalendarNotifications() {
         toast.add({ severity: "info", summary: `Recordatorio: ${event.title}`, detail: `Empieza a las ${occurrence.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}`, life: 8000 });
       }
       localStorage.setItem(KEY, JSON.stringify(notified));
-    } catch { /* notifications must not interrupt navigation */ }
+    } catch {  }
   }
   function start() { if (timer) return; check(); timer = setInterval(check, INTERVAL); }
   return { start };

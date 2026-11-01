@@ -2,12 +2,12 @@
   import { computed, onMounted, ref } from "vue";
   import { useRouter } from "vue-router";
   import { useAuthStore } from "@/stores/authStore";
-  import { useTenantStore, type CampusTenant } from "@/stores/tenantStore";
+  import { useTenant, type CampusTenant } from "@/composables/useTenant";
   import { tenantDestination } from "@/utils/tenantDestination";
 
   const router = useRouter();
   const auth = useAuthStore();
-  const tenants = useTenantStore();
+  const tenants = useTenant();
   const loading = ref(true);
   const error = ref("");
 

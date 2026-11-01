@@ -1,5 +1,3 @@
-// Shape of auth-api-be's own API — the identity microservice shared with
-// practiq-fe. Campus never issues or stores credentials itself.
 export interface AuthRole {
   id: string;
   name: string;

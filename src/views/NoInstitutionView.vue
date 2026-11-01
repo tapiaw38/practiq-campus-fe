@@ -1,14 +1,9 @@
 <script setup lang="ts">
   import { computed } from "vue";
-  import { useTenantStore } from "@/stores/tenantStore";
+  import { useTenant } from "@/composables/useTenant";
 
-  const tenants = useTenantStore();
+  const tenants = useTenant();
 
-  // Suspended and closed institutions are not listed at all — the API only
-  // returns active ones — so the reason shown here is deliberately about
-  // access rather than about status: somebody removed from an institution and
-  // somebody whose institution was suspended both arrive here, and neither is
-  // told anything about the other's situation.
   const hasNone = computed(() => tenants.tenants.length === 0);
 </script>
 

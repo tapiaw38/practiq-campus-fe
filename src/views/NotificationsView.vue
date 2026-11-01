@@ -9,8 +9,6 @@ import { useNotifications } from "@/composables/useNotifications";
 import { useCampusRole } from "@/composables/useCampusRole";
 import { useNotificationBadge } from "@/composables/useNotificationBadge";
 
-// The role held in this institution, not the account-wide profile type: the
-// same person can teach at one school and study at another.
 const { role, isTeacher } = useCampusRole();
 const { items, loading, load, markAllRead, markRead } = useNotifications(role.value);
 const { refresh: refreshBadge, acknowledge: acknowledgeBadge } = useNotificationBadge();
@@ -18,11 +16,8 @@ onMounted(async () => {
   try {
     await load();
   } finally {
-    // Direct links do not go through a layout bell click.
     await acknowledgeBadge();
   }
-  // Opening the inbox is an explicit acknowledgement on mobile. Leaving the
-  // drawer badge after the user already saw its rows was misleading.
   if (items.value.some((item) => !item.read)) {
     await markAllRead();
     await refreshBadge();
@@ -35,8 +30,6 @@ function icon(kind: string) { return kind === "message" ? "pi-envelope" : kind =
 async function handleMarkAllRead() { await markAllRead(); await refreshBadge(); }
 async function handleMarkRead(id: string) { await markRead(id); await refreshBadge(); }
 
-// Today's notifications are read as "when today", older ones as "which day":
-// a bare time on a three-day-old row says nothing useful.
 function when(createdAt: string) {
   const date = new Date(createdAt);
   const sameDay = date.toDateString() === new Date().toDateString();

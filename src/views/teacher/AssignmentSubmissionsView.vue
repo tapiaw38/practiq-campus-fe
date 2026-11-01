@@ -8,8 +8,7 @@ import SubmissionBody from "@/components/ui/SubmissionBody.vue";
 import Pagination from "@/components/ui/Pagination.vue";
 import { useSubmissions } from "@/composables/useSubmissions";
 import { useRubric } from "@/composables/useRubric";
-import { AssignmentService } from "@/services/assignments/assignmentService";
-import { campusApi } from "@/api/request/server";
+import { useAssignments } from "@/composables/useAssignments";
 import { formatDateTime } from "@/utils/datetime";
 import type { Submission } from "@/types";
 
@@ -22,12 +21,11 @@ type Draft = { score: string; feedback: string; criteria: Record<string, { score
 type Filter = "pending" | "graded" | "all";
 
 const { submissionsByAssignment, loadByAssignment, grade } = useSubmissions();
+const { loadAssignments } = useAssignments();
 const rubric = useRubric();
 const title = ref("Tarea");
 const max = ref(100);
 const drafts = ref<Record<string, Draft>>({});
-// The view had no loading state, so the "todavía no hay entregas" card flashed
-// on every visit before the request came back.
 const loading = ref(true);
 
 const PER_PAGE = 10;
@@ -37,8 +35,6 @@ const filter = ref<Filter>("pending");
 const all = computed(() => submissionsByAssignment.value[assignmentId] || []);
 const pendingCount = computed(() => all.value.filter((s) => s.status !== "graded").length);
 
-// Correcting is queue work, so the ungraded ones come first and, within each
-// group, the ones that have been waiting longest.
 const ordered = computed(() =>
   [...all.value].sort((first, second) => {
     const firstPending = first.status !== "graded";
@@ -64,8 +60,6 @@ const filters: { value: Filter; label: string }[] = [
   { value: "all", label: "Todas" },
 ];
 
-// A filter change, or grading the last item on a page, can leave the current
-// page past the end of the list.
 watch([filtered, totalPages], () => {
   if (page.value > totalPages.value) page.value = totalPages.value;
 });
@@ -75,9 +69,8 @@ watch(filter, () => {
 
 onMounted(async () => {
   try {
-    const service = new AssignmentService(campusApi);
-    const [{ data }] = await Promise.all([
-      service.listByCourse(courseId),
+    const [data] = await Promise.all([
+      loadAssignments(courseId),
       loadByAssignment(assignmentId),
       rubric.load(assignmentId),
     ]);
@@ -86,8 +79,6 @@ onMounted(async () => {
       title.value = item.title;
       max.value = item.max_score;
     }
-    // Opening straight onto an empty queue would look like an empty
-    // assignment, so a fully corrected one lands on the full list instead.
     if (!pendingCount.value && all.value.length) filter.value = "all";
   } finally {
     loading.value = false;
@@ -110,12 +101,6 @@ function draft(s: Submission) {
   return drafts.value[s.id];
 }
 
-/**
- * A score the teacher has not filled in.
- *
- * `Number("")` is 0, not NaN, so a blank field passed every check and was
- * recorded as a zero — failing a student who had simply not been graded yet.
- */
 function missingScore(raw: string | undefined) {
   return raw === undefined || String(raw).trim() === "";
 }
@@ -156,16 +141,10 @@ async function save(s: Submission) {
   }
 
   try {
-    // s.version is the submission this screen is showing; grading is refused
-    // if the student replaced it while the teacher was writing.
     await grade(assignmentId, s.id, score, d.feedback, scores, s.version);
   } catch (error) {
     const message = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || "";
     if (!message.includes("reenvió")) throw error;
-    // The work on screen is no longer the work the student has. Retrying with
-    // the same stale version would conflict forever, so the new version is
-    // fetched and the draft cleared — the teacher reads it again before
-    // grading.
     saveError.value = { ...saveError.value, [s.id]: "El alumno reenvió la entrega. Abajo está la versión nueva: revisala y volvé a calificar." };
     delete drafts.value[s.id];
     await loadByAssignment(assignmentId).catch(() => undefined);

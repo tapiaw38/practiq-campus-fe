@@ -1,21 +1,8 @@
 <script setup lang="ts">
   import { ref } from "vue";
+  import type { Props } from "./PasswordField.types";
 
-  /**
-   * A password input you can read back. Both auth forms used a bare
-   * `type="password"`, so a typo was only discoverable by failing to log in —
-   * the single most common reason a sign-in attempt fails.
-   */
-  withDefaults(
-    defineProps<{
-      label: string;
-      autocomplete: string;
-      inputId: string;
-      hint?: string;
-      minlength?: number;
-    }>(),
-    {},
-  );
+  withDefaults(defineProps<Props>(), {});
 
   const model = defineModel<string>({ required: true });
   const visible = ref(false);
@@ -68,7 +55,6 @@
 
   .password-input :deep(.p-inputtext) {
     width: 100%;
-    /* Room for the toggle, so a long password never runs under the icon. */
     padding-right: 40px;
   }
 

@@ -20,10 +20,9 @@
   import CourseMaterials from "@/components/course/CourseMaterials.vue";
   import type { Assignment, CourseStatus } from "@/types";
   import type { Quiz, QuizQuestionType } from "@/types/quiz";
-  import { QuizService, type QuestionParams } from "@/services/quizzes/quizService";
+  import type { QuestionParams } from "@/services/quizzes/quizService";
   import type { QuizAttempt, QuizAnswerResult } from "@/types/quiz";
   import { useToast } from "primevue/usetoast";
-  import { campusApi } from "@/api/request/server";
 
   const route = useRoute();
   const router = useRouter();
@@ -70,7 +69,6 @@
       await courseGroups.createGroup(courseId, newGroupName.value.trim());
       newGroupName.value = "";
     } catch {
-      // useCourseGroups already surfaced the error via toast
     } finally {
       creatingGroup.value = false;
     }
@@ -104,7 +102,6 @@
       await broadcast(courseId, broadcastBody.value.trim());
       broadcastBody.value = "";
     } catch {
-      // useMessages already surfaced the error via toast
     } finally {
       broadcasting.value = false;
     }
@@ -150,20 +147,12 @@
 
   const quizzes = useQuizzes();
   const quizAttempts = useQuizAttempts();
-  const quizService = new QuizService(campusApi);
   const toast = useToast();
   const QUESTION_TYPES: { label: string; value: QuizQuestionType }[] = [
     { label: "Opción múltiple", value: "multiple_choice" },
     { label: "Verdadero/Falso", value: "true_false" },
     { label: "Completar espacios", value: "fill_blanks" },
   ];
-  /**
-   * Reads the attempt limit, keeping zero.
-   *
-   * `Number(x) || 1` turned 0 into 1, so a quiz the teacher marked as
-   * unlimited — which the field itself labels "0 = ilimitado" — silently
-   * became one attempt.
-   */
   function parseMaxAttempts(raw: string) {
     const parsed = Number(raw);
     return Number.isInteger(parsed) && parsed >= 0 ? parsed : 1;
@@ -194,7 +183,6 @@
       });
       newQuiz.value = { title: "", description: "", maxAttempts: "1", timeLimitMin: "", sectionId: "", weight: "100", visibleGroupId: "", unlockAfter: "" };
     } catch {
-      // useQuizzes already surfaced the error via toast
     } finally {
       creatingQuiz.value = false;
     }
@@ -214,8 +202,6 @@
       section_id: editingQuiz.value.sectionId || null,
       weight: Number(editingQuiz.value.weight) || 100,
       visible_group_id: editingQuiz.value.visibleGroupId || null,
-      // Sent explicitly so editing a title cannot silently clear the
-      // schedule; an empty field means the teacher cleared it on purpose.
       scheduled_at: editingQuiz.value.scheduledAt ? new Date(editingQuiz.value.scheduledAt).toISOString() : null,
       available_until: editingQuiz.value.availableUntil ? new Date(editingQuiz.value.availableUntil).toISOString() : null,
       ...parseUnlockAfter(editingQuiz.value.unlockAfter),
@@ -232,9 +218,6 @@
     return [...new Set([...statement.matchAll(/\{\{\s*(\d+)\s*\}\}/g)].map((m) => m[1]))];
   }
   function insertBlank(question: QuestionParams) {
-    // Highest existing id plus one, not the count plus one: a statement
-    // holding {{1}} and {{3}} has two blanks, so counting produced {{3}}
-    // again and quietly tied two gaps to one answer.
     const existing = blankIds(question.statement).map(Number).filter(Number.isFinite);
     const next = existing.length ? Math.max(...existing) + 1 : 1;
     const trimmed = question.statement.trimEnd();
@@ -243,18 +226,11 @@
   const openingAttempt = ref<string | null>(null);
   const reviewedAttempt = ref<{ attempt: QuizAttempt; results: QuizAnswerResult[] } | null>(null);
 
-  /**
-   * Opens what a student actually answered.
-   *
-   * The list showed the score and stopped there; the review endpoint already
-   * existed and nothing called it, so a teacher could see that someone got
-   * 4/10 and never which four.
-   */
   async function openAttemptReview(attempt: QuizAttempt) {
     if (openingAttempt.value) return;
     openingAttempt.value = attempt.id;
     try {
-      const { attempt: full, results } = await quizService.getAttempt(attempt.id);
+      const { attempt: full, results } = await quizAttempts.getAttempt(attempt.id);
       reviewedAttempt.value = { attempt: { ...full, user_name: attempt.user_name }, results };
     } catch {
       toast.add({ severity: "error", summary: "No pudimos abrir las respuestas", life: 3000 });
@@ -307,7 +283,6 @@
       await quizzes.saveQuestions(quizId, questionDrafts.value[quizId] || []);
       questionsOpen.value = null;
     } catch {
-      // useQuizzes already surfaced the error via toast
     }
   }
 
@@ -320,10 +295,6 @@
   function beginEditSection(section: { id: string; title: string; description: string }) { editingSectionId.value = section.id; editingSectionTitle.value = section.title; editingSectionDescription.value = section.description; }
   async function saveSection() { if (!editingSectionId.value || !editingSectionTitle.value.trim()) return; await updateSection(courseId, editingSectionId.value, editingSectionTitle.value.trim(), editingSectionDescription.value); editingSectionId.value = null; }
 
-  // A "Tarea: X" / "Evaluación: Y" prerequisite picker shared by the
-  // assignment and quiz forms — a composite "type:id" string is simplest to
-  // bind to a single Select, split back into the two fields the API wants
-  // on save.
   function unlockOptions(excludeType?: string, excludeId?: string) {
     const opts: { label: string; value: string }[] = [{ label: "Sin requisito", value: "" }];
     for (const a of assignments.value) {
@@ -351,15 +322,6 @@
   }
   async function editRubric(id: string) { await rubric.load(id); rubricDrafts.value[id] = rubric.criteria.value.map((x) => ({ title: x.title, description: x.description, max_score: x.max_score })); rubricOpen.value = id; }
   function addCriterion(id: string) { (rubricDrafts.value[id] ||= []).push({ title: "", description: "", max_score: 1 }); }
-  /**
-   * Saves the rubric. Its criteria define the assignment's maximum, so the
-   * total no longer has to match the maximum already stored — the server
-   * moves it to match, in the same transaction.
-   *
-   * The old guard returned silently when the totals differed, which left the
-   * teacher pressing a button that did nothing and no way to change the
-   * total at all.
-   */
   async function saveRubric(id: string) {
     const list = rubricDrafts.value[id] || [];
     if (!list.length) { rubricError.value = "Agregá al menos un criterio."; return; }
@@ -370,7 +332,6 @@
     rubricError.value = "";
     try {
       await rubric.save(id, list);
-      // The maximum moved with the rubric, so the card showing it is stale.
       await loadAssignments(courseId);
       rubricOpen.value = null;
     } catch (error) {
@@ -379,7 +340,6 @@
     }
   }
 
-  /** Live total, shown so the teacher can see the maximum they are setting. */
   function rubricTotal(id: string) {
     return (rubricDrafts.value[id] || []).reduce((sum, x) => sum + (Number(x.max_score) || 0), 0);
   }
@@ -418,7 +378,6 @@
       newSectionTitle.value = "";
       newSectionDescription.value = "";
     } catch {
-      // useCourseSections already surfaced the error via toast
     } finally {
       creatingSection.value = false;
     }
@@ -461,7 +420,6 @@
       newAttachment.value = { mode: "file", title: "", linkURL: "" };
       newAttachmentFile.value = null;
     } catch {
-      // useAssignments already surfaced the error via toast
     } finally {
       creatingAssignment.value = false;
     }
@@ -480,7 +438,6 @@
       await enroll(courseId, newStudentEmail.value.trim());
       newStudentEmail.value = "";
     } catch {
-      // useEnrollments already surfaced the error via toast
     } finally {
       enrolling.value = false;
     }
@@ -518,8 +475,6 @@
       savingLabels.value = false;
     }
   }
-  // The status picker listed the raw API values — "draft", "published" — in an
-  // otherwise Spanish screen.
   const COURSE_STATUS_OPTIONS = [
     { value: "draft", label: "Borrador" },
     { value: "published", label: "Publicado" },

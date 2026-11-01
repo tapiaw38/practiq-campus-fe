@@ -20,7 +20,6 @@ export interface Quiz {
   locked_reason?: string;
 }
 
-/** Teacher-facing question shape — carries correct_answer. */
 export interface QuizQuestion {
   id: string;
   type: QuizQuestionType;
@@ -30,7 +29,6 @@ export interface QuizQuestion {
   points: number;
 }
 
-/** Student-facing question shape while an attempt is in progress. */
 export interface StudentQuizQuestion {
   id: string;
   type: QuizQuestionType;
@@ -46,7 +44,6 @@ export interface QuizAttempt {
   user_name?: string;
   attempt_number: number;
   started_at: string;
-  /** Server-fixed deadline; null when the quiz is untimed. */
   expires_at: string | null;
   submitted_at: string | null;
   score: number;

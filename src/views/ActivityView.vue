@@ -7,23 +7,20 @@ import PageHeader from "@/components/ui/PageHeader.vue";
 import StateMessage from "@/components/ui/StateMessage.vue";
 import { useCampusRole } from "@/composables/useCampusRole";
 import { useCourses } from "@/composables/useCourses";
-import { AssignmentService } from "@/services/assignments/assignmentService";
-import { MaterialService } from "@/services/materials/materialService";
-import { ForumService } from "@/services/forums/forumService";
-import { campusApi } from "@/api/request/server";
+import { useAssignments } from "@/composables/useAssignments";
+import { useCourseMaterials } from "@/composables/useCourseMaterials";
+import { useForum } from "@/composables/useForum";
 import type { Course } from "@/types";
 
 type Activity = { id: string; course: Course; kind: "assignment" | "material" | "forum"; title: string; detail: string; at: string; to: string };
-// Role in the current institution; the account-wide profile type is wrong
-// for anyone who belongs to more than one school in different capacities.
 const { role, isTeacher } = useCampusRole();
-const { loadCourses } = useCourses(); const assignments = new AssignmentService(campusApi); const materials = new MaterialService(campusApi); const forums = new ForumService(campusApi);
+const { loadCourses } = useCourses(); const { loadAssignments } = useAssignments(); const { loadMaterials } = useCourseMaterials(); const { loadThreads } = useForum();
 const items = ref<Activity[]>([]); const loading = ref(true); const selectedCourse = ref("all");
 const visible = computed(() => items.value.filter((item) => selectedCourse.value === "all" || item.course.id === selectedCourse.value));
-onMounted(async () => { try { const courses = await loadCourses(); const data = await Promise.all(courses.map(async (course) => { const [as, ms, fs] = await Promise.all([assignments.listByCourse(course.id), materials.list(course.id), forums.listThreads(course.id)]); return [
-  ...as.data.map((x) => ({ id:`a:${x.id}`,course,kind:"assignment" as const,title:`Nueva tarea: ${x.title}`,detail:x.due_at ? `Entrega: ${new Date(x.due_at).toLocaleDateString("es-AR")}` : "Sin fecha de entrega",at:x.created_at,to:`/${role.value}/courses/${course.id}` })),
+onMounted(async () => { try { const courses = await loadCourses(); const data = await Promise.all(courses.map(async (course) => { const [as, ms, fs] = await Promise.all([loadAssignments(course.id), loadMaterials(course.id), loadThreads(course.id)]); return [
+  ...as.map((x) => ({ id:`a:${x.id}`,course,kind:"assignment" as const,title:`Nueva tarea: ${x.title}`,detail:x.due_at ? `Entrega: ${new Date(x.due_at).toLocaleDateString("es-AR")}` : "Sin fecha de entrega",at:x.created_at,to:`/${role.value}/courses/${course.id}` })),
   ...ms.map((x) => ({ id:`m:${x.id}`,course,kind:"material" as const,title:`Nuevo material: ${x.title}`,detail:x.description || (x.kind === "file" ? "Archivo compartido" : "Enlace compartido"),at:x.created_at,to:`/${role.value}/courses/${course.id}` })),
-  ...fs.data.map((x) => ({ id:`f:${x.id}`,course,kind:"forum" as const,title:`Nuevo foro: ${x.title}`,detail:x.description || "Nueva discusión",at:x.created_at,to:`/${role.value}/courses/${course.id}/forum/${x.id}` }))
+  ...fs.map((x) => ({ id:`f:${x.id}`,course,kind:"forum" as const,title:`Nuevo foro: ${x.title}`,detail:x.description || "Nueva discusión",at:x.created_at,to:`/${role.value}/courses/${course.id}/forum/${x.id}` }))
 ]; })); items.value = data.flat().sort((a,b) => new Date(b.at).getTime() - new Date(a.at).getTime()); } finally { loading.value = false; } });
 const courseFilterOptions = computed(() => [
   { id: "all", title: "Todos los cursos" },
@@ -31,8 +28,6 @@ const courseFilterOptions = computed(() => [
 ]);
 function formatDateTime(value: string) { return new Date(value).toLocaleString("es-AR", { dateStyle: "medium", timeStyle: "short" }); }
 
-// A flat feed made a task published this morning look the same as one from
-// three weeks ago. Grouping answers "is this still news?" before you read.
 const groups = computed(() => {
   const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
   const weekAgo = startOfToday.getTime() - 6 * 24 * 3600 * 1000;

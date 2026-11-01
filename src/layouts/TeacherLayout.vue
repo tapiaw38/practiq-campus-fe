@@ -3,7 +3,7 @@
   import { computed, onMounted, ref } from "vue";
   import { RouterLink, useRouter } from "vue-router";
   import { useAuthStore } from "@/stores/authStore";
-  import { useTenantStore } from "@/stores/tenantStore";
+  import { useTenant } from "@/composables/useTenant";
   import { useAuth } from "@/composables/useAuth";
   import { useNavDrawer } from "@/composables/useNavDrawer";
   import { useMessageNotifications } from "@/composables/useMessageNotifications";
@@ -12,7 +12,7 @@
 
   const router = useRouter();
   const authStore = useAuthStore();
-  const tenantStore = useTenantStore();
+  const tenantStore = useTenant();
   const { logout } = useAuth();
   const { unreadCount, start: startMessageNotifications } = useMessageNotifications();
   const { start: startCalendarNotifications } = useCalendarNotifications();
@@ -41,8 +41,6 @@
     () => profile.value?.full_name?.[0]?.toUpperCase() || "D",
   );
 
-  // A bare number in the sidebar reads as "3" to a screen reader with no hint
-  // of what three of anything means.
   const unreadLabel = computed(() =>
     unreadCount.value === 1
       ? "1 mensaje sin leer"
@@ -449,8 +447,6 @@
     .topbar-btn {
       display: grid;
       position: relative;
-      /* 44px is the smallest target a thumb hits reliably; the icon alone was
-         about 18. */
       width: 44px;
       height: 44px;
       border: 1px solid var(--surface-border);
@@ -498,15 +494,9 @@
       bottom: 0;
       z-index: var(--z-drawer);
       transform: translateX(-100%);
-      /* Hidden, not just slid away: a translated drawer still holds every one
-         of its links in the tab order behind the backdrop. Visibility flips
-         instantly on open (so the panel can take focus right away) and only
-         waits for the slide-out on close. */
       visibility: hidden;
       transition: transform 0.2s ease, visibility 0s linear 0.2s;
       width: min(280px, calc(100vw - 40px));
-      /* 100vh can extend under mobile browser chrome. Keep account/logout in
-         the visible viewport; only the menu itself may scroll. */
       height: 100vh;
       height: 100dvh;
       bottom: auto;

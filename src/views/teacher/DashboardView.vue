@@ -45,7 +45,6 @@
       if (preference.settings.coursesView === "list" || preference.settings.coursesView === "grid") viewMode.value = preference.settings.coursesView;
       groupByLabels.value = preference.settings.groupCoursesBy === "label";
     } catch {
-      // Defaults keep dashboard usable when preferences are unavailable.
     } finally {
       preferencesLoaded.value = true;
     }
@@ -82,7 +81,6 @@
       await createCourse({ ...draft.value });
       showCreate.value = false;
     } catch {
-      // useCourses already surfaced the error via toast
     } finally { creating.value = false; }
   }
 
@@ -93,7 +91,6 @@
     try {
       await duplicateCourse(courseId);
     } catch {
-      // useCourses already surfaced the error via toast
     } finally {
       duplicatingId.value = null;
     }
@@ -107,8 +104,6 @@
       courseToDelete.value = null;
     } finally { deleting.value = false; }
   }
-  // The card used to print the raw API value — "published", "draft" — in an
-  // otherwise entirely Spanish interface.
   const COURSE_STATUS_LABELS: Record<string, string> = {
     draft: "Borrador",
     published: "Publicado",
@@ -242,8 +237,6 @@
 
   .course-grid {
     display: grid;
-    /* 240px only ever fit three columns on a desktop width, leaving the row
-       half empty while each card grew to hold it. */
     grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
     gap: var(--space-3);
   }
@@ -252,10 +245,6 @@
   .course-group-head span{display:inline-flex;align-items:center;gap:var(--space-1)}.course-group-head small{display:grid;min-width:21px;height:21px;place-items:center;border-radius:var(--radius-pill);background:var(--surface-hover);color:var(--text-secondary);font-size:var(--text-xs)}
 
   .course-card {
-    /* A column with the actions pinned to the bottom: as a plain block the
-       "Gestionar curso" link and the delete button ran together on one line,
-       and cards of different description lengths ended their actions at
-       different heights. */
     display: flex;
     flex-direction: column;
     padding: var(--space-3);border:1px solid var(--surface-border);

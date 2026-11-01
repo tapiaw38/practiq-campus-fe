@@ -27,11 +27,8 @@ export interface StartAttemptResult {
   attempt: QuizAttempt;
   questions: StudentQuizQuestion[];
   time_limit_secs: number | null;
-  /** True when rejoining an attempt already in progress rather than starting one. */
   resumed: boolean;
-  /** Work already stored for this attempt; empty on a fresh one. */
   saved_answers: { question_id: string; answer_text: string }[];
-  /** The server's clock at the moment it answered, to calibrate the countdown. */
   server_now: string;
 }
 

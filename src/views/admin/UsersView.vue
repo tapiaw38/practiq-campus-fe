@@ -59,7 +59,6 @@ import Pagination from "@/components/ui/Pagination.vue";
         resetForm();
       }
     } catch {
-      // useUsers already surfaced the error via toast
     } finally {
       submitting.value = false;
     }

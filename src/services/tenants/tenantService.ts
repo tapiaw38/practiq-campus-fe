@@ -7,15 +7,11 @@ export class TenantService {
   async mine(): Promise<CampusTenant[]> { return (await this.api.get<{ data: CampusTenant[] }>("/tenants/mine")).data.data; }
 }
 
-/** What the platform superadmin sees: every Campus institution, with what
- *  practiq-be currently says about its school. */
 export type CampusTenantAdmin = {
   id: string;
   school_id: string;
   name: string;
   status: "active" | "suspended" | "closed";
-  /** False when the school no longer qualifies — closed, or moved off contract
-   *  billing. The record stays; what it may do does not. */
   eligible: boolean;
 };
 
@@ -27,14 +23,11 @@ export type PractiqSchool = {
   status: string;
 };
 
-/** A school Campus could be enabled for and has not been yet. */
 export type EligibleSchool = { id: string; name: string };
 
 export class TenantAdminService {
   constructor(private readonly api: AxiosInstance) {}
 
-  /** The ones that qualify and are not enabled yet, so the picker only offers
-   *  choices that work. */
   async eligibleSchools(): Promise<EligibleSchool[]> {
     return (await this.api.get<{ data: EligibleSchool[] }>("/tenants/eligible-schools")).data.data;
   }
@@ -43,8 +36,6 @@ export class TenantAdminService {
     return (await this.api.get<{ data: CampusTenantAdmin[] }>("/tenants")).data.data;
   }
 
-  /** Campus verifies the school against practiq-be before enabling it, so a
-   *  school id that does not qualify is refused there rather than here. */
   async activate(schoolID: string): Promise<CampusTenantAdmin> {
     return (await this.api.post<{ data: CampusTenantAdmin }>("/tenants", { school_id: schoolID })).data.data;
   }

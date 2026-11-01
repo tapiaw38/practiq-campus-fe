@@ -5,8 +5,9 @@
   import { storeToRefs } from "pinia";
   import { useAuthStore } from "@/stores/authStore";
   import { useForum } from "@/composables/useForum";
+  import type { Props } from "./ForumSection.types";
 
-  const props = defineProps<{ courseId: string }>();
+  const props = defineProps<Props>();
 
   const { threads, loading, loadThreads, createThread } = useForum();
   const router = useRouter();
@@ -28,7 +29,6 @@
       await createThread(props.courseId, newThreadTitle.value.trim());
       newThreadTitle.value = "";
     } catch {
-      // useForum already surfaced the error via toast
     } finally {
       creatingThread.value = false;
     }

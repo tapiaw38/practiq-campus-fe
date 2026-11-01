@@ -29,8 +29,6 @@ export class SubmissionService implements ISubmissionService {
   }
 
   async grade(submissionId: string, score: number, feedback: string, rubricScores?: GradeRubricScore[], version?: number): Promise<{ data: Submission }> {
-    // version is what the teacher reviewed; the server refuses if the
-    // student resubmitted in the meantime.
     const { data } = await this.api.put(`/submissions/${submissionId}/grade`, { score, feedback, rubric_scores: rubricScores, version });
     return data;
   }

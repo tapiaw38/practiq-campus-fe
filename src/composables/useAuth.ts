@@ -3,7 +3,7 @@ import { authApi, campusApi } from "@/api/request/server";
 import { AuthService } from "@/services/auth/authService";
 import { ProfileService } from "@/services/profile/profileService";
 import { useAuthStore } from "@/stores/authStore";
-import { useTenantStore } from "@/stores/tenantStore";
+import { useTenant } from "@/composables/useTenant";
 import type { LoginParams, RegisterParams } from "@/types";
 
 const authService = new AuthService(authApi);
@@ -12,7 +12,7 @@ const profileService = new ProfileService(campusApi);
 export function useAuth() {
   const toast = useToast();
   const store = useAuthStore();
-  const tenantStore = useTenantStore();
+  const tenantStore = useTenant();
 
   async function login(params: LoginParams) {
     try {
@@ -63,5 +63,9 @@ export function useAuth() {
     store.clearAuth();
   }
 
-  return { login, register, loadProfile, logout };
+  async function searchUsers(query: string, limit?: number) {
+    return authService.searchUsers(query, limit);
+  }
+
+  return { login, register, loadProfile, logout, searchUsers };
 }

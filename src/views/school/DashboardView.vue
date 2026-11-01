@@ -2,18 +2,19 @@
   import { computed, onBeforeUnmount, onMounted, ref } from "vue";
   import { useRouter } from "vue-router";
   import TeacherLayout from "@/layouts/TeacherLayout.vue";
-  import { authApi, campusApi } from "@/api/request/server";
-  import { SchoolService, type SchoolMember } from "@/services/school/schoolService";
+  import type { SchoolMember } from "@/services/school/schoolService";
   import { useAuthStore } from "@/stores/authStore";
-  import { useTenantStore } from "@/stores/tenantStore";
+  import { useAuth } from "@/composables/useAuth";
+  import { useTenant } from "@/composables/useTenant";
+  import { useSchool } from "@/composables/useSchool";
   import type { AuthUser } from "@/types";
   import PageHeader from "@/components/ui/PageHeader.vue";
 
   const router = useRouter();
   const authStore = useAuthStore();
-  const tenantStore = useTenantStore();
-  const service = new SchoolService(campusApi);
-  const members = ref<SchoolMember[]>([]);
+  const tenantStore = useTenant();
+  const { searchUsers: searchAuthUsers } = useAuth();
+  const { members, loadMembers, addMember, removeMember } = useSchool();
   const loading = ref(true);
   const error = ref("");
   const adding = ref(false);
@@ -28,13 +29,8 @@
   let searchTimer: ReturnType<typeof window.setTimeout> | null = null;
   let searchRequest = 0;
 
-  // Searching by email/name needs auth-api-be's user list, which it only
-  // serves to a superadmin — same boundary practiq-fe runs into, so a
-  // non-superadmin institution admin keeps the exact-username field below.
   function scheduleUserSearch() {
     userID.value = "";
-    // Invalidate an in-flight response as soon as input changes, including
-    // when it becomes too short to search.
     searchRequest++;
     const query = userQuery.value.trim().toLowerCase();
     searchError.value = "";
@@ -44,21 +40,17 @@
       searchLoading.value = false;
       return;
     }
-    searchTimer = window.setTimeout(() => { void searchUsers(query); }, 250);
+    searchTimer = window.setTimeout(() => { void runUserSearch(query); }, 250);
   }
 
-  async function searchUsers(query: string) {
+  async function runUserSearch(query: string) {
     const request = ++searchRequest;
     searchLoading.value = true;
     searchError.value = "";
     try {
-      const { data } = await authApi.get<{ data: AuthUser[] }>("/user/list", {
-        params: { search: query, limit: 8 },
-      });
-      // A slower request for an earlier keystroke must not replace current
-      // suggestions after the operator keeps typing.
+      const data = await searchAuthUsers(query);
       if (request === searchRequest && userQuery.value.trim().toLowerCase() === query) {
-        matches.value = data.data;
+        matches.value = data;
       }
     } catch {
       if (request === searchRequest) {
@@ -84,16 +76,11 @@
   const count = (value: SchoolMember["role"]) => activeMembers.value.filter((member) => member.role === value).length;
   const roleLabel: Record<SchoolMember["role"], string> = { admin: "Administrador", teacher: "Docente", student: "Alumno" };
 
-  function reason(e: unknown, fallback: string) {
-    const message = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
-    return message ? message : fallback;
-  }
-
   async function load() {
     loading.value = true;
     error.value = "";
-    try { members.value = await service.members(); }
-    catch (e) { error.value = reason(e, "No se pudieron cargar las personas de esta institución."); }
+    try { await loadMembers(); }
+    catch { error.value = "No se pudieron cargar las personas de esta institución."; }
     finally { loading.value = false; }
   }
 
@@ -102,8 +89,8 @@
     if (!id || adding.value) return;
     adding.value = true;
     error.value = "";
-    try { await service.addMember(id, role.value); userID.value = ""; userQuery.value = ""; await load(); }
-    catch (e) { error.value = reason(e, "No se pudo agregar. Verificá que esta persona ya tenga perfil en Practiq."); }
+    try { await addMember(id, role.value); userID.value = ""; userQuery.value = ""; }
+    catch (e) { error.value = (e as Error).message; }
     finally { adding.value = false; }
   }
 
@@ -111,8 +98,8 @@
     if (!memberToRemove.value || removing.value) return;
     removing.value = true;
     error.value = "";
-    try { await service.removeMember(memberToRemove.value.user_id); memberToRemove.value = null; await load(); }
-    catch (e) { error.value = reason(e, "No se pudo quitar esta persona."); }
+    try { await removeMember(memberToRemove.value.user_id); memberToRemove.value = null; }
+    catch (e) { error.value = (e as Error).message; }
     finally { removing.value = false; }
   }
 
