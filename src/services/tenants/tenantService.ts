@@ -15,6 +15,8 @@ export type CampusTenantAdmin = {
   eligible: boolean;
 };
 
+export type CampusTenantAdminPatch = Omit<CampusTenantAdmin, "name" | "eligible"> & Partial<Pick<CampusTenantAdmin, "name" | "eligible">>;
+
 export type PractiqSchool = {
   id: string;
   name: string;
@@ -40,7 +42,7 @@ export class TenantAdminService {
     return (await this.api.post<{ data: CampusTenantAdmin }>("/tenants", { school_id: schoolID })).data.data;
   }
 
-  async setStatus(id: string, status: CampusTenantAdmin["status"]): Promise<CampusTenantAdmin> {
-    return (await this.api.patch<{ data: CampusTenantAdmin }>(`/tenants/${id}/status`, { status })).data.data;
+  async setStatus(id: string, status: CampusTenantAdmin["status"]): Promise<CampusTenantAdminPatch> {
+    return (await this.api.patch<{ data: CampusTenantAdminPatch }>(`/tenants/${id}/status`, { status })).data.data;
   }
 }

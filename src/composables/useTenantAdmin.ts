@@ -37,9 +37,9 @@ export function useTenantAdmin() {
   }
 
   async function setStatus(id: string, status: CampusTenantAdmin["status"]) {
-    const tenant = await tenantAdminService.setStatus(id, status);
-    tenants.value = tenants.value.map((t) => (t.id === id ? tenant : t));
-    return tenant;
+    const patch = await tenantAdminService.setStatus(id, status);
+    tenants.value = tenants.value.map((t) => (t.id === id ? { ...t, ...patch } : t));
+    return tenants.value.find((t) => t.id === id);
   }
 
   return { tenants, eligible, loading, loadTenants, loadEligibleSchools, activate, setStatus };
