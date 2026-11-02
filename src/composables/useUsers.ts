@@ -42,10 +42,6 @@ export function useUsers() {
     } catch (error) { toast.add({ severity: "error", summary: "Error", detail: "No se pudo cambiar el estado del usuario", life: 3000 }); throw error; }
   }
 
-  // Returns { needsDetails: true } when the email has no shared account yet
-  // and the caller should collect first_name/last_name/password and call
-  // this again with them included — everything else (email already synced,
-  // or found on auth-api-be/practiq already) resolves in one call.
   async function createOrSyncUser(
     params: CreateOrSyncUserParams,
   ): Promise<{ needsDetails: true } | { needsDetails: false; data: Profile }> {

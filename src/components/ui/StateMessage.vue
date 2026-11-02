@@ -1,33 +1,12 @@
 <script setup lang="ts">
-  /**
-   * Loading / empty / error states were written by hand in a dozen views: some
-   * a bare sentence, some a card with an icon, none of them announced to a
-   * screen reader. This is the one shape for all three.
-   *
-   * `loading` renders skeleton rows rather than the word "Cargando", because a
-   * placeholder in the shape of the list tells you what is coming; a sentence
-   * only tells you that nothing is here yet.
-   */
-  withDefaults(
-    defineProps<{
-      variant?: "loading" | "empty" | "error";
-      /** Announced to assistive tech while `variant` is `loading`. */
-      loadingLabel?: string;
-      icon?: string;
-      title?: string;
-      description?: string;
-      /** Skeleton rows drawn while loading; match the list being replaced. */
-      rows?: number;
-      /** Compact form for states nested inside a card or a dashboard panel. */
-      dense?: boolean;
-    }>(),
-    {
-      variant: "empty",
-      loadingLabel: "Cargando contenido",
-      rows: 3,
-      dense: false,
-    },
-  );
+  import type { Props } from "./StateMessage.types";
+
+  withDefaults(defineProps<Props>(), {
+    variant: "empty",
+    loadingLabel: "Cargando contenido",
+    rows: 3,
+    dense: false,
+  });
 </script>
 
 <template>

@@ -68,9 +68,6 @@
     attendeeSearch.value = ""; attendeeIds.value = event?.attendee_ids ?? [];
     dialogVisible.value = true;
   }
-  // Picking a day only drives the side agenda. The dialog is reserved for
-  // acting on an event (edit/delete), so browsing the month does not bury the
-  // calendar behind a modal on every click.
   function selectDay(day: Date) {
     selectedDay.value = day;
     showAllDayEvents.value = false;
@@ -95,14 +92,9 @@
   const SOURCE_LABELS: Record<string, string> = { assignment_due: "Entregas", quiz_due: "Evaluaciones", manual: "Clases y eventos" };
   function sourceLabel(source: string) { return SOURCE_LABELS[source] ?? "Otros"; }
 
-  // Chips list only the sources actually present, so a filter can never lead
-  // to an empty agenda the student cannot explain.
   const sourceFilters = computed(() => ["all", ...new Set(events.value.map((event) => event.source))]);
   function matchesFilter(event: CalendarEvent) { return sourceFilter.value === "all" || event.source === sourceFilter.value; }
 
-  // Recurring events have no rows of their own, so the agenda is built by
-  // walking the days ahead and asking each one what falls on it — the same
-  // question the month grid asks per cell.
   const AGENDA_DAYS = 60;
   const agendaDays = computed(() => {
     const start = new Date();
@@ -129,7 +121,7 @@
       const payload = { title: form.value.title.trim(), description: form.value.description.trim(), course_id: form.value.courseId, attendee_ids: attendeeIds.value, starts_at: starts.toISOString(), ends_at: ends.toISOString(), recurrence_rule: form.value.recurrence, reminder_minutes: form.value.reminder === "none" ? null : Number(form.value.reminder) };
       if (editingEvent.value) await updateEvent(editingEvent.value.id, payload); else await createEvent(payload);
       dialogVisible.value = false;
-    } catch { /* composable shows toast */ } finally { creating.value = false; }
+    } catch {  } finally { creating.value = false; }
   }
 
   watch(() => form.value.courseId, async (courseId) => { attendeeIds.value = []; attendeeSearch.value = ""; if (courseId) await loadByCourse(courseId); });
@@ -307,8 +299,6 @@
   .agenda-copy { flex: 1; min-width: 170px; }
   .agenda-copy strong { display: block; color: var(--text-heading); font-family: var(--font-ui-family); font-size: var(--text-md); font-weight: 900; letter-spacing: -0.02em; }
   .agenda-copy small { display: block; margin-top: 3px; color: var(--text-secondary); font-size: var(--text-sm); }
-  /* Month grid leads and takes the width it needs; the day agenda rides
-     alongside as a sticky column so picking a day never scrolls it away. */
   .calendar-layout { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:var(--space-4); align-items:start; }
   .calendar-layout .day-agenda { position:sticky; top:var(--space-4); margin-bottom:0; }
   .calendar-card,.state-message { background:var(--surface-card); border:1px solid var(--surface-border); border-radius:var(--radius-md); overflow:hidden; }

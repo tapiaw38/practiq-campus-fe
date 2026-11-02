@@ -116,7 +116,6 @@
       replyBody.value = "";
       scrollToBottom();
     } catch {
-      // useMessages already surfaced the error via toast
     } finally {
       sendingReply.value = false;
     }
@@ -134,7 +133,6 @@
       showCompose.value = false;
       scrollToBottom();
     } catch {
-      // useMessages already surfaced the error via toast
     } finally {
       sendingNew.value = false;
     }
@@ -156,8 +154,6 @@
     return `${days}d`;
   }
 
-  // Without this the preview of a message you sent reads exactly like an
-  // incoming one, so your own last word looks like something to answer.
   function conversationPreview(conv: { last_message_body: string; last_message_sender_id: string }) {
     const mine = conv.last_message_sender_id === authStore.profile?.id;
     return mine ? `Vos: ${conv.last_message_body}` : conv.last_message_body;
@@ -461,7 +457,6 @@
     cursor: pointer;
   }
 
-  /* Button hugs the last line so it stays put as the textarea grows. */
   .compose-form {
     display: flex;
     align-items: flex-end;
@@ -632,7 +627,6 @@
     }
   }
 
-  /* Chat workspace: one clear area for inbox, one for current conversation. */
   .messages-panel { max-width: 1180px; }
   .dialog-lead { margin: var(--space-1) 0 0; color: var(--text-secondary); font-size: var(--text-sm); }
   .messages-layout { grid-template-columns: minmax(270px, 340px) minmax(0, 1fr); gap: 0; min-height: 610px; border: 1px solid var(--surface-border); border-radius: var(--radius-lg); overflow: hidden; background: var(--surface-card); box-shadow: var(--shadow-card); }

@@ -3,14 +3,14 @@
   import { useRouter } from "vue-router";
   import { useAuth } from "@/composables/useAuth";
   import { useAuthStore } from "@/stores/authStore";
-  import { useTenantStore, type CampusTenant } from "@/stores/tenantStore";
+  import { useTenant, type CampusTenant } from "@/composables/useTenant";
   import GoogleButton from "@/components/auth/GoogleButton.vue";
   import PasswordField from "@/components/ui/PasswordField.vue";
 
   const router = useRouter();
   const { login } = useAuth();
   const authStore = useAuthStore();
-  const tenantStore = useTenantStore();
+  const tenantStore = useTenant();
 
   const email = ref("");
   const password = ref("");
@@ -20,8 +20,6 @@
     if (authStore.isSuperAdmin) return "/admin/institutions";
     if (!tenant) return "/no-institution";
     if (tenant.role === "admin") return "/school/dashboard";
-    // School membership is scoped truth for Campus. A shared Practiq account
-    // may be a teacher in one institution and a student in another.
     if (tenant.role === "teacher") return "/teacher/dashboard";
     return "/student/dashboard";
   }
@@ -45,7 +43,6 @@
       const profile = await login({ email: email.value, password: password.value });
       await goToDashboard(profile);
     } catch {
-      // useAuth already surfaced the error via toast
     } finally {
       submitting.value = false;
     }
@@ -56,7 +53,6 @@
       const profile = await login({ ssoType: "google", ssoCode: code });
       await goToDashboard(profile);
     } catch {
-      // useAuth already surfaced the error via toast
     }
   }
 </script>

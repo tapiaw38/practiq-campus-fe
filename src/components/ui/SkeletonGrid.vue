@@ -1,16 +1,7 @@
 <script setup lang="ts">
-  /**
-   * Card-grid counterpart to StateMessage's loading rows: the dashboards show
-   * courses as cards, so their placeholder has to be card-shaped or the layout
-   * jumps the moment the data lands.
-   */
-  withDefaults(
-    defineProps<{
-      cards?: number;
-      loadingLabel?: string;
-    }>(),
-    { cards: 3, loadingLabel: "Cargando cursos" },
-  );
+  import type { Props } from "./SkeletonGrid.types";
+
+  withDefaults(defineProps<Props>(), { cards: 3, loadingLabel: "Cargando cursos" });
 </script>
 
 <template>

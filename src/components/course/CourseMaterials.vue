@@ -3,9 +3,10 @@
   import { formatDate } from "@/utils/datetime";
   import { computed, onMounted, ref } from "vue";
   import { useCourseMaterials } from "@/composables/useCourseMaterials";
-  import type { CourseSection, MaterialKind } from "@/types";
+  import type { MaterialKind } from "@/types";
+  import type { Props } from "./CourseMaterials.types";
 
-  const props = withDefaults(defineProps<{ courseId: string; assignmentId?: string | null; sections?: CourseSection[]; canManage?: boolean }>(), { assignmentId: null, sections: () => [], canManage: false });
+  const props = withDefaults(defineProps<Props>(), { assignmentId: null, sections: () => [], canManage: false });
   const { materials, loading, loadMaterials, createMaterial, uploadMaterial, deleteMaterial } = useCourseMaterials();
   const mode = ref<MaterialKind>("file");
   const title = ref("");

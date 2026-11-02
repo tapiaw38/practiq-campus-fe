@@ -4,10 +4,10 @@
   import { storeToRefs } from "pinia";
   import { useForum } from "@/composables/useForum";
   import { useAuthStore } from "@/stores/authStore";
-  import type { ForumPost } from "@/types";
+  import type { Props, Emits } from "./ForumPostTree.types";
 
-  const props = defineProps<{ posts: ForumPost[]; threadId: string; post: ForumPost; depth?: number }>();
-  const emit = defineEmits<{ posted: []; updated: []; deleted: [] }>();
+  const props = defineProps<Props>();
+  const emit = defineEmits<Emits>();
   const { createPost, updatePost, deletePost } = useForum();
   const { authUser, profile } = storeToRefs(useAuthStore());
   const expanded = ref<Record<string, boolean>>({});

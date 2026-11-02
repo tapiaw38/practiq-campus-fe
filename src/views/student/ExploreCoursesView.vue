@@ -17,8 +17,6 @@ onMounted(() => { loadCourses({ publishedOnly: true }); loadMine(); });
 function enrolled(id: string) { return myEnrollments.value.some((e) => e.course_id === id && e.status === "active"); }
 async function enroll(id: string) { if (enrolling.value) return; enrolling.value = id; try { await enrollSelf(id); } finally { enrolling.value = null; } }
 
-// The filter offers only labels that exist in the catalogue, so it can never
-// point at an empty result set.
 const areas = computed(() => [...new Set(courses.value.flatMap((course) => course.labels ?? []))].sort((a, b) => a.localeCompare(b, "es")));
 
 const visibleCourses = computed(() => {

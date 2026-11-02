@@ -24,8 +24,6 @@
   type CourseProgress = { course_id: string; progress_percent: number; pending_items: number; next_due_at: string | null; next_due_title: string };
   const progressByCourse = ref(new Map<string, CourseProgress>());
 
-  // Draft is authoring state, not student-facing. Archived courses remain
-  // visible as completed history, with a friendly status label.
   const visibleCourses = computed(() =>
     courses.value.filter((course) => course.status === "published" || course.status === "archived"),
   );
@@ -44,8 +42,6 @@
 
   const hasLabels = computed(() => visibleCourses.value.some((course) => course.labels?.length));
 
-  // The dashboard shows only what needs acting on now; the full list lives in
-  // the calendar.
   const pendingAssignments = computed(() => {
     const now = Date.now();
     return events.value
@@ -59,9 +55,6 @@
     return end.getTime();
   }
 
-  // Today and the rest of the week are different decisions: one is "do this
-  // now", the other is "know it is coming". Mixing them in one list made every
-  // row look equally urgent.
   const todayAssignments = computed(() =>
     pendingAssignments.value.filter((event) => new Date(event.starts_at).getTime() <= endOfToday()).slice(0, 2),
   );
@@ -113,8 +106,6 @@
     return new Intl.DateTimeFormat("es-AR", { month: "short" }).format(new Date(value)).replace(".", "").toUpperCase();
   }
 
-  // Unread first, then by recency: read state is what makes the row worth
-  // looking at, so sorting by date alone would bury it.
   const recentConversations = computed(() =>
     [...conversations.value]
       .sort((first, second) => {
@@ -124,8 +115,6 @@
       .slice(0, 3),
   );
 
-  // Without this the preview of a message you sent reads exactly like an
-  // incoming one, so your own last word looks like something to answer.
   function messagePreview(conversation: { last_message_body: string; last_message_sender_id: string }) {
     const mine = conversation.last_message_sender_id === authStore.profile?.id;
     return mine ? `Vos: ${conversation.last_message_body}` : conversation.last_message_body;
@@ -139,8 +128,6 @@
     return courses.value.find((course) => course.id === courseId)?.title;
   }
 
-  // Anything inside two days is what a student actually needs to act on, so it
-  // gets visual weight instead of blending into the rest of the list.
   function isUrgent(startsAt: string) {
     return new Date(startsAt).getTime() - Date.now() < 48 * 3600 * 1000;
   }
@@ -183,7 +170,6 @@
       }
       groupByLabels.value = preference.settings.groupCoursesBy === "label";
     } catch {
-      // Defaults keep the dashboard usable when preferences are unavailable.
     } finally {
       preferencesLoaded.value = true;
     }
@@ -436,15 +422,11 @@
 
   .course-grid {
     display: grid;
-    /* 240px only ever fit three columns on a desktop width, leaving the row
-       half empty while each card grew to hold it. */
     grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
     gap: var(--space-3);
   }
 
   .course-card {
-    /* A column, so the "Abrir curso" line sits at the bottom of every card
-       and a row of cards ends level regardless of description length. */
     display: flex;
     flex-direction: column;
     padding: var(--space-3);

@@ -1,29 +1,20 @@
 <script setup lang="ts">
   import { onMounted, ref } from "vue";
   import { useRouter } from "vue-router";
-  import { campusApi } from "@/api/request/server";
-  import {
-    TenantAdminService,
-    type CampusTenantAdmin,
-    type EligibleSchool,
-  } from "@/services/tenants/tenantService";
-  import { useTenantStore } from "@/stores/tenantStore";
+  import type { CampusTenantAdmin } from "@/services/tenants/tenantService";
+  import { useTenant } from "@/composables/useTenant";
+  import { useTenantAdmin } from "@/composables/useTenantAdmin";
   import TeacherLayout from "@/layouts/TeacherLayout.vue";
   import PageHeader from "@/components/ui/PageHeader.vue";
 
-  const service = new TenantAdminService(campusApi);
   const router = useRouter();
-  const tenantStore = useTenantStore();
+  const tenantStore = useTenant();
+  const { tenants, eligible, loadTenants, loadEligibleSchools, activate: activateTenant, setStatus: setTenantStatus } = useTenantAdmin();
 
-  const tenants = ref<CampusTenantAdmin[]>([]);
   const loading = ref(true);
   const error = ref("");
   const schoolID = ref("");
   const activating = ref(false);
-  // Offered rather than typed: the server knows which schools qualify, and
-  // asking an operator to paste a uuid from another product turned a typo into
-  // "no such school".
-  const eligible = ref<EligibleSchool[]>([]);
   const eligibleError = ref(false);
   const statusChange = ref<{ tenant: CampusTenantAdmin; status: CampusTenantAdmin["status"] } | null>(null);
   const changingStatus = ref(false);
@@ -38,20 +29,17 @@
     loading.value = true;
     error.value = "";
     try {
-      tenants.value = await service.list();
+      await loadTenants();
     } catch {
       error.value = "No se pudieron cargar las instituciones.";
     } finally {
       loading.value = false;
     }
     try {
-      eligible.value = await service.eligibleSchools();
+      await loadEligibleSchools();
       eligibleError.value = false;
-      // Nothing preselected: enabling Campus for the wrong institution is not
-      // something to do by pressing a button without reading it.
       if (!eligible.value.some((s) => s.id === schoolID.value)) schoolID.value = "";
     } catch {
-      eligible.value = [];
       eligibleError.value = true;
     }
   }
@@ -62,13 +50,10 @@
     activating.value = true;
     error.value = "";
     try {
-      await service.activate(id);
+      await activateTenant(id);
       schoolID.value = "";
       await load();
     } catch (e: unknown) {
-      // The API decides eligibility, so its message is shown rather than a
-      // guess: it knows whether the school is missing, personal, on a
-      // subscription or closed.
       const response = (e as { response?: { data?: { message?: string } } })?.response;
       error.value = response?.data?.message || "No se pudo habilitar Campus para esa escuela.";
     } finally {
@@ -81,7 +66,7 @@
     changingStatus.value = true;
     error.value = "";
     try {
-      await service.setStatus(tenant.id, status);
+      await setTenantStatus(tenant.id, status);
       statusChange.value = null;
       await load();
     } catch (e: unknown) {

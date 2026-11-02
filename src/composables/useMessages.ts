@@ -101,8 +101,6 @@ export function useMessages() {
     try {
       await messageService.markRead(conversationId);
     } catch {
-      // a failed mark-read isn't worth surfacing — worst case it stays
-      // marked unread until the next successful poll
     }
   }
 

@@ -6,10 +6,10 @@ import PageHeader from "@/components/ui/PageHeader.vue";
 import StateMessage from "@/components/ui/StateMessage.vue";
 import { useCampusRole } from "@/composables/useCampusRole";
 import { useCourses } from "@/composables/useCourses";
-import { AssignmentService } from "@/services/assignments/assignmentService";
-import { SubmissionService } from "@/services/submissions/submissionService";
-import { QuizService } from "@/services/quizzes/quizService";
-import { campusApi } from "@/api/request/server";
+import { useAssignments } from "@/composables/useAssignments";
+import { useSubmissions } from "@/composables/useSubmissions";
+import { useQuizzes } from "@/composables/useQuizzes";
+import { useQuizAttempts } from "@/composables/useQuizAttempts";
 import type { Course } from "@/types";
 
 interface GradeRow {
@@ -19,32 +19,25 @@ interface GradeRow {
   title: string;
   dueAt: string | null;
   weight: number;
-  // Teacher view.
   count: number;
   average: number | null;
-  // Student view.
   submitted: boolean;
   score: number | null;
   maxScore: number;
   feedback: string;
 }
 
-// Role here, not the account-wide one: a teacher at one school who studies at
-// another was shown the wrong grade book and then hit 403 on teacher-only
-// endpoints.
 const { isTeacher: teacher } = useCampusRole();
 const { loadCourses } = useCourses();
-const assignmentService = new AssignmentService(campusApi);
-const submissionService = new SubmissionService(campusApi);
-const quizService = new QuizService(campusApi);
+const { loadAssignments } = useAssignments();
+const { loadByAssignment, loadMine } = useSubmissions();
+const { loadQuizzes } = useQuizzes();
+const { loadAttemptsByQuiz, loadMyAttempts } = useQuizAttempts();
 const rows = ref<GradeRow[]>([]);
 const loading = ref(true);
 const selectedCourseId = ref("all");
 const visibleRows = computed(() => selectedCourseId.value === "all" ? rows.value : rows.value.filter((row) => row.course.id === selectedCourseId.value));
 const gradedRows = computed(() => visibleRows.value.filter((row) => row.score != null && row.maxScore > 0));
-// Weighted rather than a flat mean: a row weighted 200 counts twice as much
-// toward the average as one weighted 100, regardless of how many points
-// each is out of.
 const average = computed(() => {
   const totalWeight = gradedRows.value.reduce((sum, row) => sum + row.weight, 0);
   if (!totalWeight) return null;
@@ -60,28 +53,28 @@ const submittedRows = computed(() => visibleRows.value.filter((row) => row.submi
 const missingRows = computed(() => visibleRows.value.filter((row) => !row.submitted));
 
 async function assignmentRows(course: Course): Promise<GradeRow[]> {
-  const { data } = await assignmentService.listByCourse(course.id);
+  const data = await loadAssignments(course.id);
   return Promise.all(data.map(async (assignment): Promise<GradeRow> => {
     if (teacher.value) {
-      const { data: submissions } = await submissionService.listByAssignment(assignment.id);
+      const submissions = await loadByAssignment(assignment.id);
       const graded = submissions.filter((s) => s.score != null);
       const average = graded.length ? Math.round(graded.reduce((sum, s) => sum + (s.score || 0) / assignment.max_score * 100, 0) / graded.length) : null;
       return { course, kind: "assignment", id: assignment.id, title: assignment.title, dueAt: assignment.due_at, weight: assignment.weight, count: submissions.length, average, submitted: false, score: null, maxScore: assignment.max_score, feedback: "" };
     }
-    const { data: submission } = await submissionService.getMine(assignment.id);
+    const submission = await loadMine(assignment.id);
     return { course, kind: "assignment", id: assignment.id, title: assignment.title, dueAt: assignment.due_at, weight: assignment.weight, count: 0, average: null, submitted: !!submission, score: submission?.score ?? null, maxScore: assignment.max_score, feedback: submission?.feedback || "" };
   }));
 }
 
 async function quizRows(course: Course): Promise<GradeRow[]> {
-  const quizzes = await quizService.listByCourse(course.id);
+  const quizzes = await loadQuizzes(course.id);
   return Promise.all(quizzes.map(async (quiz): Promise<GradeRow> => {
     if (teacher.value) {
-      const attempts = (await quizService.listAttemptsByQuiz(quiz.id)).filter((a) => a.submitted_at);
+      const attempts = (await loadAttemptsByQuiz(quiz.id)).filter((a) => a.submitted_at);
       const average = attempts.length ? Math.round(attempts.reduce((sum, a) => sum + (a.max_score ? a.score / a.max_score * 100 : 0), 0) / attempts.length) : null;
       return { course, kind: "quiz", id: quiz.id, title: quiz.title, dueAt: quiz.available_until, weight: quiz.weight, count: attempts.length, average, submitted: false, score: null, maxScore: 0, feedback: "" };
     }
-    const attempts = (await quizService.listMyAttempts(quiz.id)).filter((a) => a.submitted_at);
+    const attempts = (await loadMyAttempts(quiz.id)).filter((a) => a.submitted_at);
     const best = attempts.reduce<typeof attempts[number] | null>((max, a) => !max || a.score > max.score ? a : max, null);
     return { course, kind: "quiz", id: quiz.id, title: quiz.title, dueAt: quiz.available_until, weight: quiz.weight, count: 0, average: null, submitted: !!best, score: best?.score ?? null, maxScore: best?.max_score ?? 0, feedback: "" };
   }));

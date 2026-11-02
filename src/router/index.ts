@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { getToken } from "@/api/request/server";
-import { useTenantStore } from "@/stores/tenantStore";
+import { useTenant } from "@/composables/useTenant";
 
 const APP_NAME = "Practiq Campus";
 
@@ -12,11 +12,6 @@ declare module "vue-router" {
     requiresSuperAdmin?: boolean;
     profileType?: "student" | "teacher";
     requiresSchoolAdmin?: boolean;
-    /**
-     * Set on the few screens that work without an institution selected: the
-     * ones that let somebody sign in, discover which institutions they belong
-     * to, or be told they belong to none.
-     */
     allowsNoTenant?: boolean;
   }
 }
@@ -158,8 +153,6 @@ const router = createRouter({
       meta: { title: "Usuarios", requiresAuth: true, requiresSuperAdmin: true },
     },
     {
-      // Enabling Campus for an institution is what creates a tenant, so this
-      // screen is reachable without one selected.
       path: "/admin/institutions",
       name: "admin-institutions",
       component: () => import("@/views/admin/InstitutionsView.vue"),
@@ -210,7 +203,7 @@ router.beforeEach(async (to, _from, next) => {
       const isSuperAdmin = !!authUser?.roles?.some(
         (role: { name: string }) => role.name === "superadmin",
       );
-      const tenants = useTenantStore();
+      const tenants = useTenant();
       if (!tenants.tenants.length) await tenants.load();
       if (isSuperAdmin && !tenants.selected) {
         next("/admin/institutions");
@@ -228,7 +221,7 @@ router.beforeEach(async (to, _from, next) => {
 
   if (to.meta.requiresAuth && to.meta.profileType) {
     try {
-      const tenants = useTenantStore();
+      const tenants = useTenant();
       if (!tenants.tenants.length) await tenants.load();
       const role = tenants.selected?.role;
       const profileType = role === "admin" || role === "teacher" ? "teacher" : "student";
@@ -237,34 +230,20 @@ router.beforeEach(async (to, _from, next) => {
         return;
       }
     } catch {
-      // an unreadable profile is treated as "no profile yet" below
     }
   }
 
-  // Campus only exists inside an institution, so every product screen needs
-  // one selected. The check runs last: it costs a request on a cold load, and
-  // there is no reason to pay it for somebody who is being sent to the login
-  // screen anyway.
   if (to.meta.requiresAuth && !to.meta.allowsNoTenant && !to.meta.requiresSuperAdmin) {
-    const tenants = useTenantStore();
+    const tenants = useTenant();
     if (!tenants.tenants.length) {
       try {
         await tenants.load();
       } catch {
-        // Unreachable API is not "no institutions": sending somebody to the
-        // empty-state screen over a network blip would tell them they lost
-        // access they still have.
         next();
         return;
       }
     }
     if (!tenants.selected) {
-      // Having no selection and having no institution are different
-      // situations, and sending both to /no-institution told somebody who
-      // belongs to two schools that they belong to none — with no way out of
-      // that screen. A stale id (a membership revoked, or one saved for
-      // another account) lands here too, so it is cleared before offering
-      // the choice.
       if (tenants.tenants.length) {
         tenants.select("");
         next("/choose-institution");
@@ -278,9 +257,6 @@ router.beforeEach(async (to, _from, next) => {
   next();
 });
 
-// Every screen used to leave the tab reading "Practiq Campus", which makes a
-// second tab of the same app unidentifiable and gives a screen reader nothing
-// to announce on navigation.
 router.afterEach((to) => {
   document.title = to.meta.title ? `${to.meta.title} · ${APP_NAME}` : APP_NAME;
 });

@@ -14,7 +14,6 @@
   import { useQuizAttempts } from "@/composables/useQuizAttempts";
   import { campusApi } from "@/api/request/server";
   import { useToast } from "primevue/usetoast";
-  import { QuizService } from "@/services/quizzes/quizService";
   import ForumSection from "@/components/forum/ForumSection.vue";
   import CourseMaterials from "@/components/course/CourseMaterials.vue";
   import type { Assignment } from "@/types";
@@ -23,9 +22,6 @@
   const route = useRoute();
   const router = useRouter();
   const toast = useToast();
-  const quizService = new QuizService(campusApi);
-  // Reactive: navigating between two courses changes only this parameter,
-  // which does not remount the view.
   const courseId = computed(() => route.params.id as string);
   const courseTabs = ["materials", "assignments", "quizzes", "forum"] as const;
   type CourseTab = (typeof courseTabs)[number];
@@ -54,15 +50,6 @@
   const showQuizResults = ref(false);
   const reviewingAttempt = ref<string | null>(null);
 
-  /**
-   * Loads everything the course page shows.
-   *
-   * Each part is isolated: rubrics used to be awaited one by one in the same
-   * chain that later fetched the quizzes, so a single rubric request failing
-   * threw before the quizzes were ever requested and the tab said "no hay
-   * evaluaciones" for a course full of them. A rubric is decoration on one
-   * card; it cannot be allowed to decide whether the rest of the page exists.
-   */
   async function loadCourseData(id: string) {
     await loadCourse(id);
     await loadSections(id).catch(() => undefined);
@@ -82,14 +69,6 @@
     ]);
   }
 
-  /**
-   * Re-reads the activity lists after something is handed in.
-   *
-   * Whether an item is locked is decided server-side from the prerequisite
-   * being met, and it was only ever asked once on mount — so completing the
-   * requirement left everything that depended on it looking locked until the
-   * student thought to reload the page.
-   */
   async function refreshUnlocks() {
     const [assignmentList, quizList] = await Promise.all([
       loadAssignments(courseId.value).catch(() => [] as Assignment[]),
@@ -101,9 +80,6 @@
 
   onMounted(() => loadCourseData(courseId.value));
 
-  // The id comes from the URL, and Vue reuses this component when only the
-  // parameter changes — going straight from one course to another left every
-  // list showing the course just left.
   watch(courseId, (id) => { if (id) void loadCourseData(id); });
 
   function blankIds(statement: string): string[] {
@@ -112,10 +88,6 @@
   function attemptsUsed(quiz: Quiz) {
     return quizAttempts.myAttempts.value[quiz.id]?.length ?? 0;
   }
-  /**
-   * The attempt still open, if any. Reloading mid-exam leaves one behind, and
-   * it is the one to continue rather than a reason to block the student.
-   */
   function liveAttempt(quiz: Quiz) {
     const now = quizAttempts.serverNowMs();
     return (quizAttempts.myAttempts.value[quiz.id] || []).find(
@@ -128,13 +100,6 @@
   function quizActionLabel(quiz: Quiz) {
     return liveAttempt(quiz) ? "Continuar" : "Comenzar";
   }
-  /**
-   * Counting every attempt row disabled the button for a student who merely
-   * reloaded the page: on a one-attempt quiz the reload created a second row,
-   * reaching the limit while the first attempt sat unfinished and
-   * unreachable. An attempt still open is one to continue, so it never
-   * counts against the limit here.
-   */
   function canAttempt(quiz: Quiz) {
     if (quiz.locked) return false;
     if (liveAttempt(quiz)) return true;
@@ -149,14 +114,6 @@
     return `${best.score}/${best.max_score}`;
   }
 
-  /**
-   * Opens the dialog only once the attempt actually exists.
-   *
-   * It used to show first and start afterwards, so a start that failed — no
-   * questions loaded, outside the quiz's window, network down — left an empty
-   * dialog that could not be dismissed, since closing was only permitted once
-   * results were showing.
-   */
   async function openQuiz(quiz: Quiz) {
     if (startingQuiz.value) return;
     startingQuiz.value = true;
@@ -170,8 +127,6 @@
       restoreDraft();
       takingQuiz.value = quiz;
     } catch {
-      // useQuizAttempts already reported it and cleared the stale attempt;
-      // leaving takingQuiz null keeps the student on the course page.
       takingQuiz.value = null;
     } finally {
       startingQuiz.value = false;
@@ -183,12 +138,6 @@
     takingQuiz.value = null;
   }
 
-  /**
-   * Sends whatever is pending right now instead of waiting out the debounce.
-   *
-   * Leaving the dialog used to cancel the pending timer, so the last thing
-   * typed never left the browser.
-   */
   function flushDraft() {
     const attemptId = quizAttempts.activeAttempt.value?.id;
     if (!attemptId || showQuizResults.value) return;
@@ -196,7 +145,6 @@
     void quizAttempts.saveDraft(attemptId, currentAnswers());
   }
 
-  /** Puts the answers the server kept back into the form being resumed. */
   function restoreDraft() {
     for (const question of quizAttempts.activeQuestions.value) {
       const stored = quizAttempts.savedAnswers.value[question.id];
@@ -205,8 +153,6 @@
         try {
           blankAnswers.value[question.id] = JSON.parse(stored) as Record<string, string>;
         } catch {
-          // A stored value that will not parse is not worth losing the rest
-          // of the draft over; that one field starts empty.
         }
       } else {
         myAnswers.value[question.id] = stored;
@@ -221,10 +167,6 @@
     }));
   }
 
-  // Answers only ever lived in this component, so anything that ended the page
-  // — a reload, a closed tab, a dead battery — threw the exam away even though
-  // the attempt itself survived. They are now pushed to the server shortly
-  // after the student stops typing.
   let draftTimer: ReturnType<typeof setTimeout> | null = null;
   function queueDraftSave() {
     const attemptId = quizAttempts.activeAttempt.value?.id;
@@ -239,16 +181,8 @@
 
   watch([myAnswers, blankAnswers], queueDraftSave, { deep: true, flush: "sync" });
 
-  // The countdown runs against the server's expires_at, not against a
-  // duration started on the client: the deadline survives a reload, and
-  // moving the device clock does not lengthen the exam.
   const nowTick = ref(Date.now());
   let tickTimer: ReturnType<typeof setInterval> | null = null;
-  // Auto-submit gets a few tries, not unlimited ones: a network blip at the
-  // deadline deserves a retry, but a hand-in the server refuses outright
-  // would otherwise be repeated every tick, burying the student in identical
-  // error toasts. Work is saved as a draft regardless, so exhausting these
-  // loses nothing already typed.
   const AUTO_SUBMIT_TRIES = 3;
   let autoSubmitTries = 0;
   let autoSubmitDone = false;
@@ -256,8 +190,6 @@
   const secondsLeft = computed(() => {
     const expiresAt = quizAttempts.activeAttempt.value?.expires_at;
     if (!expiresAt) return null;
-    // nowTick only drives reactivity; the instant itself comes from the
-    // server-anchored monotonic clock, which the device clock cannot move.
     void nowTick.value;
     return Math.max(0, Math.floor((new Date(expiresAt).getTime() - quizAttempts.serverNowMs()) / 1000));
   });
@@ -279,10 +211,6 @@
       if (!needsTicking) return;
       tickTimer = setInterval(() => {
         nowTick.value = Date.now();
-        // Hand the work in a moment early rather than exactly on the
-        // deadline: the request still has to reach a server that will refuse
-        // it once the deadline passes, and losing a student's answers to
-        // network latency is worse than ending a few seconds sooner.
         if (
           !autoSubmitDone
           && autoSubmitTries < AUTO_SUBMIT_TRIES
@@ -294,7 +222,7 @@
           autoSubmitTries += 1;
           void submitQuiz()
             .then(() => { autoSubmitDone = true; })
-            .catch(() => { /* a later tick retries while tries remain */ });
+            .catch(() => {  });
         }
       }, 1000);
     },
@@ -303,42 +231,28 @@
 
   onUnmounted(() => {
     if (tickTimer) clearInterval(tickTimer);
-    // Fires the pending save rather than discarding it. The local copy
-    // already holds it either way, so nothing is lost if this never lands.
     flushDraft();
     if (draftTimer) clearTimeout(draftTimer);
   });
   async function submitQuiz() {
     if (!quizAttempts.activeAttempt.value || submittingQuiz.value) return;
     submittingQuiz.value = true;
-    // The debounce is cancelled because this request carries the same
-    // answers, but the local copy is kept until the hand-in is confirmed —
-    // dropping it first meant a failed submit lost the work outright.
     if (draftTimer) { clearTimeout(draftTimer); draftTimer = null; }
     try {
       await quizAttempts.submit(quizAttempts.activeAttempt.value.id, currentAnswers());
       showQuizResults.value = true;
       if (takingQuiz.value) await quizAttempts.loadMyAttempts(takingQuiz.value.id);
-      // Handing this in may be the prerequisite something else was waiting on.
       await refreshUnlocks();
     } finally {
       submittingQuiz.value = false;
     }
   }
 
-  /**
-   * Reopens the review for an attempt already handed in.
-   *
-   * The results only ever existed in the response to the submission, so
-   * closing that dialog destroyed them: the score stayed on the card and
-   * which questions were wrong became unreachable. The server keeps them —
-   * this asks for them again.
-   */
   async function reviewAttempt(quiz: Quiz, attemptId: string) {
     if (reviewingAttempt.value) return;
     reviewingAttempt.value = attemptId;
     try {
-      const { attempt, results } = await quizService.getAttempt(attemptId);
+      const { attempt, results } = await quizAttempts.getAttempt(attemptId);
       quizAttempts.activeAttempt.value = attempt;
       quizAttempts.lastResults.value = results;
       quizAttempts.activeQuestions.value = [];
@@ -351,12 +265,10 @@
     }
   }
 
-  /** Retries the lookup; the composable records the outcome in mineStatus. */
   function retryLoadMine(assignmentId: string) {
     void loadMine(assignmentId).catch(() => undefined);
   }
 
-  /** The most recent submitted attempt, which is the one worth reviewing. */
   function reviewableAttempt(quiz: Quiz) {
     const submitted = (quizAttempts.myAttempts.value[quiz.id] || []).filter((a) => a.submitted_at);
     if (!submitted.length) return null;
@@ -385,10 +297,8 @@
       submissionDrafts.value[assignmentId] = "";
       submissionFiles.value[assignmentId] = null;
       resubmitting.value[assignmentId] = false;
-      // Anything gated behind this assignment can be open now.
       await refreshUnlocks();
     } catch {
-      // useSubmissions already surfaced the error via toast
     } finally {
       submitting.value[assignmentId] = false;
     }
@@ -408,15 +318,10 @@
     const input = event.target as HTMLInputElement;
     submissionFiles.value[assignmentId] = input.files?.[0] ?? null;
   }
-  // The badge printed the raw API value ("published"), and in English, on a
-  // screen a student reads. Same student-facing wording as the dashboard: the
-  // draft/published split is authoring state they have no use for.
   function studentCourseStatus(status: string) {
     return status === "archived" ? "Finalizado" : "Activo";
   }
 
-  // The header answers "where do I stand in this course?" before the tabs are
-  // touched: how much is handed in, what it averaged, what is still open.
   const courseProgress = computed(() => {
     const total = assignments.value.length;
     let handedIn = 0;
@@ -545,9 +450,6 @@
                 <small v-else class="submission-locked">{{ mySubmissions[assignment.id]?.graded_at ? "Entrega corregida: ya no se puede modificar" : "El plazo de entrega venció" }}</small>
               </div>
               <div v-else-if="assignment.locked" class="locked-state"><i class="pi pi-lock" /> {{ assignment.locked_reason }}</div>
-              <!-- An unknown state is not an empty one: offering the form here
-                   invited a second delivery from someone who had already
-                   handed in and whose submission simply failed to load. -->
               <div v-else-if="mineStatus[assignment.id] === 'error'" class="locked-state">
                 <i class="pi pi-exclamation-triangle" /> No pudimos comprobar si ya entregaste.
                 <Button label="Reintentar" size="small" text @click="retryLoadMine(assignment.id)" />
@@ -604,9 +506,6 @@
           </ul>
         </section>
 
-        <!-- Closable at any point now that an unfinished attempt is resumed
-             rather than replaced: leaving the dialog no longer strands the
-             exam, so trapping the student in it bought nothing. -->
         <Dialog :visible="!!takingQuiz" modal closable close-on-escape :header="takingQuiz?.title" :style="{ width: 'min(640px, calc(100vw - 32px))' }" @update:visible="(visible) => { if (!visible) closeQuiz(); }">
           <div v-if="!showQuizResults" class="quiz-attempt">
             <p v-if="quizAttempts.draftStatus.value === 'error'" class="quiz-draft quiz-draft--error">

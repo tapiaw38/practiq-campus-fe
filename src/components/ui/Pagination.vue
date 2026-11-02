@@ -1,23 +1,10 @@
 <script setup lang="ts">
   import { computed } from "vue";
+  import type { Props, Emits } from "./Pagination.types";
 
-  /**
-   * Page control shared by the lists that can grow past a screenful. The admin
-   * users list already had one written inline; this is the same shape, so the
-   * two pages cannot drift, and it announces the page change — stepping
-   * through pages replaced the list silently before.
-   */
-  const props = defineProps<{
-    page: number;
-    totalPages: number;
-    /** Total row count, to render "1–10 de 23" when the list is client-side. */
-    total?: number;
-    perPage?: number;
-    /** Plural noun for the summary, e.g. "entregas". */
-    itemLabel?: string;
-  }>();
+  const props = defineProps<Props>();
 
-  const emit = defineEmits<{ "update:page": [value: number] }>();
+  const emit = defineEmits<Emits>();
 
   const range = computed(() => {
     if (props.total == null || props.perPage == null) return "";

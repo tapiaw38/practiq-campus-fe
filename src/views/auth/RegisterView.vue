@@ -17,9 +17,6 @@
     if (submitting.value) return;
     submitting.value = true;
     try {
-      // auth-api-be assigns the default "user" role on registration; a
-      // teacher account is promoted by a superadmin afterward, same as
-      // practiq-fe. There is no profile_type choice at signup.
       const profile = await register({
         first_name: firstName.value,
         last_name: lastName.value,
@@ -30,7 +27,6 @@
         profile.profile_type === "teacher" ? "/teacher/dashboard" : "/student/dashboard",
       );
     } catch {
-      // useAuth already surfaced the error via toast
     } finally {
       submitting.value = false;
     }

@@ -74,22 +74,12 @@ async function academicNotifications(role: "student" | "teacher"): Promise<Campu
 }
 
 
-/**
- * Where a persisted notification should take you.
- *
- * Every one of them landed on the dashboard, throwing away the ids the server
- * had already put in `data` — so "Tarea corregida: X" took you to a screen
- * that does not mention X. Falls back to the dashboard only when the payload
- * genuinely says nothing useful, which is the case for legacy rows written
- * before these ids were included.
- */
 function persistedTarget(type: string, rawData: string, role: "student" | "teacher"): string {
   let data: Record<string, string> = {};
   try {
     const parsed = rawData ? JSON.parse(rawData) : {};
     if (parsed && typeof parsed === "object") data = parsed as Record<string, string>;
   } catch {
-    // A payload we cannot read is the same as no payload.
   }
 
   if (type === "message") return `/${role}/messages`;
@@ -136,8 +126,6 @@ export function useNotifications(role: "student" | "teacher") {
         .map((event) => eventNotification(event, role))
         .filter((item): item is CampusNotification => item !== null);
       const persistedItems = persisted.data.data.map((item) => ({ id: item.id, kind: item.type, title: item.title, detail: item.body, createdAt: item.created_at, to: persistedTarget(item.type, item.data, role), read: !!item.read_at, persistent: true } as CampusNotification));
-      // Different notification sources are merged here. Ignore malformed or
-      // legacy records rather than rendering empty cards in the activity feed.
       items.value = [...messageItems, ...eventItems, ...academicItems, ...persistedItems]
         .filter((item) => (item.title || "").trim() || (item.detail || "").trim())
         .map((item) => ({ ...item, read: item.read || readIds.value.includes(item.id) }))
@@ -149,8 +137,6 @@ export function useNotifications(role: "student" | "teacher") {
 
   async function markAllRead() {
     const ids = [...new Set([...readIds.value, ...items.value.map((item) => item.id)])].slice(-300);
-    // Persisted notifications back the shell badge. Saving only the local
-    // preference made this screen look read while the badge stayed stuck.
     await Promise.all(items.value
       .filter((item) => item.persistent && !item.read)
       .map((item) => campusApi.put(`/notifications/${item.id}/read`)));
