@@ -10,62 +10,62 @@ const authService = new AuthService(authApi);
 const profileService = new ProfileService(campusApi);
 
 export function useAuth() {
-  const toast = useToast();
-  const store = useAuthStore();
-  const tenantStore = useTenant();
+    const toast = useToast();
+    const store = useAuthStore();
+    const tenantStore = useTenant();
 
-  async function login(params: LoginParams) {
-    try {
-      const { token, data } = await authService.login(params);
-      store.storeToken(token);
-      store.setAuthUser(data);
+    async function login(params: LoginParams) {
+        try {
+            const { token, data } = await authService.login(params);
+            store.storeToken(token);
+            store.setAuthUser(data);
 
-      const fullName = `${data.first_name} ${data.last_name}`.trim();
-      const { data: profile } = await profileService.sync(fullName, data.email);
-      store.setProfile(profile);
-      await tenantStore.load();
+            const fullName = `${data.first_name} ${data.last_name}`.trim();
+            const { data: profile } = await profileService.sync(fullName, data.email);
+            store.setProfile(profile);
+            await tenantStore.load();
 
-      return profile;
-    } catch (error) {
-      toast.add({
-        severity: "error",
-        summary: "Error",
-        detail: "No se pudo iniciar sesión. Revisá tu email y contraseña.",
-        life: 3500,
-      });
-      throw error;
+            return profile;
+        } catch (error) {
+            toast.add({
+                severity: "error",
+                summary: "Error",
+                detail: "No se pudo iniciar sesión. Revisá tu email y contraseña.",
+                life: 3500,
+            });
+            throw error;
+        }
     }
-  }
 
-  async function register(params: RegisterParams) {
-    try {
-      await authService.register(params);
-      return login({ email: params.email, password: params.password });
-    } catch (error) {
-      toast.add({
-        severity: "error",
-        summary: "Error",
-        detail: "No se pudo crear la cuenta.",
-        life: 3500,
-      });
-      throw error;
+    async function register(params: RegisterParams) {
+        try {
+            await authService.register(params);
+            return login({ email: params.email, password: params.password });
+        } catch (error) {
+            toast.add({
+                severity: "error",
+                summary: "Error",
+                detail: "No se pudo crear la cuenta.",
+                life: 3500,
+            });
+            throw error;
+        }
     }
-  }
 
-  async function loadProfile() {
-    const { data } = await profileService.getMe();
-    store.setProfile(data);
-    return data;
-  }
+    async function loadProfile() {
+        const { data } = await profileService.getMe();
+        store.setProfile(data);
+        return data;
+    }
 
-  function logout() {
-    tenantStore.clear();
-    store.clearAuth();
-  }
+    function logout() {
+        tenantStore.clear();
+        store.clearAuth();
+    }
 
-  async function searchUsers(query: string, limit?: number) {
-    return authService.searchUsers(query, limit);
-  }
+    async function searchUsers(query: string, limit?: number) {
+        return authService.searchUsers(query, limit);
+    }
 
-  return { login, register, loadProfile, logout, searchUsers };
+    return { login, register, loadProfile, logout, searchUsers };
 }

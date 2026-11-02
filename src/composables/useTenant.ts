@@ -8,5 +8,5 @@ const tenantService = new TenantService(campusApi);
 const store = useTenantStore(tenantService);
 
 export function useTenant() {
-  return store();
+    return store();
 }

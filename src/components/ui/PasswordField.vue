@@ -1,64 +1,64 @@
 <script setup lang="ts">
-  import { ref } from "vue";
-  import type { Props } from "./PasswordField.types";
+import { ref } from "vue";
+import type { Props } from "./PasswordField.types";
 
-  withDefaults(defineProps<Props>(), {});
+withDefaults(defineProps<Props>(), {});
 
-  const model = defineModel<string>({ required: true });
-  const visible = ref(false);
+const model = defineModel<string>({ required: true });
+const visible = ref(false);
 </script>
 
 <template>
-  <div class="field">
-    <label class="field-label" :for="inputId">{{ label }}</label>
-    <div class="password-input">
-      <InputText
-        :id="inputId"
-        v-model="model"
-        :type="visible ? 'text' : 'password'"
-        :autocomplete="autocomplete"
-        :minlength="minlength"
-        :aria-describedby="hint ? `${inputId}-hint` : undefined"
-        required
-      />
-      <button
-        type="button"
-        class="password-toggle"
-        :aria-label="visible ? 'Ocultar contraseña' : 'Mostrar contraseña'"
-        :aria-pressed="visible"
-        @click="visible = !visible"
-      >
-        <i :class="visible ? 'pi pi-eye-slash' : 'pi pi-eye'" aria-hidden="true"></i>
-      </button>
+    <div class="field">
+        <label class="field-label" :for="inputId">{{ label }}</label>
+        <div class="password-input">
+            <InputText
+                :id="inputId"
+                v-model="model"
+                :type="visible ? 'text' : 'password'"
+                :autocomplete="autocomplete"
+                :minlength="minlength"
+                :aria-describedby="hint ? `${inputId}-hint` : undefined"
+                required
+            />
+            <button
+                type="button"
+                class="password-toggle"
+                :aria-label="visible ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                :aria-pressed="visible"
+                @click="visible = !visible"
+            >
+                <i :class="visible ? 'pi pi-eye-slash' : 'pi pi-eye'" aria-hidden="true"></i>
+            </button>
+        </div>
+        <small v-if="hint" :id="`${inputId}-hint`" class="field-hint">{{ hint }}</small>
     </div>
-    <small v-if="hint" :id="`${inputId}-hint`" class="field-hint">{{ hint }}</small>
-  </div>
 </template>
 
 <style scoped>
-  .field {
+.field {
     display: flex;
     flex-direction: column;
     gap: var(--space-1);
-  }
+}
 
-  .field-label {
+.field-label {
     color: var(--text-secondary);
     font-size: var(--text-xs);
     font-weight: 700;
-  }
+}
 
-  .password-input {
+.password-input {
     position: relative;
     display: flex;
-  }
+}
 
-  .password-input :deep(.p-inputtext) {
+.password-input :deep(.p-inputtext) {
     width: 100%;
     padding-right: 40px;
-  }
+}
 
-  .password-toggle {
+.password-toggle {
     position: absolute;
     top: 0;
     right: 0;
@@ -71,14 +71,14 @@
     color: var(--text-muted);
     cursor: pointer;
     place-items: center;
-  }
+}
 
-  .password-toggle:hover {
+.password-toggle:hover {
     color: var(--text-primary);
-  }
+}
 
-  .field-hint {
+.field-hint {
     color: var(--text-muted);
     font-size: var(--text-xs);
-  }
+}
 </style>

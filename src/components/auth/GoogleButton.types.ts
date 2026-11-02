@@ -1,11 +1,11 @@
 export interface GoogleButtonEmits {
-  (e: "code", authCode: string): void;
+    (e: "code", authCode: string): void;
 }
 
 export interface GoogleClient {
-  requestCode: () => void;
+    requestCode: () => void;
 }
 
 export interface GoogleResponse {
-  code: string;
+    code: string;
 }

@@ -6,41 +6,46 @@ import type { SchoolMember } from "@/services/school/schoolService";
 const schoolService = new SchoolService(campusApi);
 
 function reason(e: unknown, fallback: string) {
-  const message = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
-  return message ? message : fallback;
+    const message = (e as { response?: { data?: { message?: string } } })?.response?.data?.message;
+    return message ? message : fallback;
 }
 
 export function useSchool() {
-  const members = ref<SchoolMember[]>([]);
-  const loading = ref(false);
+    const members = ref<SchoolMember[]>([]);
+    const loading = ref(false);
 
-  async function loadMembers() {
-    loading.value = true;
-    try {
-      members.value = await schoolService.members();
-      return members.value;
-    } catch (e) {
-      throw new Error(reason(e, "No se pudieron cargar las personas de esta institución."));
-    } finally {
-      loading.value = false;
+    async function loadMembers() {
+        loading.value = true;
+        try {
+            members.value = await schoolService.members();
+            return members.value;
+        } catch (e) {
+            throw new Error(reason(e, "No se pudieron cargar las personas de esta institución."));
+        } finally {
+            loading.value = false;
+        }
     }
-  }
 
-  async function addMember(userID: string, role: SchoolMember["role"]) {
-    try {
-      await schoolService.addMember(userID, role);
-    } catch (e) {
-      throw new Error(reason(e, "No se pudo agregar. Verificá que esta persona ya tenga perfil en Practiq."));
+    async function addMember(userID: string, role: SchoolMember["role"]) {
+        try {
+            await schoolService.addMember(userID, role);
+        } catch (e) {
+            throw new Error(
+                reason(
+                    e,
+                    "No se pudo agregar. Verificá que esta persona ya tenga perfil en Practiq.",
+                ),
+            );
+        }
     }
-  }
 
-  async function removeMember(userID: string) {
-    try {
-      await schoolService.removeMember(userID);
-    } catch (e) {
-      throw new Error(reason(e, "No se pudo quitar esta persona."));
+    async function removeMember(userID: string) {
+        try {
+            await schoolService.removeMember(userID);
+        } catch (e) {
+            throw new Error(reason(e, "No se pudo quitar esta persona."));
+        }
     }
-  }
 
-  return { members, loading, loadMembers, addMember, removeMember };
+    return { members, loading, loadMembers, addMember, removeMember };
 }

@@ -1,60 +1,60 @@
 export type QuizQuestionType = "multiple_choice" | "true_false" | "fill_blanks";
 
 export interface Quiz {
-  id: string;
-  course_id: string;
-  section_id: string | null;
-  title: string;
-  description: string;
-  time_limit_secs: number | null;
-  max_attempts: number;
-  scheduled_at: string | null;
-  available_until: string | null;
-  created_at: string;
-  question_count: number;
-  weight: number;
-  visible_group_id: string | null;
-  unlock_after_type: "assignment" | "quiz" | null;
-  unlock_after_id: string | null;
-  locked: boolean;
-  locked_reason?: string;
+    id: string;
+    course_id: string;
+    section_id: string | null;
+    title: string;
+    description: string;
+    time_limit_secs: number | null;
+    max_attempts: number;
+    scheduled_at: string | null;
+    available_until: string | null;
+    created_at: string;
+    question_count: number;
+    weight: number;
+    visible_group_id: string | null;
+    unlock_after_type: "assignment" | "quiz" | null;
+    unlock_after_id: string | null;
+    locked: boolean;
+    locked_reason?: string;
 }
 
 export interface QuizQuestion {
-  id: string;
-  type: QuizQuestionType;
-  statement: string;
-  options: string[];
-  correct_answer: string;
-  points: number;
+    id: string;
+    type: QuizQuestionType;
+    statement: string;
+    options: string[];
+    correct_answer: string;
+    points: number;
 }
 
 export interface StudentQuizQuestion {
-  id: string;
-  type: QuizQuestionType;
-  statement: string;
-  options: string[];
-  points: number;
+    id: string;
+    type: QuizQuestionType;
+    statement: string;
+    options: string[];
+    points: number;
 }
 
 export interface QuizAttempt {
-  id: string;
-  quiz_id: string;
-  user_id: string;
-  user_name?: string;
-  attempt_number: number;
-  started_at: string;
-  expires_at: string | null;
-  submitted_at: string | null;
-  score: number;
-  max_score: number;
+    id: string;
+    quiz_id: string;
+    user_id: string;
+    user_name?: string;
+    attempt_number: number;
+    started_at: string;
+    expires_at: string | null;
+    submitted_at: string | null;
+    score: number;
+    max_score: number;
 }
 
 export interface QuizAnswerResult {
-  question_id: string;
-  statement: string;
-  answer_text: string;
-  correct_answer: string;
-  is_correct: boolean;
-  points: number;
+    question_id: string;
+    statement: string;
+    answer_text: string;
+    correct_answer: string;
+    is_correct: boolean;
+    points: number;
 }

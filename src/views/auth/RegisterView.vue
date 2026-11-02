@@ -1,102 +1,121 @@
 <script setup lang="ts">
-  import { ref } from "vue";
-  import { useRouter } from "vue-router";
-  import { useAuth } from "@/composables/useAuth";
-  import PasswordField from "@/components/ui/PasswordField.vue";
+import { ref } from "vue";
+import { useRouter } from "vue-router";
+import { useAuth } from "@/composables/useAuth";
+import PasswordField from "@/components/ui/PasswordField.vue";
 
-  const router = useRouter();
-  const { register } = useAuth();
+const router = useRouter();
+const { register } = useAuth();
 
-  const firstName = ref("");
-  const lastName = ref("");
-  const email = ref("");
-  const password = ref("");
-  const submitting = ref(false);
+const firstName = ref("");
+const lastName = ref("");
+const email = ref("");
+const password = ref("");
+const submitting = ref(false);
 
-  async function handleSubmit() {
+async function handleSubmit() {
     if (submitting.value) return;
     submitting.value = true;
     try {
-      const profile = await register({
-        first_name: firstName.value,
-        last_name: lastName.value,
-        email: email.value,
-        password: password.value,
-      });
-      router.push(
-        profile.profile_type === "teacher" ? "/teacher/dashboard" : "/student/dashboard",
-      );
+        const profile = await register({
+            first_name: firstName.value,
+            last_name: lastName.value,
+            email: email.value,
+            password: password.value,
+        });
+        router.push(
+            profile.profile_type === "teacher" ? "/teacher/dashboard" : "/student/dashboard",
+        );
     } catch {
     } finally {
-      submitting.value = false;
+        submitting.value = false;
     }
-  }
+}
 </script>
 
 <template>
-  <div class="auth-shell">
-    <div class="auth-card">
-      <div class="auth-brand"><img src="/logo.png" alt="" class="auth-brand-logo" /> Practiq Campus</div>
-      <h1 class="auth-title">Crear cuenta</h1>
+    <div class="auth-shell">
+        <div class="auth-card">
+            <div class="auth-brand">
+                <img src="/logo.png" alt="" class="auth-brand-logo" /> Practiq Campus
+            </div>
+            <h1 class="auth-title">Crear cuenta</h1>
 
-      <form class="auth-form" @submit.prevent="handleSubmit">
-        <div class="field-row">
-          <div class="field">
-            <label class="field-label" for="register-first-name">Nombre</label>
-            <InputText id="register-first-name" v-model="firstName" required autocomplete="given-name" autofocus />
-          </div>
-          <div class="field">
-            <label class="field-label" for="register-last-name">Apellido</label>
-            <InputText id="register-last-name" v-model="lastName" required autocomplete="family-name" />
-          </div>
-        </div>
-        <div class="field">
-          <label class="field-label" for="register-email">Email</label>
-          <InputText id="register-email" v-model="email" type="email" required autocomplete="email" />
-        </div>
-        <PasswordField
-          v-model="password"
-          input-id="register-password"
-          label="Contraseña"
-          autocomplete="new-password"
-          :minlength="8"
-          hint="Al menos 8 caracteres."
-        />
-        <Button
-          type="submit"
-          label="Crear cuenta"
-          :loading="submitting"
-          class="submit-btn"
-        />
-      </form>
+            <form class="auth-form" @submit.prevent="handleSubmit">
+                <div class="field-row">
+                    <div class="field">
+                        <label class="field-label" for="register-first-name">Nombre</label>
+                        <InputText
+                            id="register-first-name"
+                            v-model="firstName"
+                            required
+                            autocomplete="given-name"
+                            autofocus
+                        />
+                    </div>
+                    <div class="field">
+                        <label class="field-label" for="register-last-name">Apellido</label>
+                        <InputText
+                            id="register-last-name"
+                            v-model="lastName"
+                            required
+                            autocomplete="family-name"
+                        />
+                    </div>
+                </div>
+                <div class="field">
+                    <label class="field-label" for="register-email">Email</label>
+                    <InputText
+                        id="register-email"
+                        v-model="email"
+                        type="email"
+                        required
+                        autocomplete="email"
+                    />
+                </div>
+                <PasswordField
+                    v-model="password"
+                    input-id="register-password"
+                    label="Contraseña"
+                    autocomplete="new-password"
+                    :minlength="8"
+                    hint="Al menos 8 caracteres."
+                />
+                <Button
+                    type="submit"
+                    label="Crear cuenta"
+                    :loading="submitting"
+                    class="submit-btn"
+                />
+            </form>
 
-      <p class="auth-switch">
-        ¿Ya tenés cuenta?
-        <RouterLink to="/login">Iniciá sesión</RouterLink>
-      </p>
+            <p class="auth-switch">
+                ¿Ya tenés cuenta?
+                <RouterLink to="/login">Iniciá sesión</RouterLink>
+            </p>
+        </div>
     </div>
-  </div>
 </template>
 
 <style scoped>
-  .auth-shell {
+.auth-shell {
     min-height: 100vh;
     display: grid;
     place-items: center;
     background: var(--gradient-auth-bg);
     padding: var(--space-6);
-  }
+}
 
-  .auth-card {
+.auth-card {
     width: 100%;
     max-width: 420px;
     background: var(--surface-card);
     border-radius: var(--radius-xl);
     box-shadow: var(--shadow-auth-card);
     padding: var(--space-8) var(--space-6);
-  }
+}
 
-  .auth-brand {
+.auth-brand {
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
@@ -106,52 +125,52 @@
     letter-spacing: 0.08em;
     color: var(--practiq-violet);
     margin-bottom: var(--space-2);
-  }
+}
 
-  .auth-brand-logo {
+.auth-brand-logo {
     width: 20px;
     height: 20px;
-  }
+}
 
-  .auth-title {
+.auth-title {
     font-size: 22px;
     font-weight: 700;
     color: var(--text-heading);
     margin-bottom: var(--space-6);
-  }
+}
 
-  .auth-form {
+.auth-form {
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
-  }
+}
 
-  .field-row {
+.field-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: var(--space-3);
-  }
+}
 
-  .field {
+.field {
     display: flex;
     flex-direction: column;
     gap: var(--space-1);
-  }
+}
 
-  .field-label {
+.field-label {
     font-size: var(--text-xs);
     font-weight: 700;
     color: var(--text-secondary);
-  }
+}
 
-  .submit-btn {
+.submit-btn {
     margin-top: var(--space-2);
-  }
+}
 
-  .auth-switch {
+.auth-switch {
     margin-top: var(--space-5);
     text-align: center;
     font-size: var(--text-sm);
     color: var(--text-secondary);
-  }
+}
 </style>

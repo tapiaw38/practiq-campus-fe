@@ -1,5 +1,5 @@
 export interface Props {
-  eyebrow?: string;
-  title: string;
-  subtitle?: string;
+    eyebrow?: string;
+    title: string;
+    subtitle?: string;
 }

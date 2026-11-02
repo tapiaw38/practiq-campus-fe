@@ -1,16 +1,16 @@
 <script setup lang="ts">
-  import StateMessage from "@/components/ui/StateMessage.vue";
-  import PageHeader from "@/components/ui/PageHeader.vue";
-  import { formatDateTime } from "@/utils/datetime";
-  import { computed, nextTick, onMounted, ref, watch } from "vue";
-  import { useAuthStore } from "@/stores/authStore";
-  import { useMessages } from "@/composables/useMessages";
-  import { useCourses } from "@/composables/useCourses";
-  import type { MessageRecipient } from "@/types";
+import StateMessage from "@/components/ui/StateMessage.vue";
+import PageHeader from "@/components/ui/PageHeader.vue";
+import { formatDateTime } from "@/utils/datetime";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { useAuthStore } from "@/stores/authStore";
+import { useMessages } from "@/composables/useMessages";
+import { useCourses } from "@/composables/useCourses";
+import type { MessageRecipient } from "@/types";
 
-  const authStore = useAuthStore();
-  const { courses, loadCourses } = useCourses();
-  const {
+const authStore = useAuthStore();
+const { courses, loadCourses } = useCourses();
+const {
     conversations,
     messagesByConversation,
     loading,
@@ -20,129 +20,136 @@
     reply,
     searchRecipients,
     markRead,
-  } = useMessages();
+} = useMessages();
 
-  const selectedConversationId = ref<string | null>(null);
-  const conversationQuery = ref("");
-  const showCompose = ref(false);
-  const replyBody = ref("");
-  const sendingReply = ref(false);
-  const threadEnd = ref<HTMLElement | null>(null);
+const selectedConversationId = ref<string | null>(null);
+const conversationQuery = ref("");
+const showCompose = ref(false);
+const replyBody = ref("");
+const sendingReply = ref(false);
+const threadEnd = ref<HTMLElement | null>(null);
 
-  const composeCourseId = ref("");
-  const recipientQuery = ref("");
-  const recipientResults = ref<MessageRecipient[]>([]);
-  const selectedRecipient = ref<MessageRecipient | null>(null);
-  const searching = ref(false);
-  const newBody = ref("");
-  const sendingNew = ref(false);
-  let searchDebounce: ReturnType<typeof setTimeout> | null = null;
+const composeCourseId = ref("");
+const recipientQuery = ref("");
+const recipientResults = ref<MessageRecipient[]>([]);
+const selectedRecipient = ref<MessageRecipient | null>(null);
+const searching = ref(false);
+const newBody = ref("");
+const sendingNew = ref(false);
+let searchDebounce: ReturnType<typeof setTimeout> | null = null;
 
-  const filteredConversations = computed(() => {
+const filteredConversations = computed(() => {
     const query = conversationQuery.value.trim().toLocaleLowerCase();
     if (!query) return conversations.value;
     return conversations.value.filter((conversation) =>
-      [conversation.other_user_name, conversation.other_user_email, conversation.last_message_body]
-        .filter(Boolean)
-        .some((value) => value.toLocaleLowerCase().includes(query)),
+        [
+            conversation.other_user_name,
+            conversation.other_user_email,
+            conversation.last_message_body,
+        ]
+            .filter(Boolean)
+            .some((value) => value.toLocaleLowerCase().includes(query)),
     );
-  });
+});
 
-  const selectedConversation = computed(
-    () => conversations.value.find((conversation) => conversation.id === selectedConversationId.value) || null,
-  );
+const selectedConversation = computed(
+    () =>
+        conversations.value.find(
+            (conversation) => conversation.id === selectedConversationId.value,
+        ) || null,
+);
 
-  onMounted(async () => {
+onMounted(async () => {
     const loadedConversations = await loadConversations();
     if (loadedConversations.length) await selectConversation(loadedConversations[0].id);
     const myCourses = await loadCourses();
     if (myCourses.length && !composeCourseId.value) {
-      composeCourseId.value = myCourses[0].id;
+        composeCourseId.value = myCourses[0].id;
     }
-  });
+});
 
-  watch(recipientQuery, (query) => {
+watch(recipientQuery, (query) => {
     selectedRecipient.value = null;
     if (searchDebounce) clearTimeout(searchDebounce);
     if (!composeCourseId.value || !query.trim()) {
-      recipientResults.value = [];
-      return;
+        recipientResults.value = [];
+        return;
     }
     searchDebounce = setTimeout(async () => {
-      searching.value = true;
-      try {
-        recipientResults.value = await searchRecipients(composeCourseId.value, query.trim());
-      } finally {
-        searching.value = false;
-      }
+        searching.value = true;
+        try {
+            recipientResults.value = await searchRecipients(composeCourseId.value, query.trim());
+        } finally {
+            searching.value = false;
+        }
     }, 300);
-  });
+});
 
-  watch(composeCourseId, () => {
+watch(composeCourseId, () => {
     recipientQuery.value = "";
     recipientResults.value = [];
     selectedRecipient.value = null;
-  });
+});
 
-  function pickRecipient(recipient: MessageRecipient) {
+function pickRecipient(recipient: MessageRecipient) {
     selectedRecipient.value = recipient;
     recipientQuery.value = recipient.full_name || recipient.email;
     recipientResults.value = [];
-  }
+}
 
-  function clearRecipient() {
+function clearRecipient() {
     selectedRecipient.value = null;
     recipientQuery.value = "";
-  }
+}
 
-  async function scrollToBottom() {
+async function scrollToBottom() {
     await nextTick();
     threadEnd.value?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }
+}
 
-  async function selectConversation(conversationId: string) {
+async function selectConversation(conversationId: string) {
     selectedConversationId.value = conversationId;
     await loadMessages(conversationId);
     const conv = conversations.value.find((c) => c.id === conversationId);
     if (conv?.unread) markRead(conversationId);
     scrollToBottom();
-  }
+}
 
-  async function handleReply() {
+async function handleReply() {
     if (!selectedConversationId.value || !replyBody.value.trim() || sendingReply.value) return;
     sendingReply.value = true;
     try {
-      await reply(selectedConversationId.value, replyBody.value.trim());
-      replyBody.value = "";
-      scrollToBottom();
+        await reply(selectedConversationId.value, replyBody.value.trim());
+        replyBody.value = "";
+        scrollToBottom();
     } catch {
     } finally {
-      sendingReply.value = false;
+        sendingReply.value = false;
     }
-  }
+}
 
-  async function handleSendNew() {
+async function handleSendNew() {
     if (!selectedRecipient.value || !newBody.value.trim() || sendingNew.value) return;
     sendingNew.value = true;
     try {
-      const message = await sendNew(selectedRecipient.value.id, newBody.value.trim());
-      selectedConversationId.value = message.conversation_id;
-      await loadMessages(message.conversation_id);
-      clearRecipient();
-      newBody.value = "";
-      showCompose.value = false;
-      scrollToBottom();
+        const message = await sendNew(selectedRecipient.value.id, newBody.value.trim());
+        selectedConversationId.value = message.conversation_id;
+        await loadMessages(message.conversation_id);
+        clearRecipient();
+        newBody.value = "";
+        showCompose.value = false;
+        scrollToBottom();
     } catch {
     } finally {
-      sendingNew.value = false;
+        sendingNew.value = false;
     }
-  }
+}
 
-  function isUnread(conv: { id: string; unread: boolean }) {
+function isUnread(conv: { id: string; unread: boolean }) {
     return conv.unread && selectedConversationId.value !== conv.id;
-  }
+}
 
-  function relativeTime(iso: string | null) {
+function relativeTime(iso: string | null) {
     if (!iso) return "";
     const diffMs = Date.now() - new Date(iso).getTime();
     const minutes = Math.floor(diffMs / 60000);
@@ -152,231 +159,301 @@
     if (hours < 24) return `${hours}h`;
     const days = Math.floor(hours / 24);
     return `${days}d`;
-  }
+}
 
-  function conversationPreview(conv: { last_message_body: string; last_message_sender_id: string }) {
+function conversationPreview(conv: { last_message_body: string; last_message_sender_id: string }) {
     const mine = conv.last_message_sender_id === authStore.profile?.id;
     return mine ? `Vos: ${conv.last_message_body}` : conv.last_message_body;
-  }
+}
 
-  function initial(name: string) {
+function initial(name: string) {
     return (name || "?").slice(0, 1).toUpperCase();
-  }
+}
 </script>
 
 <template>
-  <div class="messages-panel">
-    <PageHeader
-      eyebrow="Comunicación"
-      title="Mensajes"
-      subtitle="Conversá con docentes y compañeros de tus cursos."
-    >
-      <template #actions>
-        <Button label="Nuevo mensaje" icon="pi pi-plus" @click="showCompose = true" />
-      </template>
-    </PageHeader>
-
-    <section class="messages-layout" :class="{ 'messages-layout--conversation-selected': selectedConversationId }" aria-label="Conversaciones">
-      <aside class="conversation-sidebar">
-        <div class="conversation-sidebar__head">
-          <div>
-            <h2>Conversaciones</h2>
-            <span>{{ conversations.length }} {{ conversations.length === 1 ? "conversación" : "conversaciones" }}</span>
-          </div>
-          <i class="pi pi-comments" aria-hidden="true"></i>
-        </div>
-        <div class="conversation-search">
-          <i class="pi pi-search" aria-hidden="true"></i>
-          <InputText v-model="conversationQuery" placeholder="Buscar mensajes" aria-label="Buscar conversaciones" />
-        </div>
-        <div class="conversation-list">
-          <StateMessage v-if="loading" variant="loading" dense :rows="3" loading-label="Cargando conversaciones" />
-          <p v-else-if="!conversations.length" class="state-message state-message--compact">
-            Aún no tenés conversaciones.
-          </p>
-          <p v-else-if="!filteredConversations.length" class="state-message state-message--compact">
-            No hay coincidencias para “{{ conversationQuery }}”.
-          </p>
-        <button
-          v-for="conv in filteredConversations"
-          :key="conv.id"
-          type="button"
-          class="conversation-item"
-          :class="{ 'conversation-item--active': selectedConversationId === conv.id }"
-          @click="selectConversation(conv.id)"
+    <div class="messages-panel">
+        <PageHeader
+            eyebrow="Comunicación"
+            title="Mensajes"
+            subtitle="Conversá con docentes y compañeros de tus cursos."
         >
-          <span class="conversation-avatar">{{ initial(conv.other_user_name || conv.other_user_email) }}</span>
-          <span class="conversation-main">
-            <span class="conversation-top">
-              <span class="conversation-name">
-                {{ conv.other_user_name || conv.other_user_email }}
-              </span>
-              <span class="conversation-time">{{ relativeTime(conv.last_message_at) }}</span>
-            </span>
-            <span class="conversation-preview">{{ conversationPreview(conv) }}</span>
-          </span>
-          <span v-if="isUnread(conv)" class="unread-dot"></span>
-        </button>
-        </div>
-      </aside>
+            <template #actions>
+                <Button label="Nuevo mensaje" icon="pi pi-plus" @click="showCompose = true" />
+            </template>
+        </PageHeader>
 
-      <main class="thread-panel">
-        <div v-if="!selectedConversationId" class="empty-thread">
-          <span class="empty-thread__icon"><i class="pi pi-comments"></i></span>
-          <h2>Elegí una conversación</h2>
-          <p>Seleccioná un chat de la lista o iniciá uno nuevo.</p>
-          <Button label="Nuevo mensaje" icon="pi pi-plus" outlined @click="showCompose = true" />
-        </div>
-        <template v-else>
-          <header class="thread-header">
-            <button class="thread-back" type="button" aria-label="Volver a conversaciones" @click="selectedConversationId = null">
-              <i class="pi pi-arrow-left" aria-hidden="true"></i>
-              <span>Conversaciones</span>
-            </button>
-            <span class="thread-avatar">{{ initial(selectedConversation?.other_user_name || selectedConversation?.other_user_email || "?") }}</span>
-            <div>
-              <h2>{{ selectedConversation?.other_user_name || selectedConversation?.other_user_email }}</h2>
-              <p>{{ selectedConversation?.other_user_email }}</p>
+        <section
+            class="messages-layout"
+            :class="{ 'messages-layout--conversation-selected': selectedConversationId }"
+            aria-label="Conversaciones"
+        >
+            <aside class="conversation-sidebar">
+                <div class="conversation-sidebar__head">
+                    <div>
+                        <h2>Conversaciones</h2>
+                        <span
+                            >{{ conversations.length }}
+                            {{
+                                conversations.length === 1 ? "conversación" : "conversaciones"
+                            }}</span
+                        >
+                    </div>
+                    <i class="pi pi-comments" aria-hidden="true"></i>
+                </div>
+                <div class="conversation-search">
+                    <i class="pi pi-search" aria-hidden="true"></i>
+                    <InputText
+                        v-model="conversationQuery"
+                        placeholder="Buscar mensajes"
+                        aria-label="Buscar conversaciones"
+                    />
+                </div>
+                <div class="conversation-list">
+                    <StateMessage
+                        v-if="loading"
+                        variant="loading"
+                        dense
+                        :rows="3"
+                        loading-label="Cargando conversaciones"
+                    />
+                    <p
+                        v-else-if="!conversations.length"
+                        class="state-message state-message--compact"
+                    >
+                        Aún no tenés conversaciones.
+                    </p>
+                    <p
+                        v-else-if="!filteredConversations.length"
+                        class="state-message state-message--compact"
+                    >
+                        No hay coincidencias para “{{ conversationQuery }}”.
+                    </p>
+                    <button
+                        v-for="conv in filteredConversations"
+                        :key="conv.id"
+                        type="button"
+                        class="conversation-item"
+                        :class="{ 'conversation-item--active': selectedConversationId === conv.id }"
+                        @click="selectConversation(conv.id)"
+                    >
+                        <span class="conversation-avatar">{{
+                            initial(conv.other_user_name || conv.other_user_email)
+                        }}</span>
+                        <span class="conversation-main">
+                            <span class="conversation-top">
+                                <span class="conversation-name">
+                                    {{ conv.other_user_name || conv.other_user_email }}
+                                </span>
+                                <span class="conversation-time">{{
+                                    relativeTime(conv.last_message_at)
+                                }}</span>
+                            </span>
+                            <span class="conversation-preview">{{
+                                conversationPreview(conv)
+                            }}</span>
+                        </span>
+                        <span v-if="isUnread(conv)" class="unread-dot"></span>
+                    </button>
+                </div>
+            </aside>
+
+            <main class="thread-panel">
+                <div v-if="!selectedConversationId" class="empty-thread">
+                    <span class="empty-thread__icon"><i class="pi pi-comments"></i></span>
+                    <h2>Elegí una conversación</h2>
+                    <p>Seleccioná un chat de la lista o iniciá uno nuevo.</p>
+                    <Button
+                        label="Nuevo mensaje"
+                        icon="pi pi-plus"
+                        outlined
+                        @click="showCompose = true"
+                    />
+                </div>
+                <template v-else>
+                    <header class="thread-header">
+                        <button
+                            class="thread-back"
+                            type="button"
+                            aria-label="Volver a conversaciones"
+                            @click="selectedConversationId = null"
+                        >
+                            <i class="pi pi-arrow-left" aria-hidden="true"></i>
+                            <span>Conversaciones</span>
+                        </button>
+                        <span class="thread-avatar">{{
+                            initial(
+                                selectedConversation?.other_user_name ||
+                                    selectedConversation?.other_user_email ||
+                                    "?",
+                            )
+                        }}</span>
+                        <div>
+                            <h2>
+                                {{
+                                    selectedConversation?.other_user_name ||
+                                    selectedConversation?.other_user_email
+                                }}
+                            </h2>
+                            <p>{{ selectedConversation?.other_user_email }}</p>
+                        </div>
+                    </header>
+                    <ul class="message-list">
+                        <li
+                            v-for="msg in messagesByConversation[selectedConversationId] || []"
+                            :key="msg.id"
+                            class="message-item"
+                            :class="{
+                                'message-item--mine': msg.sender_id === authStore.profile?.id,
+                            }"
+                        >
+                            <p class="message-body">{{ msg.body }}</p>
+                            <span class="message-time">{{ formatDateTime(msg.sent_at) }}</span>
+                        </li>
+                        <li ref="threadEnd"></li>
+                    </ul>
+                    <form class="reply-form" @submit.prevent="handleReply">
+                        <Textarea
+                            v-model="replyBody"
+                            class="reply-input"
+                            rows="2"
+                            auto-resize
+                            placeholder="Escribí tu respuesta… (Enter para enviar, Shift+Enter para saltar línea)"
+                            @keydown.enter.exact.prevent="handleReply"
+                        />
+                        <Button type="submit" label="Enviar" size="small" :loading="sendingReply" />
+                    </form>
+                </template>
+            </main>
+        </section>
+
+        <Dialog
+            v-model:visible="showCompose"
+            modal
+            header="Nuevo mensaje"
+            :style="{ width: 'min(560px, calc(100vw - 2rem))' }"
+        >
+            <p class="dialog-lead">
+                Elegí curso y destinatario. Solo aparecen personas con un curso en común.
+            </p>
+            <div class="compose-row">
+                <Select
+                    v-model="composeCourseId"
+                    :options="courses"
+                    option-label="title"
+                    option-value="id"
+                    placeholder="Curso"
+                    class="compose-course"
+                />
+                <div class="recipient-search">
+                    <InputText
+                        v-model="recipientQuery"
+                        placeholder="Buscar por nombre o email…"
+                        :disabled="!composeCourseId"
+                    />
+                    <ul
+                        v-if="recipientResults.length && !selectedRecipient"
+                        class="recipient-results"
+                    >
+                        <li
+                            v-for="candidate in recipientResults"
+                            :key="candidate.id"
+                            class="recipient-option"
+                            @click="pickRecipient(candidate)"
+                        >
+                            <span class="recipient-avatar">{{
+                                initial(candidate.full_name || candidate.email)
+                            }}</span>
+                            <span class="recipient-info">
+                                <span class="recipient-name">{{
+                                    candidate.full_name || candidate.email
+                                }}</span>
+                                <span v-if="candidate.full_name" class="recipient-email">{{
+                                    candidate.email
+                                }}</span>
+                            </span>
+                        </li>
+                    </ul>
+                    <p v-else-if="searching" class="search-hint">Buscando…</p>
+                    <p
+                        v-else-if="recipientQuery && !selectedRecipient && !recipientResults.length"
+                        class="search-hint"
+                    >
+                        Nadie coincide en ese curso.
+                    </p>
+                </div>
             </div>
-          </header>
-          <ul class="message-list">
-            <li
-              v-for="msg in messagesByConversation[selectedConversationId] || []"
-              :key="msg.id"
-              class="message-item"
-              :class="{ 'message-item--mine': msg.sender_id === authStore.profile?.id }"
-            >
-              <p class="message-body">{{ msg.body }}</p>
-              <span class="message-time">{{ formatDateTime(msg.sent_at) }}</span>
-            </li>
-            <li ref="threadEnd"></li>
-          </ul>
-          <form class="reply-form" @submit.prevent="handleReply">
-            <Textarea
-              v-model="replyBody"
-              class="reply-input"
-              rows="2"
-              auto-resize
-              placeholder="Escribí tu respuesta… (Enter para enviar, Shift+Enter para saltar línea)"
-              @keydown.enter.exact.prevent="handleReply"
-            />
-            <Button type="submit" label="Enviar" size="small" :loading="sendingReply" />
-          </form>
-        </template>
-      </main>
-    </section>
-
-    <Dialog v-model:visible="showCompose" modal header="Nuevo mensaje" :style="{ width: 'min(560px, calc(100vw - 2rem))' }">
-      <p class="dialog-lead">Elegí curso y destinatario. Solo aparecen personas con un curso en común.</p>
-      <div class="compose-row">
-        <Select
-          v-model="composeCourseId"
-          :options="courses"
-          option-label="title"
-          option-value="id"
-          placeholder="Curso"
-          class="compose-course"
-        />
-        <div class="recipient-search">
-          <InputText
-            v-model="recipientQuery"
-            placeholder="Buscar por nombre o email…"
-            :disabled="!composeCourseId"
-          />
-          <ul v-if="recipientResults.length && !selectedRecipient" class="recipient-results">
-            <li
-              v-for="candidate in recipientResults"
-              :key="candidate.id"
-              class="recipient-option"
-              @click="pickRecipient(candidate)"
-            >
-              <span class="recipient-avatar">{{ initial(candidate.full_name || candidate.email) }}</span>
-              <span class="recipient-info">
-                <span class="recipient-name">{{ candidate.full_name || candidate.email }}</span>
-                <span v-if="candidate.full_name" class="recipient-email">{{ candidate.email }}</span>
-              </span>
-            </li>
-          </ul>
-          <p v-else-if="searching" class="search-hint">Buscando…</p>
-          <p
-            v-else-if="recipientQuery && !selectedRecipient && !recipientResults.length"
-            class="search-hint"
-          >
-            Nadie coincide en ese curso.
-          </p>
-        </div>
-      </div>
-      <div v-if="selectedRecipient" class="selected-recipient">
-        Para: <strong>{{ selectedRecipient.full_name || selectedRecipient.email }}</strong>
-        <button type="button" class="clear-recipient" @click="clearRecipient">
-          <i class="pi pi-times"></i>
-        </button>
-      </div>
-      <form class="compose-form" @submit.prevent="handleSendNew">
-        <Textarea
-          v-model="newBody"
-          class="body-input"
-          rows="2"
-          auto-resize
-          placeholder="Escribí tu mensaje…"
-          @keydown.enter.exact.prevent="handleSendNew"
-        />
-        <Button
-          type="submit"
-          label="Enviar"
-          size="small"
-          :loading="sendingNew"
-          :disabled="!selectedRecipient || !newBody.trim()"
-        />
-      </form>
-      <p class="hint">Se abrirá conversación privada con esta persona.</p>
-    </Dialog>
-  </div>
+            <div v-if="selectedRecipient" class="selected-recipient">
+                Para: <strong>{{ selectedRecipient.full_name || selectedRecipient.email }}</strong>
+                <button type="button" class="clear-recipient" @click="clearRecipient">
+                    <i class="pi pi-times"></i>
+                </button>
+            </div>
+            <form class="compose-form" @submit.prevent="handleSendNew">
+                <Textarea
+                    v-model="newBody"
+                    class="body-input"
+                    rows="2"
+                    auto-resize
+                    placeholder="Escribí tu mensaje…"
+                    @keydown.enter.exact.prevent="handleSendNew"
+                />
+                <Button
+                    type="submit"
+                    label="Enviar"
+                    size="small"
+                    :loading="sendingNew"
+                    :disabled="!selectedRecipient || !newBody.trim()"
+                />
+            </form>
+            <p class="hint">Se abrirá conversación privada con esta persona.</p>
+        </Dialog>
+    </div>
 </template>
 
 <style scoped>
-  .messages-panel {
+.messages-panel {
     max-width: 960px;
-  }
+}
 
-  .compose-card {
+.compose-card {
     padding: var(--space-4);
     border-radius: var(--radius-lg);
     background: var(--surface-card);
     box-shadow: var(--shadow-card);
     margin-top: var(--space-5);
-  }
+}
 
-  .compose-label {
+.compose-label {
     display: block;
     font-size: var(--text-xs);
     font-weight: 700;
     color: var(--text-muted);
     text-transform: uppercase;
     margin-bottom: var(--space-2);
-  }
+}
 
-  .compose-row {
+.compose-row {
     display: flex;
     gap: var(--space-2);
     margin-bottom: var(--space-2);
-  }
+}
 
-  .compose-course {
+.compose-course {
     flex-shrink: 0;
     width: 200px;
-  }
+}
 
-  .recipient-search {
+.recipient-search {
     position: relative;
     flex: 1;
-  }
+}
 
-  .recipient-search :deep(input) {
+.recipient-search :deep(input) {
     width: 100%;
-  }
+}
 
-  .recipient-results {
+.recipient-results {
     position: absolute;
     z-index: 10;
     top: calc(100% + 4px);
@@ -389,22 +466,22 @@
     box-shadow: var(--shadow-card-lg);
     max-height: 240px;
     overflow-y: auto;
-  }
+}
 
-  .recipient-option {
+.recipient-option {
     display: flex;
     align-items: center;
     gap: var(--space-2);
     padding: var(--space-2) var(--space-3);
     cursor: pointer;
-  }
+}
 
-  .recipient-option:hover {
+.recipient-option:hover {
     background: var(--surface-hover);
-  }
+}
 
-  .recipient-avatar,
-  .conversation-avatar {
+.recipient-avatar,
+.conversation-avatar {
     width: 30px;
     height: 30px;
     flex-shrink: 0;
@@ -415,85 +492,85 @@
     color: var(--practiq-violet-dark);
     font-weight: 700;
     font-size: var(--text-xs);
-  }
+}
 
-  .recipient-info {
+.recipient-info {
     display: flex;
     flex-direction: column;
     min-width: 0;
-  }
+}
 
-  .recipient-name {
+.recipient-name {
     font-size: var(--text-sm);
     font-weight: 600;
     color: var(--text-primary);
-  }
+}
 
-  .recipient-email {
+.recipient-email {
     font-size: var(--text-xs);
     color: var(--text-muted);
-  }
+}
 
-  .search-hint {
+.search-hint {
     position: absolute;
     margin: var(--space-1) 0 0;
     font-size: var(--text-xs);
     color: var(--text-muted);
-  }
+}
 
-  .selected-recipient {
+.selected-recipient {
     display: flex;
     align-items: center;
     gap: var(--space-2);
     font-size: var(--text-sm);
     color: var(--text-secondary);
     margin-bottom: var(--space-2);
-  }
+}
 
-  .clear-recipient {
+.clear-recipient {
     border: none;
     background: transparent;
     color: var(--text-muted);
     cursor: pointer;
-  }
+}
 
-  .compose-form {
+.compose-form {
     display: flex;
     align-items: flex-end;
     gap: var(--space-2);
-  }
+}
 
-  .body-input {
+.body-input {
     flex: 1;
-  }
+}
 
-  .hint {
+.hint {
     font-size: var(--text-xs);
     color: var(--text-muted);
     margin: var(--space-2) 0 0;
-  }
+}
 
-  .state-message {
+.state-message {
     padding: var(--space-6);
     border-radius: var(--radius-lg);
     background: var(--surface-card);
     color: var(--text-secondary);
     font-size: var(--text-sm);
-  }
+}
 
-  .messages-layout {
+.messages-layout {
     display: grid;
     grid-template-columns: 280px 1fr;
     gap: var(--space-4);
-  }
+}
 
-  .conversation-list {
+.conversation-list {
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
-  }
+}
 
-  .conversation-item {
+.conversation-item {
     display: flex;
     align-items: center;
     gap: var(--space-2);
@@ -505,52 +582,52 @@
     cursor: pointer;
     text-align: left;
     position: relative;
-  }
+}
 
-  .conversation-item--active {
+.conversation-item--active {
     background: var(--fill-primary-soft);
-  }
+}
 
-  .conversation-main {
+.conversation-main {
     display: flex;
     flex-direction: column;
     gap: 2px;
     min-width: 0;
     flex: 1;
-  }
+}
 
-  .conversation-top {
+.conversation-top {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
     gap: var(--space-2);
-  }
+}
 
-  .conversation-name {
+.conversation-name {
     font-size: var(--text-sm);
     font-weight: 700;
     color: var(--text-primary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
+}
 
-  .conversation-time {
+.conversation-time {
     flex-shrink: 0;
     font-size: 10px;
     color: var(--text-muted);
-  }
+}
 
-  .conversation-preview {
+.conversation-preview {
     font-size: var(--text-xs);
     color: var(--text-muted);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     max-width: 100%;
-  }
+}
 
-  .unread-dot {
+.unread-dot {
     position: absolute;
     top: var(--space-2);
     right: var(--space-2);
@@ -558,15 +635,15 @@
     height: 8px;
     border-radius: 50%;
     background: var(--color-error);
-  }
+}
 
-  .thread-panel {
+.thread-panel {
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
-  }
+}
 
-  .message-list {
+.message-list {
     list-style: none;
     display: flex;
     flex-direction: column;
@@ -578,106 +655,330 @@
     min-height: 320px;
     max-height: 480px;
     overflow-y: auto;
-  }
+}
 
-  .message-item {
+.message-item {
     align-self: flex-start;
     max-width: 70%;
     padding: var(--space-2) var(--space-3);
     border-radius: var(--radius-md);
     background: var(--surface-hover);
-  }
+}
 
-  .message-item--mine {
+.message-item--mine {
     align-self: flex-end;
     background: var(--fill-primary-soft);
-  }
+}
 
-  .message-body {
+.message-body {
     font-size: var(--text-sm);
     color: var(--text-primary);
     white-space: pre-wrap;
-  }
+}
 
-  .message-time {
+.message-time {
     font-size: 10px;
     color: var(--text-muted);
-  }
+}
 
-  .reply-form {
+.reply-form {
     display: flex;
     gap: var(--space-2);
-  }
+}
 
-  .reply-input {
+.reply-input {
     flex: 1;
-  }
+}
 
-  @media (max-width: 720px) {
+@media (max-width: 720px) {
     .messages-layout {
-      grid-template-columns: 1fr;
+        grid-template-columns: 1fr;
     }
 
     .compose-row {
-      flex-direction: column;
+        flex-direction: column;
     }
 
     .compose-course {
-      width: 100%;
+        width: 100%;
     }
-  }
+}
 
-  .messages-panel { max-width: 1180px; }
-  .dialog-lead { margin: var(--space-1) 0 0; color: var(--text-secondary); font-size: var(--text-sm); }
-  .messages-layout { grid-template-columns: minmax(270px, 340px) minmax(0, 1fr); gap: 0; min-height: 610px; border: 1px solid var(--surface-border); border-radius: var(--radius-lg); overflow: hidden; background: var(--surface-card); box-shadow: var(--shadow-card); }
-  .conversation-sidebar { display: flex; min-height: 0; flex-direction: column; padding: var(--space-3); border-right: 1px solid var(--surface-border); background: var(--surface-subtle, var(--surface-card)); }
-  .conversation-sidebar__head { display: flex; align-items: center; justify-content: space-between; padding: var(--space-1) var(--space-1) var(--space-3); }
-  .conversation-sidebar__head h2 { margin: 0; color: var(--text-heading); font-size: var(--text-base); }
-  .conversation-sidebar__head span { color: var(--text-muted); font-size: var(--text-xs); }
-  .conversation-sidebar__head > i { color: var(--practiq-violet-dark); font-size: 18px; }
-  .conversation-search { position: relative; margin-bottom: var(--space-3); }
-  .conversation-search > i { position: absolute; z-index: 1; top: 50%; left: 11px; color: var(--text-muted); font-size: 13px; transform: translateY(-50%); }
-  .conversation-search :deep(input) { width: 100%; padding-left: 32px; }
-  .conversation-list { min-height: 0; flex: 1; gap: 0; overflow-y: auto; }
-  .state-message { text-align: center; }
-  .state-message--compact { padding: var(--space-4) var(--space-2); background: transparent; }
-  .conversation-item { gap: 11px; padding: var(--space-3) var(--space-4); border-left: 3px solid transparent; border-radius: 0; background: transparent; box-shadow: none; }
-  .conversation-item:hover:not(.conversation-item--active) { background: var(--surface-bg); }
-  .conversation-item--active { border-left-color: var(--practiq-violet); background: var(--practiq-violet-pale); }
-  .conversation-avatar { width: 38px; height: 38px; border-radius: 11px; background: var(--practiq-violet-pale); font-family: var(--font-ui-family); font-size: var(--text-md); font-weight: 900; }
-  .conversation-item--active .conversation-avatar { background: var(--practiq-violet-900); color: var(--color-on-primary); }
-  .thread-panel { min-width: 0; gap: 0; background: var(--surface-card); }
-  .thread-header { display: flex; align-items: center; gap: var(--space-3); min-height: 76px; padding: var(--space-3) var(--space-5); border-bottom: 1px solid var(--surface-border); }
-  .thread-header h2 { margin: 0; color: var(--text-heading); font-size: var(--text-base); }
-  .thread-header p { margin: 2px 0 0; color: var(--text-muted); font-size: var(--text-xs); }
-  .thread-avatar { display: grid; width: 38px; height: 38px; flex: 0 0 auto; border-radius: 11px; place-items: center; background: var(--practiq-violet-900); color: var(--color-on-primary); font-family: var(--font-ui-family); font-size: var(--text-md); font-weight: 900; }
-  .message-list { flex: 1; padding: var(--space-5); min-height: 380px; max-height: none; background: var(--surface-bg); }
-  .message-item { max-width: min(78%, 580px); padding: 11px var(--space-4); border: 1px solid var(--surface-border); border-radius: 14px 14px 14px 4px; background: var(--surface-card); }
-  .message-item--mine { border-color: transparent; border-radius: 14px 14px 4px 14px; background: var(--practiq-violet); }
-  .message-item--mine .message-body { color: var(--color-on-primary); }
-  .message-item--mine .message-time { color: var(--practiq-violet-200); }
-  .message-body { font-size: var(--text-base); line-height: 1.55; }
-  .message-time { display: block; margin-top: 5px; }
-  .reply-form { align-items: flex-end; padding: var(--space-3) var(--space-5) var(--space-4); border-top: 1px solid var(--surface-border); background: var(--surface-card); }
-  .empty-thread { display: grid; flex: 1; place-content: center; padding: var(--space-6); text-align: center; }
-  .empty-thread__icon { display: grid; width: 52px; height: 52px; margin: 0 auto var(--space-3); border-radius: 50%; place-items: center; background: var(--fill-primary-soft); color: var(--practiq-violet-dark); font-size: 21px; }
-  .empty-thread h2 { margin: 0; color: var(--text-heading); font-size: 18px; }
-  .empty-thread p { margin: var(--space-2) 0 var(--space-4); color: var(--text-secondary); font-size: var(--text-sm); }
-  .thread-back { display: none; }
+.messages-panel {
+    max-width: 1180px;
+}
+.dialog-lead {
+    margin: var(--space-1) 0 0;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+}
+.messages-layout {
+    grid-template-columns: minmax(270px, 340px) minmax(0, 1fr);
+    gap: 0;
+    min-height: 610px;
+    border: 1px solid var(--surface-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: var(--surface-card);
+    box-shadow: var(--shadow-card);
+}
+.conversation-sidebar {
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+    padding: var(--space-3);
+    border-right: 1px solid var(--surface-border);
+    background: var(--surface-subtle, var(--surface-card));
+}
+.conversation-sidebar__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-1) var(--space-1) var(--space-3);
+}
+.conversation-sidebar__head h2 {
+    margin: 0;
+    color: var(--text-heading);
+    font-size: var(--text-base);
+}
+.conversation-sidebar__head span {
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+}
+.conversation-sidebar__head > i {
+    color: var(--practiq-violet-dark);
+    font-size: 18px;
+}
+.conversation-search {
+    position: relative;
+    margin-bottom: var(--space-3);
+}
+.conversation-search > i {
+    position: absolute;
+    z-index: 1;
+    top: 50%;
+    left: 11px;
+    color: var(--text-muted);
+    font-size: 13px;
+    transform: translateY(-50%);
+}
+.conversation-search :deep(input) {
+    width: 100%;
+    padding-left: 32px;
+}
+.conversation-list {
+    min-height: 0;
+    flex: 1;
+    gap: 0;
+    overflow-y: auto;
+}
+.state-message {
+    text-align: center;
+}
+.state-message--compact {
+    padding: var(--space-4) var(--space-2);
+    background: transparent;
+}
+.conversation-item {
+    gap: 11px;
+    padding: var(--space-3) var(--space-4);
+    border-left: 3px solid transparent;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+.conversation-item:hover:not(.conversation-item--active) {
+    background: var(--surface-bg);
+}
+.conversation-item--active {
+    border-left-color: var(--practiq-violet);
+    background: var(--practiq-violet-pale);
+}
+.conversation-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+    background: var(--practiq-violet-pale);
+    font-family: var(--font-ui-family);
+    font-size: var(--text-md);
+    font-weight: 900;
+}
+.conversation-item--active .conversation-avatar {
+    background: var(--practiq-violet-900);
+    color: var(--color-on-primary);
+}
+.thread-panel {
+    min-width: 0;
+    gap: 0;
+    background: var(--surface-card);
+}
+.thread-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: 76px;
+    padding: var(--space-3) var(--space-5);
+    border-bottom: 1px solid var(--surface-border);
+}
+.thread-header h2 {
+    margin: 0;
+    color: var(--text-heading);
+    font-size: var(--text-base);
+}
+.thread-header p {
+    margin: 2px 0 0;
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+}
+.thread-avatar {
+    display: grid;
+    width: 38px;
+    height: 38px;
+    flex: 0 0 auto;
+    border-radius: 11px;
+    place-items: center;
+    background: var(--practiq-violet-900);
+    color: var(--color-on-primary);
+    font-family: var(--font-ui-family);
+    font-size: var(--text-md);
+    font-weight: 900;
+}
+.message-list {
+    flex: 1;
+    padding: var(--space-5);
+    min-height: 380px;
+    max-height: none;
+    background: var(--surface-bg);
+}
+.message-item {
+    max-width: min(78%, 580px);
+    padding: 11px var(--space-4);
+    border: 1px solid var(--surface-border);
+    border-radius: 14px 14px 14px 4px;
+    background: var(--surface-card);
+}
+.message-item--mine {
+    border-color: transparent;
+    border-radius: 14px 14px 4px 14px;
+    background: var(--practiq-violet);
+}
+.message-item--mine .message-body {
+    color: var(--color-on-primary);
+}
+.message-item--mine .message-time {
+    color: var(--practiq-violet-200);
+}
+.message-body {
+    font-size: var(--text-base);
+    line-height: 1.55;
+}
+.message-time {
+    display: block;
+    margin-top: 5px;
+}
+.reply-form {
+    align-items: flex-end;
+    padding: var(--space-3) var(--space-5) var(--space-4);
+    border-top: 1px solid var(--surface-border);
+    background: var(--surface-card);
+}
+.empty-thread {
+    display: grid;
+    flex: 1;
+    place-content: center;
+    padding: var(--space-6);
+    text-align: center;
+}
+.empty-thread__icon {
+    display: grid;
+    width: 52px;
+    height: 52px;
+    margin: 0 auto var(--space-3);
+    border-radius: 50%;
+    place-items: center;
+    background: var(--fill-primary-soft);
+    color: var(--practiq-violet-dark);
+    font-size: 21px;
+}
+.empty-thread h2 {
+    margin: 0;
+    color: var(--text-heading);
+    font-size: 18px;
+}
+.empty-thread p {
+    margin: var(--space-2) 0 var(--space-4);
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+}
+.thread-back {
+    display: none;
+}
 
-  @media (max-width: 720px) {
-    .messages-panel :deep(.page-header__right .p-button) { width: 100%; justify-content: center; }
-    .messages-layout { display: block; min-height: auto; overflow: hidden; box-shadow: var(--shadow-card); }
-    .conversation-sidebar { min-height: min(560px, calc(100dvh - 290px)); padding: var(--space-3); border-right: none; border-bottom: 0; }
-    .conversation-list { max-height: none; }
-    .messages-layout--conversation-selected .conversation-sidebar { display: none; }
-    .thread-panel { display: none; min-height: min(560px, calc(100dvh - 250px)); }
-    .messages-layout--conversation-selected .thread-panel { display: flex; }
-    .thread-header, .reply-form { padding-left: var(--space-3); padding-right: var(--space-3); }
-    .thread-header { flex-wrap: wrap; min-height: auto; padding-top: var(--space-2); }
-    .thread-back { display: inline-flex; width: 100%; align-items: center; gap: 6px; padding: 0 0 var(--space-2); border: 0; border-bottom: 1px solid var(--surface-border); background: transparent; color: var(--practiq-violet-dark); font-size: var(--text-xs); font-weight: 700; text-align: left; cursor: pointer; }
-    .message-list { padding: var(--space-3); }
-    .message-item { max-width: 88%; }
-    .reply-form { position: sticky; bottom: 0; background: var(--surface-card); }
-  }
+@media (max-width: 720px) {
+    .messages-panel :deep(.page-header__right .p-button) {
+        width: 100%;
+        justify-content: center;
+    }
+    .messages-layout {
+        display: block;
+        min-height: auto;
+        overflow: hidden;
+        box-shadow: var(--shadow-card);
+    }
+    .conversation-sidebar {
+        min-height: min(560px, calc(100dvh - 290px));
+        padding: var(--space-3);
+        border-right: none;
+        border-bottom: 0;
+    }
+    .conversation-list {
+        max-height: none;
+    }
+    .messages-layout--conversation-selected .conversation-sidebar {
+        display: none;
+    }
+    .thread-panel {
+        display: none;
+        min-height: min(560px, calc(100dvh - 250px));
+    }
+    .messages-layout--conversation-selected .thread-panel {
+        display: flex;
+    }
+    .thread-header,
+    .reply-form {
+        padding-left: var(--space-3);
+        padding-right: var(--space-3);
+    }
+    .thread-header {
+        flex-wrap: wrap;
+        min-height: auto;
+        padding-top: var(--space-2);
+    }
+    .thread-back {
+        display: inline-flex;
+        width: 100%;
+        align-items: center;
+        gap: 6px;
+        padding: 0 0 var(--space-2);
+        border: 0;
+        border-bottom: 1px solid var(--surface-border);
+        background: transparent;
+        color: var(--practiq-violet-dark);
+        font-size: var(--text-xs);
+        font-weight: 700;
+        text-align: left;
+        cursor: pointer;
+    }
+    .message-list {
+        padding: var(--space-3);
+    }
+    .message-item {
+        max-width: 88%;
+    }
+    .reply-form {
+        position: sticky;
+        bottom: 0;
+        background: var(--surface-card);
+    }
+}
 </style>
