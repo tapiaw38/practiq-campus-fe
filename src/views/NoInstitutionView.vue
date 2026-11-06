@@ -1,10 +1,20 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useTenant } from "@/composables/useTenant";
+import { useAuth } from "@/composables/useAuth";
+import Button from "primevue/button";
+import { useRouter } from "vue-router";
 
 const tenants = useTenant();
+const router = useRouter();
+const { logout } = useAuth();
 
 const hasNone = computed(() => tenants.tenants.length === 0);
+
+function handleLogout() {
+    logout();
+    router.replace("/login");
+}
 </script>
 
 <template>
@@ -24,6 +34,15 @@ const hasNone = computed(() => tenants.tenants.length === 0);
                 Si esperabas tener acceso, escribile a quien administra tu institución: el alta la
                 hacen ellos.
             </p>
+            <Button
+                v-if="hasNone"
+                label="Cerrar sesión"
+                icon="pi pi-sign-out"
+                severity="secondary"
+                outlined
+                class="logout-button"
+                @click="handleLogout"
+            />
         </div>
     </main>
 </template>
@@ -66,5 +85,9 @@ p {
     margin-bottom: 0;
     font-size: 0.88rem;
     color: var(--text-muted);
+}
+
+.logout-button {
+    margin-top: 1.5rem;
 }
 </style>
