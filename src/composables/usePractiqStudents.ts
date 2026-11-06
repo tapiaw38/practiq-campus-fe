@@ -6,19 +6,19 @@ import type { PractiqStudent } from "@/types";
 const profileService = new ProfileService(campusApi);
 
 export function usePractiqStudents() {
-  const practiqStudents = ref<PractiqStudent[]>([]);
-  const loading = ref(false);
+    const practiqStudents = ref<PractiqStudent[]>([]);
+    const loading = ref(false);
 
-  async function loadPractiqStudents() {
-    loading.value = true;
-    try {
-      const { data } = await profileService.listMyPractiqStudents();
-      practiqStudents.value = data;
-      return data;
-    } finally {
-      loading.value = false;
+    async function loadPractiqStudents() {
+        loading.value = true;
+        try {
+            const { data } = await profileService.listMyPractiqStudents();
+            practiqStudents.value = data;
+            return data;
+        } finally {
+            loading.value = false;
+        }
     }
-  }
 
-  return { practiqStudents, loading, loadPractiqStudents };
+    return { practiqStudents, loading, loadPractiqStudents };
 }
